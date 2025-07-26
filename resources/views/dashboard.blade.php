@@ -1,64 +1,64 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-7xl mx-auto py-10 px-2 sm:px-4" x-data="dashboardDemo()">
+<div class="w-full max-w-full sm:max-w-3xl md:max-w-5xl lg:max-w-7xl mx-auto py-4 px-2 sm:px-4" x-data="dashboardDemo()">
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         <!-- Total Inventory Value -->
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-6 flex flex-col items-start">
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
             <div class="mb-2">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-blue-200 text-blue-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-200 text-blue-700">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M3 7l9 5 9-5M3 7v10l9 5 9-5V7M12 12v10" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </span>
             </div>
-            <div class="text-gray-700 font-medium">Total Inventory Value</div>
-            <div class="text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.inventoryValue.toLocaleString()"></span></div>
+            <div class="text-gray-700 font-medium text-sm sm:text-base">Total Inventory Value</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.inventoryValue.toLocaleString()"></span></div>
         </div>
         <!-- Total Sales Today -->
-        <div class="bg-green-50 border border-green-100 rounded-lg p-6 flex flex-col items-start">
+        <div class="bg-green-50 border border-green-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
             <div class="mb-2">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-green-200 text-green-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-green-200 text-green-700">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <rect x="3" y="5" width="18" height="14" rx="2" ry="2" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M16 3v4M8 3v4M3 10h18M12 15a2 2 0 100-4 2 2 0 000 4z" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </span>
             </div>
-            <div class="text-gray-700 font-medium">Total Sales Today</div>
-            <div class="text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday.toLocaleString()"></span></div>
+            <div class="text-gray-700 font-medium text-sm sm:text-base">Total Sales Today</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday.toLocaleString()"></span></div>
         </div>
         <!-- Active Branches Today -->
-        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-6 flex flex-col items-start">
+        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
             <div class="mb-2">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-yellow-200 text-yellow-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-200 text-yellow-700">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M3 21h18M9 21V9h6v12M9 9V3h6v6" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M9 3L3 9v12h18V9l-6-6" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </span>
             </div>
-            <div class="text-gray-700 font-medium">Active Branches Today</div>
-            <div class="text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.activeBranches"></div>
+            <div class="text-gray-700 font-medium text-sm sm:text-base">Active Branches Today</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.activeBranches"></div>
         </div>
         <!-- Low Stock Alerts -->
-        <div class="bg-red-50 border border-red-100 rounded-lg p-6 flex flex-col items-start">
+        <div class="bg-red-50 border border-red-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
             <div class="mb-2">
-                <span class="inline-flex items-center justify-center w-10 h-10 rounded-full bg-red-200 text-red-700">
-                    <svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-red-200 text-red-700">
+                    <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke-linecap="round" stroke-linejoin="round"/>
                         <path d="M12 9v4m0 4h.01" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
                 </span>
             </div>
-            <div class="text-gray-700 font-medium">Low Stock Alerts</div>
-            <div class="text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.lowStockCount"></div>
+            <div class="text-gray-700 font-medium text-sm sm:text-base">Low Stock Alerts</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.lowStockCount"></div>
         </div>
     </div>
 
     <!-- Branch Performance Table -->
-    <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8 overflow-x-auto">
+    <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8 overflow-hidden">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
             <div class="text-xl font-bold text-gray-900">Branch Performance</div>
             <select x-model="branchTableFilter" class="border rounded px-2 py-1 text-sm w-full sm:w-auto">
@@ -67,9 +67,11 @@
                 <option value="month">This Month</option>
             </select>
         </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 text-sm">
-                <thead>
+
+        <!-- Scrollable container -->
+        <div class="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+            <table class="min-w-[600px] sm:min-w-full divide-y divide-gray-200 text-sm">
+                <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch Name</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sales</th>

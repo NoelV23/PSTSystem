@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class BranchController extends Controller
 {
@@ -12,27 +14,75 @@ class BranchController extends Controller
         return view('branches.index');
     }
 
-    public function show($id)
+    public function getAllBranches(): JsonResponse
     {
-        return Branch::findOrFail($id);
+        try {
+            $branches = Branch::orderBy('created_at', 'desc')->get();
+            return response()->json($branches);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to fetch branches'], 500);
+        }
     }
 
-    public function store(Request $request)
+    public function show($id): JsonResponse
     {
-        $branch = Branch::create($request->all());
-        return response()->json($branch, 201);
+        try {
+            $branch = Branch::findOrFail($id);
+            return response()->json($branch);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Branch not found'], 404);
+        }
     }
 
-    public function update(Request $request, $id)
+    public function store(Request $request): JsonResponse
     {
-        $branch = Branch::findOrFail($id);
-        $branch->update($request->all());
-        return response()->json($branch);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'location' => 'required|string|max:500',
+                'phone' => 'nullable|string|max:20',
+                'social_media' => 'nullable|string|max:255',
+                'status' => 'required|in:active,inactive',
+            ]);
+
+            $branch = Branch::create($validated);
+            return response()->json($branch, 201);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to create branch'], 500);
+        }
     }
 
-    public function destroy($id)
+    public function update(Request $request, $id): JsonResponse
     {
-        Branch::destroy($id);
-        return response()->json(null, 204);
+        try {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255',
+                'location' => 'required|string|max:500',
+                'phone' => 'nullable|string|max:20',
+                'social_media' => 'nullable|string|max:255',
+                'status' => 'required|in:active,inactive',
+            ]);
+
+            $branch = Branch::findOrFail($id);
+            $branch->update($validated);
+            return response()->json($branch);
+        } catch (ValidationException $e) {
+            return response()->json(['errors' => $e->errors()], 422);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to update branch'], 500);
+        }
+    }
+
+    public function destroy($id): JsonResponse
+    {
+        try {
+            $branch = Branch::findOrFail($id);
+            $branch->delete();
+            return response()->json(['message' => 'Branch deleted successfully'], 200);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to delete branch'], 500);
+        }
     }
 } 
