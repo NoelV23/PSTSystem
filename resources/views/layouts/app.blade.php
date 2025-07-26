@@ -14,15 +14,15 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-white min-h-screen flex flex-col">
+    <body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
         <x-navbar />
-        <div x-data="{ sidebarOpen: false }" class="flex flex-1 min-h-0">
+        <div x-data="{ sidebarOpen: true }" class="flex flex-1 min-h-0">
             <!-- Sidebar -->
             <div>
                 <x-sidebar x-model="sidebarOpen" />
             </div>
             <!-- Main Content -->
-            <main :class="sidebarOpen ? 'ml-52' : 'ml-16'" class="flex-1 p-2 transition-all duration-200">
+            <main :class="sidebarOpen ? 'ml-64' : 'ml-16'" class="flex-1 p-2 transition-all duration-200">
                 @yield('content')
             </main>
         </div>

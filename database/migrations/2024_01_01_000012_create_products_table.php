@@ -13,13 +13,14 @@ return new class extends Migration
             $table->string('name');
             $table->string('sku')->unique();
             $table->unsignedBigInteger('category_id');
-            $table->boolean('is_bundle')->default(false);
             $table->string('base_unit');
+            $table->boolean('is_set')->default(false);
+            $table->string('color')->nullable();
             $table->float('default_length')->nullable();
             $table->float('default_width')->nullable();
             $table->float('default_height')->nullable();
-            $table->decimal('price_per_unit', 12, 2)->nullable();
-            $table->decimal('price_per_piece', 12, 2)->nullable();
+            $table->decimal('price', 12, 2)->nullable();
+            $table->text('description')->nullable();
             $table->timestamps();
 
             $table->foreign('category_id')->references('id')->on('categories')->cascadeOnDelete();

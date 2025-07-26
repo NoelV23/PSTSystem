@@ -7,9 +7,16 @@ use Illuminate\Http\Request;
 
 class CategoryController extends Controller
 {
+    // API: Get all categories with product count
+    public function getAllWithCount()
+    {
+        $categories = Category::withCount('products')->orderBy('name')->get();
+        return response()->json($categories);
+    }
+
     public function index()
     {
-        return Category::all();
+        return view('products.categories');
     }
 
     public function show($id)
@@ -19,20 +26,29 @@ class CategoryController extends Controller
 
     public function store(Request $request)
     {
-        $category = Category::create($request->all());
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+        $category = Category::create($validated);
+        $category->loadCount('products');
         return response()->json($category, 201);
     }
 
     public function update(Request $request, $id)
     {
         $category = Category::findOrFail($id);
-        $category->update($request->all());
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+        ]);
+        $category->update($validated);
+        $category->loadCount('products');
         return response()->json($category);
     }
 
     public function destroy($id)
     {
-        Category::destroy($id);
-        return response()->json(null, 204);
+        $category = Category::findOrFail($id);
+        $category->delete();
+        return response()->json(['message' => 'Category deleted successfully']);
     }
 } 

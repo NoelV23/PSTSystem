@@ -13,13 +13,22 @@ class Product extends Model
         'name',
         'sku',
         'category_id',
-        'is_bundle',
         'base_unit',
+        'is_set',
+        'color',
         'default_length',
         'default_width',
         'default_height',
-        'price_per_unit',
-        'price_per_piece',
+        'price',
+        'description',
+    ];
+
+    protected $casts = [
+        'is_set' => 'boolean',
+        'price' => 'decimal:2',
+        'default_length' => 'decimal:2',
+        'default_width' => 'decimal:2',
+        'default_height' => 'decimal:2',
     ];
 
     public function category()
@@ -27,8 +36,15 @@ class Product extends Model
         return $this->belongsTo(Category::class);
     }
 
-    public function bundleComponents()
+    public function setComponents()
     {
         return $this->hasMany(BundleComponent::class, 'bundle_product_id');
+    }
+
+    public function componentProducts()
+    {
+        return $this->belongsToMany(Product::class, 'bundle_components', 'bundle_product_id', 'component_product_id')
+                    ->withPivot('quantity_required')
+                    ->withTimestamps();
     }
 } 

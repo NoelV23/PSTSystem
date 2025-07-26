@@ -1,4 +1,4 @@
-    <div x-data="{ open: false }" class="relative h-full">
+    <div x-data="{ open: true }" class="relative h-full">
         <!-- Burger button (modern SVG) -->
         <button 
             @click="open = !open; window.dispatchEvent(new CustomEvent('sidebar-toggled', { detail: open }));" 
@@ -85,8 +85,8 @@
                     </svg>
                 </a>
 
-                <!-- Reports -->
-                <a href="/reports" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('reports') ? 'bg-red-700' : '' }}">
+                <!-- Reports (disabled) -->
+                <!-- <a href="/reports" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('reports') ? 'bg-red-700' : '' }}">
                     <span class="flex items-center gap-3">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                             <path d="M9 17v-2a2 2 0 012-2h2a2 2 0 012 2v2m-6 4h6a2 2 0 002-2v-5a2 2 0 00-2-2h-6a2 2 0 00-2 2v5a2 2 0 002 2z" stroke-linecap="round" stroke-linejoin="round"/>
@@ -96,7 +96,21 @@
                     <svg x-show="open" class="h-4 w-4 text-white opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                         <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
+                </a> -->
+
+                <!-- Products -->
+                <a href="/products" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('products') ? 'bg-red-700' : '' }}">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 4v16m8-8H4" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span x-show="open">Products</span>
+                    </span>
+                    <svg x-show="open" class="h-4 w-4 text-white opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </a>
+
                 <!-- Branches (only admin can see)-->
                 @if(auth()->user()->role === 'admin')
                 <a href="/branches" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('branches') ? 'bg-red-700' : '' }}">
