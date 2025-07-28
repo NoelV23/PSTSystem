@@ -26,6 +26,10 @@ class ProductSeeder extends Seeder
         $this->generateGlassProducts(10);
         $this->generateAluminumProducts(10);
         $this->generateSetProducts(5);
+        
+        // Generate weight and volume based products
+        $this->generateWeightBasedProducts(5);
+        $this->generateVolumeBasedProducts(5);
     }
 
     /**
@@ -60,8 +64,26 @@ class ProductSeeder extends Seeder
      */
     private function generateSetProducts(int $count): void
     {
-        Product::factory($count)->isSet()->create();
+        Product::factory($count)->asSet()->create();
         $this->command->info("Generated {$count} set products");
+    }
+
+    /**
+     * Generate weight-based products (per kg)
+     */
+    private function generateWeightBasedProducts(int $count): void
+    {
+        Product::factory($count)->weightBased()->create();
+        $this->command->info("Generated {$count} weight-based products");
+    }
+
+    /**
+     * Generate volume-based products (per liter)
+     */
+    private function generateVolumeBasedProducts(int $count): void
+    {
+        Product::factory($count)->volumeBased()->create();
+        $this->command->info("Generated {$count} volume-based products");
     }
 
     /**
@@ -77,7 +99,13 @@ class ProductSeeder extends Seeder
                 Product::factory($count)->aluminum()->create();
                 break;
             case 'set':
-                Product::factory($count)->isSet()->create();
+                Product::factory($count)->asSet()->create();
+                break;
+            case 'weight':
+                Product::factory($count)->weightBased()->create();
+                break;
+            case 'volume':
+                Product::factory($count)->volumeBased()->create();
                 break;
             default:
                 Product::factory($count)->create();

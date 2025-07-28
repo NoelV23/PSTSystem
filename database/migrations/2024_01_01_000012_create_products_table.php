@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('base_unit');
             $table->boolean('is_set')->default(false);
             $table->string('color')->nullable();
+            $table->string('measurement_unit')->nullable(); // e.g., ft, m, kg
             $table->float('default_length')->nullable();
             $table->float('default_width')->nullable();
             $table->float('default_height')->nullable();

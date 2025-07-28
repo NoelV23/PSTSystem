@@ -46,10 +46,31 @@ class InventoryController extends Controller
             ->where('branch_id', $branchId)
             ->get();
             
+        $lowStockCount = 0;
+        $outOfStockCount = 0;
+        
+        foreach ($inventory as $item) {
+            $currentStock = 0;
+            $reorderLevel = $item->reorder_level ?? 0;
+            
+            // Calculate current stock based on product type
+            if ($item->product->base_unit === 'per pc') {
+                $currentStock = $item->available_pieces ?? 0;
+            } else {
+                $currentStock = $item->available_length ?? 0;
+            }
+            
+            if ($currentStock === 0) {
+                $outOfStockCount++;
+            } elseif ($currentStock <= $reorderLevel) {
+                $lowStockCount++;
+            }
+        }
+        
         $summary = [
             'total_products' => $inventory->count(),
-            'low_stock_count' => $inventory->where('current_stock', '<=', 10)->count(),
-            'out_of_stock_count' => $inventory->where('current_stock', 0)->count(),
+            'low_stock_count' => $lowStockCount,
+            'out_of_stock_count' => $outOfStockCount,
             'last_updated' => $inventory->max('updated_at') ? $inventory->max('updated_at')->format('M d, Y H:i') : 'Never',
         ];
         
@@ -61,10 +82,20 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'product_id' => 'required|exists:products,id',
-            'current_stock' => 'required|numeric|min:0',
-            'minimum_stock' => 'nullable|numeric|min:0',
-            'unit_price' => 'nullable|numeric|min:0',
+            'available_pieces' => 'nullable|numeric|min:0',
+            'available_length' => 'nullable|numeric|min:0',
+            'available_area' => 'nullable|numeric|min:0',
+            'reorder_level' => 'nullable|numeric|min:0',
         ]);
+
+        // Check if inventory already exists for this product and branch
+        $existingInventory = Inventory::where('product_id', $validated['product_id'])
+            ->where('branch_id', $validated['branch_id'])
+            ->first();
+
+        if ($existingInventory) {
+            return response()->json(['error' => 'Inventory already exists for this product in this branch'], 422);
+        }
 
         $inventory = Inventory::create($validated);
         $inventory->load(['product.category']);
@@ -77,9 +108,10 @@ class InventoryController extends Controller
         $inventory = Inventory::findOrFail($id);
         
         $validated = $request->validate([
-            'current_stock' => 'required|numeric|min:0',
-            'minimum_stock' => 'nullable|numeric|min:0',
-            'unit_price' => 'nullable|numeric|min:0',
+            'available_pieces' => 'nullable|numeric|min:0',
+            'available_length' => 'nullable|numeric|min:0',
+            'available_area' => 'nullable|numeric|min:0',
+            'reorder_level' => 'nullable|numeric|min:0',
         ]);
         
         $inventory->update($validated);
@@ -92,5 +124,12 @@ class InventoryController extends Controller
     {
         Inventory::destroy($id);
         return response()->json(['message' => 'Inventory item deleted successfully']);
+    }
+
+    // API: Get product details for inventory form
+    public function getProductDetails($productId)
+    {
+        $product = Product::with('category')->findOrFail($productId);
+        return response()->json($product);
     }
 } 

@@ -142,41 +142,54 @@
                         <option value="per ft">Per ft</option>
                         <option value="per sq ft">Per sq ft</option>
                         <option value="per set">Per set</option>
+                        <option value="per kg">Per kg</option>
+                        <option value="per liter">Per liter</option>
                     </select>
                     <div id="base_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
-                <div>
-                    <label for="productColor" class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                    <input type="text" id="productColor" name="color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                    <div id="colorError" class="text-red-500 text-sm mt-1 hidden"></div>
+                <!-- Measurement Unit Field (shown for non-ft/sq ft units) -->
+                <div id="measurementUnitSection" class="hidden">
+                    <label for="productMeasurementUnit" class="block text-sm font-medium text-gray-700 mb-1">Measurement Unit</label>
+                    <select id="productMeasurementUnit" name="measurement_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <option value="ft">Feet (ft)</option>
+                        <option value="m">Meters (m)</option>
+                        <option value="inch">Inches (in)</option>
+                    </select>
+                    <div id="measurement_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
-                <!-- Is Bundle Toggle -->
-                <div class="flex items-center">
-                    <input type="checkbox" id="isSet" name="is_set" class="mr-2">
-                    <label for="isSet" class="text-sm font-medium text-gray-700">Is Set</label>
-                </div>
-                <!-- Bundle Components Selector -->
+                <!-- Set Components Selector -->
                 <div id="setComponentsSection" class="hidden border rounded p-3 bg-gray-50">
                     <div class="mb-2 font-semibold text-gray-700">Set Components</div>
                     <div id="setComponentsList"></div>
                     <button type="button" id="addComponentBtn" class="mt-2 px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded">+ Add Component</button>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div>
-                        <label for="productLength" class="block text-sm font-medium text-gray-700 mb-1">Length(ft unit)</label>
-                        <input type="number" id="productLength" name="default_length" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="default_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
+                <!-- Measurement Section -->
+                <div id="measurementSection" class="hidden">
+                    <div class="mb-2">
+                        <p class="text-sm text-gray-600 italic">If product is sold per piece and cuttable, enter its measurement (e.g., length in ft, or weight in kg). Leave blank if not applicable.</p>
                     </div>
-                    <div>
-                        <label for="productWidth" class="block text-sm font-medium text-gray-700 mb-1">Width(sq ft unit)</label>
-                        <input type="number" id="productWidth" name="default_width" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="default_widthError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label for="productLength" class="block text-sm font-medium text-gray-700 mb-1">Length <span id="lengthUnit">(ft)</span></label>
+                            <input type="number" id="productLength" name="default_length" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <div id="default_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label for="productWidth" class="block text-sm font-medium text-gray-700 mb-1">Width <span id="widthUnit">(ft)</span></label>
+                            <input type="number" id="productWidth" name="default_width" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <div id="default_widthError" class="text-red-500 text-sm mt-1 hidden"></div>
+                        </div>
+                        <div>
+                            <label for="productHeight" class="block text-sm font-medium text-gray-700 mb-1">Height <span id="heightUnit">(ft)</span></label>
+                            <input type="number" id="productHeight" name="default_height" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <div id="default_heightError" class="text-red-500 text-sm mt-1 hidden"></div>
+                        </div>
                     </div>
-                    <div>
-                        <label for="productHeight" class="block text-sm font-medium text-gray-700 mb-1">Height(sq ft unit)</label>
-                        <input type="number" id="productHeight" name="default_height" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="default_heightError" class="text-red-500 text-sm mt-1 hidden"></div>
-                    </div>
+                </div>
+                <div>
+                    <label for="productColor" class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                    <input type="text" id="productColor" name="color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <div id="colorError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
                     <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
@@ -259,13 +272,17 @@ function setupEventListeners() {
         renderProducts();
     });
     
-    document.getElementById('isSet').addEventListener('change', function() {
-        if (this.checked) {
-            showSetComponentsSection();
-        } else {
-            document.getElementById('setComponentsSection').classList.add('hidden');
-        }
+    // Base unit change handler
+    document.getElementById('productBaseUnit').addEventListener('change', function() {
+        handleBaseUnitChange();
     });
+    
+    // Measurement unit change handler
+    document.getElementById('productMeasurementUnit').addEventListener('change', function() {
+        updateMeasurementLabels();
+    });
+    
+    // Add component button handler
     document.getElementById('addComponentBtn').addEventListener('click', function() {
         addSetComponent();
     });
@@ -328,10 +345,20 @@ async function loadProducts() {
 
 async function loadAllProductsForSet(currentId = null) {
     // Load all products for set component selection (exclude sets and self)
-    const response = await fetch('/api/products', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
+    try {
+        const response = await fetch('/api/products?per_page=1000', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
     if (!response.ok) return [];
-    const all = await response.json();
-    return all.filter(p => !p.is_set && (!currentId || p.id !== currentId));
+        const result = await response.json();
+        // Handle paginated response structure
+        const all = result.data || result;
+        console.log('Loaded products for set:', all.length, 'products');
+        const filtered = all.filter(p => p.base_unit !== 'per set' && (!currentId || p.id !== currentId));
+        console.log('Filtered products for set:', filtered.length, 'products');
+        return filtered;
+    } catch (error) {
+        console.error('Error loading products for set:', error);
+        return [];
+    }
 }
 
 function showSetComponentsSection() {
@@ -350,9 +377,15 @@ function showSetComponentsSection() {
 function renderSetComponents() {
     const listDiv = document.getElementById('setComponentsList');
     if (allProducts.length === 0) {
-        listDiv.innerHTML = '<div class="text-gray-500">No eligible products available.</div>';
+        listDiv.innerHTML = '<div class="text-gray-500">Loading products...</div>';
         return;
     }
+    
+    if (setComponents.length === 0) {
+        listDiv.innerHTML = '<div class="text-gray-500">No components added yet. Click "Add Component" to start.</div>';
+        return;
+    }
+    
     listDiv.innerHTML = setComponents.map((comp, idx) => {
         // Exclude already selected products from dropdown (except this row)
         const usedIds = setComponents.map((c, i) => i !== idx ? c.product_id : null).filter(Boolean);
@@ -388,6 +421,65 @@ function renderSetComponents() {
 function addSetComponent() {
     setComponents.push({ product_id: '', quantity: 1 });
     renderSetComponents();
+}
+
+function handleBaseUnitChange() {
+    const baseUnit = document.getElementById('productBaseUnit').value;
+    const measurementSection = document.getElementById('measurementSection');
+    const measurementUnitSection = document.getElementById('measurementUnitSection');
+    const setComponentsSection = document.getElementById('setComponentsSection');
+    
+    // Hide all sections initially
+    measurementSection.classList.add('hidden');
+    measurementUnitSection.classList.add('hidden');
+    setComponentsSection.classList.add('hidden');
+    
+    if (baseUnit === 'per pc') {
+        // Show measurement section for per pc products
+        measurementSection.classList.remove('hidden');
+        measurementUnitSection.classList.remove('hidden');
+        updateMeasurementLabels();
+    } else if (baseUnit === 'per kg' || baseUnit === 'per liter') {
+        // Show measurement unit section for weight/volume products
+        measurementUnitSection.classList.remove('hidden');
+        updateMeasurementLabels();
+    } else if (baseUnit === 'per set') {
+        // Show set components section for 'per set' products
+        console.log('Showing set components section');
+        setComponentsSection.classList.remove('hidden');
+        // Load all products for dropdown
+        if (allProducts.length === 0) {
+            console.log('Loading products for set components...');
+            loadAllProductsForSet(currentProductId).then(productsList => {
+                allProducts = productsList;
+                console.log('Products loaded for set components:', allProducts.length);
+                renderSetComponents();
+            });
+        } else {
+            console.log('Using existing products for set components:', allProducts.length);
+            renderSetComponents();
+        }
+    }
+    // For 'per ft', 'per sq ft' - no measurement fields shown
+}
+
+function updateMeasurementLabels() {
+    const measurementUnit = document.getElementById('productMeasurementUnit').value;
+    const baseUnit = document.getElementById('productBaseUnit').value;
+    
+    let unitLabel = measurementUnit;
+    if (baseUnit === 'per kg') {
+        unitLabel = measurementUnit === 'kg' ? '(kg)' : '(g)';
+    } else if (baseUnit === 'per liter') {
+        unitLabel = measurementUnit === 'liter' ? '(L)' : '(ml)';
+    } else {
+        unitLabel = `(${measurementUnit})`;
+    }
+    
+    // Update all measurement field labels
+    document.getElementById('lengthUnit').textContent = unitLabel;
+    document.getElementById('widthUnit').textContent = unitLabel;
+    document.getElementById('heightUnit').textContent = unitLabel;
 }
 
 window.removeComponent = function(idx) {
@@ -446,8 +538,8 @@ function goToPage(page) {
 }
 
 function createProductRow(product) {
-    const setBadge = product.is_set ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Set</span>' : '';
-    const setComponents = product.is_set && product.set_components ? 
+    const setBadge = product.base_unit === 'per set' ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Set</span>' : '';
+    const setComponents = product.base_unit === 'per set' && product.set_components ? 
         product.set_components.map(comp => `${comp.component_product.name} (${comp.quantity_required})`).join(', ') : '';
     
     return `
@@ -459,9 +551,9 @@ function createProductRow(product) {
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.sku || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.category?.name || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.base_unit || '-')}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${product.default_length || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${product.default_width || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${product.default_length || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${product.default_width || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.price ? `$${product.price}` : '-'}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.color || '-')}</td>
             <td class="px-6 py-4 text-right">
@@ -482,8 +574,8 @@ function openAddModal() {
     document.getElementById('productForm').reset();
     clearFormErrors();
     productModal.classList.remove('hidden');
-    document.getElementById('isSet').checked = false;
-    document.getElementById('setComponentsSection').classList.add('hidden');
+    document.getElementById('productBaseUnit').value = 'per pc'; // Default to per pc for new products
+    handleBaseUnitChange();
 }
 
 function openEditModal(product) {
@@ -498,23 +590,21 @@ function openEditModal(product) {
     document.getElementById('productCategory').value = product.category_id || '';
     document.getElementById('productBaseUnit').value = product.base_unit || '';
     document.getElementById('productColor').value = product.color || '';
+    document.getElementById('productMeasurementUnit').value = product.measurement_unit || 'ft';
     document.getElementById('productLength').value = product.default_length || '';
     document.getElementById('productWidth').value = product.default_width || '';
     document.getElementById('productHeight').value = product.default_height || '';
     document.getElementById('productPrice').value = product.price || '';
     document.getElementById('productDescription').value = product.description || '';
-    document.getElementById('isSet').checked = product.is_set || false;
-    if (product.is_set) {
-        document.getElementById('setComponentsSection').classList.remove('hidden');
-        // Load all products and then load set components via AJAX
-        loadAllProductsForSet(product.id).then(productsList => {
-            allProducts = productsList;
-            // Load existing set components
-            loadSetComponents(product.id);
-        });
-    } else {
-        document.getElementById('setComponentsSection').classList.add('hidden');
+    
+    // Handle base unit change and measurement fields
+    handleBaseUnitChange();
+    
+    if (product.base_unit === 'per set') {
+        // Load existing set components
+        loadSetComponents(product.id);
     }
+    
     clearFormErrors();
     productModal.classList.remove('hidden');
 }
@@ -548,12 +638,15 @@ async function handleFormSubmit(e) {
     const data = Object.fromEntries(formData.entries());
     clearFormErrors();
     data.base_unit = document.getElementById('productBaseUnit').value;
-    data.is_set = document.getElementById('isSet').checked;
-    if (data.is_set) {
+    data.measurement_unit = document.getElementById('productMeasurementUnit').value;
+    
+    // Handle components for 'per set' products
+    if (data.base_unit === 'per set') {
         data.components = setComponents.filter(c => c.product_id && c.quantity > 0);
     } else {
         data.components = [];
     }
+    
     try {
         let url, method;
         if (isEditMode && currentProductId) {
