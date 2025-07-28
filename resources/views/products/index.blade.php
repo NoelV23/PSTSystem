@@ -347,13 +347,17 @@ async function loadAllProductsForSet(currentId = null) {
     // Load all products for set component selection (exclude sets and self)
     try {
         const response = await fetch('/api/products?per_page=1000', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
-    if (!response.ok) return [];
+        if (!response.ok) return [];
         const result = await response.json();
         // Handle paginated response structure
         const all = result.data || result;
         console.log('Loaded products for set:', all.length, 'products');
         const filtered = all.filter(p => p.base_unit !== 'per set' && (!currentId || p.id !== currentId));
         console.log('Filtered products for set:', filtered.length, 'products');
+        
+        // Sort products alphabetically by name
+        filtered.sort((a, b) => a.name.localeCompare(b.name));
+        
         return filtered;
     } catch (error) {
         console.error('Error loading products for set:', error);
@@ -387,34 +391,140 @@ function renderSetComponents() {
     }
     
     listDiv.innerHTML = setComponents.map((comp, idx) => {
-        // Exclude already selected products from dropdown (except this row)
-        const usedIds = setComponents.map((c, i) => i !== idx ? c.product_id : null).filter(Boolean);
-        const options = allProducts
-            .filter(p => !usedIds.includes(String(p.id)))
-            .map(p => `<option value="${p.id}" ${String(comp.product_id) === String(p.id) ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(p.sku)})</option>`)
-            .join('');
+        // Get selected product name for display
+        const selectedProduct = allProducts.find(p => String(p.id) === String(comp.product_id));
+        const selectedProductName = selectedProduct ? `${selectedProduct.name} (${selectedProduct.sku || 'No SKU'})` : '';
+        
         return `
-            <div class="flex items-center gap-2 mb-2">
-                <select class="component-product px-2 py-1 border rounded" data-idx="${idx}">
-                    <option value="">Select product</option>
-                    ${options}
-                </select>
-                <input type="number" min="1" class="component-qty px-2 py-1 border rounded w-20" data-idx="${idx}" value="${comp.quantity}" placeholder="Qty">
-                <button type="button" onclick="removeComponent(${idx})" class="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
+            <div class="flex items-center gap-2 mb-2 p-3 border rounded bg-white">
+                <div class="flex-1 relative">
+                    <input type="text" 
+                           class="component-product-search w-full px-2 py-1 border rounded text-sm" 
+                           data-idx="${idx}" 
+                           placeholder="Type product name or SKU to search..." 
+                           value="${escapeHtml(selectedProductName)}">
+                    <input type="hidden" class="component-product-id" data-idx="${idx}" value="${comp.product_id || ''}">
+                    <div class="component-dropdown absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden">
+                        <!-- Product options will be populated here -->
+                    </div>
+                </div>
+                <input type="number" min="1" class="component-qty px-2 py-1 border rounded w-20 text-sm" data-idx="${idx}" value="${comp.quantity}" placeholder="Qty">
+                <button type="button" onclick="removeComponent(${idx})" class="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1">Remove</button>
             </div>
         `;
     }).join('');
-    // Attach change listeners
-    listDiv.querySelectorAll('.component-product').forEach(sel => {
-        sel.addEventListener('change', function() {
-            setComponents[this.dataset.idx].product_id = this.value;
-            renderSetComponents();
+    // Attach event listeners for searchable dropdowns
+    listDiv.querySelectorAll('.component-product-search').forEach((searchInput, index) => {
+        const idx = searchInput.dataset.idx;
+        
+        // Search input handler
+        searchInput.addEventListener('input', function() {
+            handleComponentSearch(idx);
+        });
+        
+        // Focus/blur handlers
+        searchInput.addEventListener('focus', function() {
+            showComponentDropdown(idx);
+        });
+        
+        searchInput.addEventListener('blur', function() {
+            setTimeout(() => {
+                hideComponentDropdown(idx);
+            }, 200);
         });
     });
+    
+    // Quantity input handlers
     listDiv.querySelectorAll('.component-qty').forEach(input => {
         input.addEventListener('input', function() {
             setComponents[this.dataset.idx].quantity = this.value;
         });
+    });
+    
+    // Handle clicks outside dropdowns
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.component-product-search') && !e.target.closest('.component-dropdown')) {
+            hideAllComponentDropdowns();
+        }
+    });
+}
+
+function handleComponentSearch(idx) {
+    const searchInput = document.querySelector(`.component-product-search[data-idx="${idx}"]`);
+    const dropdown = document.querySelector(`.component-product-search[data-idx="${idx}"]`).nextElementSibling.nextElementSibling;
+    const searchTerm = searchInput.value.toLowerCase();
+    
+    // Get used product IDs (excluding current row)
+    const usedIds = setComponents.map((c, i) => i !== parseInt(idx) ? c.product_id : null).filter(Boolean);
+    
+    // Filter products
+    const filteredProducts = allProducts.filter(product => 
+        !usedIds.includes(String(product.id)) &&
+        (product.name.toLowerCase().includes(searchTerm) || 
+         (product.sku && product.sku.toLowerCase().includes(searchTerm)))
+    );
+    
+    populateComponentDropdown(idx, filteredProducts);
+    showComponentDropdown(idx);
+}
+
+function populateComponentDropdown(idx, productsToShow) {
+    const dropdown = document.querySelector(`.component-product-search[data-idx="${idx}"]`).nextElementSibling.nextElementSibling;
+    
+    if (productsToShow.length === 0) {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+        return;
+    }
+    
+    // Sort products alphabetically by name
+    productsToShow.sort((a, b) => a.name.localeCompare(b.name));
+    
+    dropdown.innerHTML = productsToShow.map(product => `
+        <div class="component-option px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0 text-sm" 
+             data-product-id="${product.id}" 
+             data-product-name="${escapeHtml(product.name)}" 
+             data-product-sku="${escapeHtml(product.sku || '')}">
+            <div class="font-medium">${escapeHtml(product.name)}</div>
+            <div class="text-xs text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
+        </div>
+    `).join('');
+    
+    // Add click handlers to options
+    dropdown.querySelectorAll('.component-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
+            const productSku = this.dataset.productSku;
+            
+            // Update the component
+            setComponents[idx].product_id = productId;
+            
+            // Update the search input
+            const searchInput = document.querySelector(`.component-product-search[data-idx="${idx}"]`);
+            const productIdInput = document.querySelector(`.component-product-id[data-idx="${idx}"]`);
+            searchInput.value = `${productName} (${productSku})`;
+            productIdInput.value = productId;
+            
+            hideComponentDropdown(idx);
+        });
+    });
+}
+
+function showComponentDropdown(idx) {
+    const dropdown = document.querySelector(`.component-product-search[data-idx="${idx}"]`).nextElementSibling.nextElementSibling;
+    if (dropdown.children.length > 0) {
+        dropdown.classList.remove('hidden');
+    }
+}
+
+function hideComponentDropdown(idx) {
+    const dropdown = document.querySelector(`.component-product-search[data-idx="${idx}"]`).nextElementSibling.nextElementSibling;
+    dropdown.classList.add('hidden');
+}
+
+function hideAllComponentDropdowns() {
+    document.querySelectorAll('.component-dropdown').forEach(dropdown => {
+        dropdown.classList.add('hidden');
     });
 }
 
@@ -554,7 +664,7 @@ function createProductRow(product) {
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_length || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_width || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${product.price ? `$${product.price}` : '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${product.price ? `₱${product.price}` : '-'}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.color || '-')}</td>
             <td class="px-6 py-4 text-right">
                 <button onclick="editProduct(${product.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
@@ -573,6 +683,7 @@ function openAddModal() {
     document.getElementById('submitBtn').textContent = 'Save Product';
     document.getElementById('productForm').reset();
     clearFormErrors();
+    hideAllComponentDropdowns();
     productModal.classList.remove('hidden');
     document.getElementById('productBaseUnit').value = 'per pc'; // Default to per pc for new products
     handleBaseUnitChange();
@@ -606,6 +717,7 @@ function openEditModal(product) {
     }
     
     clearFormErrors();
+    hideAllComponentDropdowns();
     productModal.classList.remove('hidden');
 }
 

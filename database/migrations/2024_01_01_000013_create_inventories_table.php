@@ -13,7 +13,6 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('branch_id');
             $table->decimal('available_stock', 10, 2)->nullable();
-            $table->integer('available_pieces')->nullable();
             $table->float('available_length')->nullable();
             $table->float('available_area')->nullable();
             $table->integer('reorder_level')->nullable();

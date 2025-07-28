@@ -16,6 +16,11 @@ class PurchaseItem extends Model
         'cost_price',
     ];
 
+    protected $casts = [
+        'quantity' => 'float',
+        'cost_price' => 'decimal:2',
+    ];
+
     public function purchaseOrder()
     {
         return $this->belongsTo(PurchaseOrder::class);
@@ -24,5 +29,10 @@ class PurchaseItem extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function getSubtotalAttribute()
+    {
+        return $this->quantity * $this->cost_price;
     }
 } 

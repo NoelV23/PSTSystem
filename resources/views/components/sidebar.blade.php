@@ -71,6 +71,19 @@
                     </svg>
                 </a>
 
+                <!-- Purchases -->
+                <a href="/purchases" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('purchases') ? 'bg-red-700' : '' }}">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 8c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3zm0 0V4m0 7v7m-7-7h14" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span x-show="open">Purchases</span>
+                    </span>
+                    <svg x-show="open" class="h-4 w-4 text-white opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+
                 <!-- Inventory -->
                 <a href="/inventory" class="flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('inventory') ? 'bg-red-700' : '' }}">
                     <span class="flex items-center gap-3">
