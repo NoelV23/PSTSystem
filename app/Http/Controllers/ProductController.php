@@ -41,7 +41,7 @@ class ProductController extends Controller
         
         // Load set components for set products
         foreach ($products as $product) {
-            if ($product->is_set) {
+            if ($product->base_unit === 'per set') {
                 $product->load(['setComponents.componentProduct:id,name,sku']);
             }
         }
@@ -53,7 +53,7 @@ class ProductController extends Controller
     {
         $product = Product::with('category:id,name')->findOrFail($id);
         
-        if ($product->is_set) {
+        if ($product->base_unit === 'per set') {
             $product->load(['setComponents.componentProduct:id,name,sku']);
         }
         
@@ -67,8 +67,8 @@ class ProductController extends Controller
             'sku' => 'nullable|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'base_unit' => 'required|string|max:20',
-            'is_set' => 'boolean',
             'color' => 'nullable|string|max:255',
+            'measurement_unit' => 'nullable|string|max:10',
             'default_length' => 'nullable|numeric',
             'default_width' => 'nullable|numeric',
             'default_height' => 'nullable|numeric',
@@ -84,7 +84,7 @@ class ProductController extends Controller
             $product = Product::create($validated);
             
             // Handle set components
-            if ($validated['is_set'] && isset($validated['components'])) {
+            if ($validated['base_unit'] === 'per set' && isset($validated['components'])) {
                 foreach ($validated['components'] as $component) {
                     BundleComponent::create([
                         'bundle_product_id' => $product->id,
@@ -97,7 +97,7 @@ class ProductController extends Controller
             DB::commit();
             
             $product->load('category:id,name');
-            if ($product->is_set) {
+            if ($product->base_unit === 'per set') {
                 $product->load(['setComponents.componentProduct:id,name,sku']);
             }
             
@@ -117,8 +117,8 @@ class ProductController extends Controller
             'sku' => 'nullable|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'base_unit' => 'required|string|max:20',
-            'is_set' => 'boolean',
             'color' => 'nullable|string|max:255',
+            'measurement_unit' => 'nullable|string|max:10',
             'default_length' => 'nullable|numeric',
             'default_width' => 'nullable|numeric',
             'default_height' => 'nullable|numeric',
@@ -134,7 +134,7 @@ class ProductController extends Controller
             $product->update($validated);
             
             // Handle set components
-            if ($validated['is_set'] && isset($validated['components'])) {
+            if ($validated['base_unit'] === 'per set' && isset($validated['components'])) {
                 // Delete existing components
                 $product->setComponents()->delete();
                 
@@ -154,7 +154,7 @@ class ProductController extends Controller
             DB::commit();
             
             $product->load('category:id,name');
-            if ($product->is_set) {
+            if ($product->base_unit === 'per set') {
                 $product->load(['setComponents.componentProduct:id,name,sku']);
             }
             
@@ -190,7 +190,7 @@ class ProductController extends Controller
     {
         $product = Product::findOrFail($id);
         
-        if (!$product->is_set) {
+        if ($product->base_unit !== 'per set') {
             return response()->json(['error' => 'Product is not a set'], 400);
         }
         

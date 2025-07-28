@@ -18,6 +18,13 @@ class Inventory extends Model
         'reorder_level',
     ];
 
+    protected $casts = [
+        'available_pieces' => 'integer',
+        'available_length' => 'decimal:2',
+        'available_area' => 'decimal:2',
+        'reorder_level' => 'integer',
+    ];
+
     public function product()
     {
         return $this->belongsTo(Product::class);

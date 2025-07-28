@@ -34,7 +34,7 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     <!-- Branch Switcher -->
-                    <select id="branchSwitcher" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                    <select id="branchSwitcher" class="px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
                         @foreach(\App\Models\Branch::where('status', 'active')->get() as $b)
                         <option value="{{ $b->id }}" {{ $b->id == $branch->id ? 'selected' : '' }}>{{ $b->name }}</option>
                         @endforeach
@@ -116,9 +116,10 @@
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Current Stock</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Min Stock</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Base Unit</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -148,7 +149,7 @@
 
 <!-- Add/Edit Inventory Modal -->
 <div id="inventoryModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
         <div class="mt-3">
             <div class="flex justify-between items-center mb-4">
                 <h3 id="modalTitle" class="text-lg font-medium text-gray-900">Add Inventory Item</h3>
@@ -170,22 +171,59 @@
                     <div id="product_idError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
+                <!-- Product Info Display -->
+                <div id="productInfo" class="hidden bg-gray-50 p-3 rounded-lg">
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span class="font-medium text-gray-700">Base Unit:</span>
+                            <span id="productBaseUnit" class="ml-2 text-gray-600"></span>
+                        </div>
                 <div>
-                    <label for="currentStock" class="block text-sm font-medium text-gray-700 mb-1">Current Stock *</label>
-                    <input type="number" id="currentStock" name="current_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                    <div id="current_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
+                            <span class="font-medium text-gray-700">Category:</span>
+                            <span id="productCategory" class="ml-2 text-gray-600"></span>
+                        </div>
+                        <div id="productMeasurement" class="hidden">
+                            <span class="font-medium text-gray-700">Measurement:</span>
+                            <span id="productMeasurementUnit" class="ml-2 text-gray-600"></span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Stock Input Fields -->
+                <div id="stockInputs" class="space-y-4">
+                    <!-- Available Pieces (for per pc products) -->
+                    <div id="availablePiecesSection" class="hidden">
+                        <label for="availablePieces" class="block text-sm font-medium text-gray-700 mb-1">Available Pieces *</label>
+                        <input type="number" id="availablePieces" name="available_pieces" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="available_piecesError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                    
+                    <!-- Available Length (for per ft products) -->
+                    <div id="availableLengthSection" class="hidden">
+                        <label for="availableLength" class="block text-sm font-medium text-gray-700 mb-1">Available Length (ft) *</label>
+                        <input type="number" id="availableLength" name="available_length" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="available_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                    
+                    <!-- Available Area (for per sq ft products) -->
+                    <div id="availableAreaSection" class="hidden">
+                        <label for="availableArea" class="block text-sm font-medium text-gray-700 mb-1">Available Area (sq ft) *</label>
+                        <input type="number" id="availableArea" name="available_area" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="available_areaError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                    
+                    <!-- Available Weight/Volume (for per kg/liter products) -->
+                    <div id="availableWeightSection" class="hidden">
+                        <label for="availableWeight" class="block text-sm font-medium text-gray-700 mb-1">Available <span id="weightUnit">Weight</span> *</label>
+                        <input type="number" id="availableWeight" name="available_weight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="available_weightError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
                 </div>
                 
                 <div>
-                    <label for="minimumStock" class="block text-sm font-medium text-gray-700 mb-1">Minimum Stock</label>
-                    <input type="number" id="minimumStock" name="minimum_stock" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                    <div id="minimum_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
-                </div>
-                
-                <div>
-                    <label for="unitPrice" class="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
-                    <input type="number" id="unitPrice" name="unit_price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                    <div id="unit_priceError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    <label for="reorderLevel" class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
+                    <input type="number" id="reorderLevel" name="reorder_level" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <div id="reorder_levelError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
                 <div class="flex justify-end space-x-3 pt-4">
@@ -253,6 +291,9 @@ function setupEventListeners() {
             window.location.href = `/inventory/${selectedBranchId}`;
         }
     });
+    
+    // Product selection handler
+    document.getElementById('productSelect').addEventListener('change', handleProductSelection);
 }
 
 async function loadProducts() {
@@ -338,27 +379,49 @@ function renderInventory() {
         
         let matchesStock = true;
         if (stockFilter === 'low') {
-            matchesStock = item.current_stock <= (item.minimum_stock || 10);
+            matchesStock = getStockStatus(item) === 'Low Stock';
         } else if (stockFilter === 'out') {
-            matchesStock = item.current_stock === 0;
+            matchesStock = getStockStatus(item) === 'Out of Stock';
         } else if (stockFilter === 'normal') {
-            matchesStock = item.current_stock > (item.minimum_stock || 10);
+            matchesStock = getStockStatus(item) === 'In Stock';
         }
         
         return matchesSearch && matchesCategory && matchesStock;
     });
     
     if (filtered.length === 0) {
-        inventoryTbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-500">No inventory items found.</td></tr>';
+        inventoryTbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">No inventory items found.</td></tr>';
     } else {
         inventoryTbody.innerHTML = filtered.map(item => createInventoryRow(item)).join('');
     }
 }
 
 function createInventoryRow(item) {
-    const stockStatus = getStockStatus(item.current_stock, item.minimum_stock);
+    const stockStatus = getStockStatus(item);
     const statusClass = stockStatus === 'Low Stock' ? 'text-yellow-600' : 
                        stockStatus === 'Out of Stock' ? 'text-red-600' : 'text-green-600';
+    
+    // Format available stock based on product type
+    let availableStock = '-';
+    if (item.product.base_unit === 'per pc') {
+        availableStock = item.available_pieces ? `${item.available_pieces} pieces` : '-';
+    } else if (item.product.base_unit === 'per ft') {
+        availableStock = item.available_length ? `${item.available_length} ft` : '-';
+    } else if (item.product.base_unit === 'per sq ft') {
+        availableStock = item.available_area ? `${item.available_area} sq ft` : '-';
+    } else if (item.product.base_unit === 'per kg') {
+        availableStock = item.available_length ? `${item.available_length} kg` : '-';
+    } else if (item.product.base_unit === 'per liter') {
+        availableStock = item.available_length ? `${item.available_length} L` : '-';
+    }
+    
+    // Format remainders (for cuttable products)
+    let remainders = '-';
+    if (item.product.base_unit === 'per pc' && item.available_length) {
+        remainders = `${item.available_length} ft remaining`;
+    } else if (item.product.base_unit === 'per ft' && item.available_area) {
+        remainders = `${item.available_area} sq ft remaining`;
+    }
     
     return `
         <tr class="bg-white border-b hover:bg-gray-50">
@@ -367,9 +430,10 @@ function createInventoryRow(item) {
                 <br><small class="text-gray-500">${escapeHtml(item.product.sku || 'No SKU')}</small>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.category?.name || '-')}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${item.current_stock}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${item.minimum_stock || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${item.unit_price ? `$${item.unit_price}` : '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.base_unit || '-')}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${availableStock}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${remainders}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
                 <button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
@@ -379,10 +443,99 @@ function createInventoryRow(item) {
     `;
 }
 
-function getStockStatus(currentStock, minimumStock) {
+function getStockStatus(item) {
+    let currentStock = 0;
+    let reorderLevel = item.reorder_level || 0;
+    
+    // Calculate current stock based on product type
+    if (item.product.base_unit === 'per pc') {
+        currentStock = item.available_pieces || 0;
+    } else if (item.product.base_unit === 'per ft') {
+        currentStock = item.available_length || 0;
+    } else if (item.product.base_unit === 'per sq ft') {
+        currentStock = item.available_area || 0;
+    } else if (item.product.base_unit === 'per kg' || item.product.base_unit === 'per liter') {
+        currentStock = item.available_length || 0;
+    }
+    
     if (currentStock === 0) return 'Out of Stock';
-    if (currentStock <= (minimumStock || 10)) return 'Low Stock';
+    if (currentStock <= reorderLevel) return 'Low Stock';
     return 'In Stock';
+}
+
+async function handleProductSelection() {
+    const productId = document.getElementById('productSelect').value;
+    const productInfo = document.getElementById('productInfo');
+    const stockInputs = document.getElementById('stockInputs');
+    
+    if (!productId) {
+        productInfo.classList.add('hidden');
+        stockInputs.classList.add('hidden');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/inventory/product/${productId}`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error('Failed to load product details');
+        const product = await response.json();
+        
+        // Display product info
+        document.getElementById('productBaseUnit').textContent = product.base_unit || '-';
+        document.getElementById('productCategory').textContent = product.category?.name || '-';
+        
+        if (product.measurement_unit) {
+            document.getElementById('productMeasurementUnit').textContent = product.measurement_unit;
+            document.getElementById('productMeasurement').classList.remove('hidden');
+        } else {
+            document.getElementById('productMeasurement').classList.add('hidden');
+        }
+        
+        productInfo.classList.remove('hidden');
+        
+        // Show appropriate stock input fields based on product type
+        hideAllStockSections();
+        
+        if (product.base_unit === 'per pc') {
+            document.getElementById('availablePiecesSection').classList.remove('hidden');
+            document.getElementById('availablePieces').required = true;
+        } else if (product.base_unit === 'per ft') {
+            document.getElementById('availableLengthSection').classList.remove('hidden');
+            document.getElementById('availableLength').required = true;
+        } else if (product.base_unit === 'per sq ft') {
+            document.getElementById('availableAreaSection').classList.remove('hidden');
+            document.getElementById('availableArea').required = true;
+        } else if (product.base_unit === 'per kg') {
+            document.getElementById('availableWeightSection').classList.remove('hidden');
+            document.getElementById('weightUnit').textContent = 'Weight (kg)';
+            document.getElementById('availableWeight').name = 'available_length';
+            document.getElementById('availableWeight').required = true;
+        } else if (product.base_unit === 'per liter') {
+            document.getElementById('availableWeightSection').classList.remove('hidden');
+            document.getElementById('weightUnit').textContent = 'Volume (L)';
+            document.getElementById('availableWeight').name = 'available_length';
+            document.getElementById('availableWeight').required = true;
+        }
+        
+        stockInputs.classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading product details:', error);
+        showToast('Failed to load product details', 'error');
+    }
+}
+
+function hideAllStockSections() {
+    document.getElementById('availablePiecesSection').classList.add('hidden');
+    document.getElementById('availableLengthSection').classList.add('hidden');
+    document.getElementById('availableAreaSection').classList.add('hidden');
+    document.getElementById('availableWeightSection').classList.add('hidden');
+    
+    // Remove required attributes
+    document.getElementById('availablePieces').required = false;
+    document.getElementById('availableLength').required = false;
+    document.getElementById('availableArea').required = false;
+    document.getElementById('availableWeight').required = false;
 }
 
 function openAddModal() {
@@ -392,6 +545,9 @@ function openAddModal() {
     document.getElementById('submitBtn').textContent = 'Save Item';
     document.getElementById('inventoryForm').reset();
     clearFormErrors();
+    hideAllStockSections();
+    document.getElementById('productInfo').classList.add('hidden');
+    document.getElementById('stockInputs').classList.add('hidden');
     inventoryModal.classList.remove('hidden');
 }
 
@@ -401,9 +557,21 @@ function openEditModal(inventoryItem) {
     document.getElementById('modalTitle').textContent = 'Edit Inventory Item';
     document.getElementById('submitBtn').textContent = 'Update Item';
     document.getElementById('productSelect').value = inventoryItem.product_id;
-    document.getElementById('currentStock').value = inventoryItem.current_stock;
-    document.getElementById('minimumStock').value = inventoryItem.minimum_stock || '';
-    document.getElementById('unitPrice').value = inventoryItem.unit_price || '';
+    document.getElementById('reorderLevel').value = inventoryItem.reorder_level || '';
+    
+    // Set values based on product type
+    if (inventoryItem.product.base_unit === 'per pc') {
+        document.getElementById('availablePieces').value = inventoryItem.available_pieces || '';
+    } else if (inventoryItem.product.base_unit === 'per ft') {
+        document.getElementById('availableLength').value = inventoryItem.available_length || '';
+    } else if (inventoryItem.product.base_unit === 'per sq ft') {
+        document.getElementById('availableArea').value = inventoryItem.available_area || '';
+    } else if (inventoryItem.product.base_unit === 'per kg' || inventoryItem.product.base_unit === 'per liter') {
+        document.getElementById('availableWeight').value = inventoryItem.available_length || '';
+    }
+    
+    // Trigger product selection to show correct fields
+    handleProductSelection();
     clearFormErrors();
     inventoryModal.classList.remove('hidden');
 }
@@ -419,7 +587,38 @@ async function handleFormSubmit(e) {
     const data = Object.fromEntries(formData.entries());
     clearFormErrors();
     
+    // Get the selected product to determine which fields to include
+    const productId = data.product_id;
+    if (!productId) {
+        showToast('Please select a product', 'error');
+        return;
+    }
+    
     try {
+        // Get product details to determine field structure
+        const productResponse = await fetch(`/api/inventory/product/${productId}`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        });
+        const product = await productResponse.json();
+        
+        // Prepare data based on product type
+        const inventoryData = {
+            branch_id: data.branch_id,
+            product_id: data.product_id,
+            reorder_level: data.reorder_level || null
+        };
+        
+        // Add appropriate stock fields based on product type
+        if (product.base_unit === 'per pc') {
+            inventoryData.available_pieces = data.available_pieces || null;
+        } else if (product.base_unit === 'per ft') {
+            inventoryData.available_length = data.available_length || null;
+        } else if (product.base_unit === 'per sq ft') {
+            inventoryData.available_area = data.available_area || null;
+        } else if (product.base_unit === 'per kg' || product.base_unit === 'per liter') {
+            inventoryData.available_length = data.available_weight || null;
+        }
+        
         let url, method;
         if (isEditMode && currentInventoryId) {
             url = `/api/inventory/${currentInventoryId}`;
@@ -436,7 +635,7 @@ async function handleFormSubmit(e) {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
             },
-            body: JSON.stringify(data)
+            body: JSON.stringify(inventoryData)
         });
         
         const result = await response.json();

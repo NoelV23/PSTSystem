@@ -19,7 +19,7 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         $categories = Category::pluck('id')->toArray();
-        $baseUnits = ['per pc', 'per ft', 'per sq ft', 'per set'];
+        $baseUnits = ['per pc', 'per ft', 'per sq ft', 'per set', 'per kg', 'per liter'];
         $colors = ['Clear', 'Tinted', 'Bronze', 'Gray', 'Green', 'Blue', 'White', 'Black', 'Silver', 'Gold'];
         $productTypes = [
             'Glass' => [
@@ -49,20 +49,31 @@ class ProductFactory extends Factory
         $productNames = $productTypes[$categoryName] ?? $productTypes['Glass'];
         $productName = $productNames[array_rand($productNames)];
 
-        // Determine if it's a set based on category
-        $isSet = $categoryName === 'Set';
-        $baseUnit = $isSet ? 'per set' : $baseUnits[array_rand($baseUnits)];
+        // Determine base unit based on category
+        $baseUnit = $categoryName === 'Set' ? 'per set' : $baseUnits[array_rand($baseUnits)];
 
-        // Generate appropriate dimensions based on base unit
+        // Generate appropriate dimensions and measurement unit based on base unit
         $length = null;
         $width = null;
         $height = null;
+        $measurementUnit = null;
 
         if ($baseUnit === 'per ft') {
             $length = fake()->randomFloat(2, 1, 20);
+            $measurementUnit = 'ft';
         } elseif ($baseUnit === 'per sq ft') {
             $width = fake()->randomFloat(2, 1, 10);
             $height = fake()->randomFloat(2, 1, 10);
+            $measurementUnit = 'ft';
+        } elseif ($baseUnit === 'per pc') {
+            $length = fake()->optional(0.7)->randomFloat(2, 1, 20);
+            $width = fake()->optional(0.5)->randomFloat(2, 1, 10);
+            $height = fake()->optional(0.3)->randomFloat(2, 1, 10);
+            $measurementUnit = 'ft';
+        } elseif ($baseUnit === 'per kg') {
+            $measurementUnit = fake()->randomElement(['kg', 'g']);
+        } elseif ($baseUnit === 'per liter') {
+            $measurementUnit = fake()->randomElement(['liter', 'ml']);
         }
 
         return [
@@ -70,8 +81,8 @@ class ProductFactory extends Factory
             'sku' => strtoupper(fake()->bothify('??-####-??')),
             'category_id' => $categoryId,
             'base_unit' => $baseUnit,
-            'is_set' => $isSet,
             'color' => $colors[array_rand($colors)],
+            'measurement_unit' => $measurementUnit,
             'default_length' => $length,
             'default_width' => $width,
             'default_height' => $height,
@@ -81,12 +92,11 @@ class ProductFactory extends Factory
     }
 
     /**
-     * Indicate that the product is a set.
+     * Indicate that the product is a set (per set base unit).
      */
-    public function isSet(): static
+    public function asSet(): static
     {
         return $this->state(fn (array $attributes) => [
-            'is_set' => true,
             'base_unit' => 'per set',
         ]);
     }
@@ -98,7 +108,7 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'category_id' => Category::where('name', 'Glass')->first()?->id ?? 1,
-            'is_set' => false,
+            'base_unit' => fake()->randomElement(['per pc', 'per ft', 'per sq ft']),
         ]);
     }
 
@@ -109,7 +119,7 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'category_id' => Category::where('name', 'Aluminum')->first()?->id ?? 2,
-            'is_set' => false,
+            'base_unit' => fake()->randomElement(['per pc', 'per ft', 'per sq ft']),
         ]);
     }
 
@@ -120,8 +130,29 @@ class ProductFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'category_id' => Category::where('name', 'Set')->first()?->id ?? 3,
-            'is_set' => true,
             'base_unit' => 'per set',
+        ]);
+    }
+
+    /**
+     * Generate a weight-based product (per kg).
+     */
+    public function weightBased(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'base_unit' => 'per kg',
+            'measurement_unit' => fake()->randomElement(['kg', 'g']),
+        ]);
+    }
+
+    /**
+     * Generate a volume-based product (per liter).
+     */
+    public function volumeBased(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'base_unit' => 'per liter',
+            'measurement_unit' => fake()->randomElement(['liter', 'ml']),
         ]);
     }
 }

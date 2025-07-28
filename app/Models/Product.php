@@ -14,8 +14,8 @@ class Product extends Model
         'sku',
         'category_id',
         'base_unit',
-        'is_set',
         'color',
+        'measurement_unit',
         'default_length',
         'default_width',
         'default_height',
@@ -24,7 +24,6 @@ class Product extends Model
     ];
 
     protected $casts = [
-        'is_set' => 'boolean',
         'price' => 'decimal:2',
         'default_length' => 'decimal:2',
         'default_width' => 'decimal:2',
