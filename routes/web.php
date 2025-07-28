@@ -9,6 +9,7 @@ use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\PurchaseController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -34,6 +35,9 @@ Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
 // products
 Route::get('/products', [ProductController::class, 'index'])->name('products.index');
 Route::get('/products/categories', [CategoryController::class, 'index'])->name('products.categories');
+
+// purchases
+Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
 
 
 Route::middleware('auth')->group(function () {
@@ -75,6 +79,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/inventory', [InventoryController::class, 'store'])->name('api.inventory.store');
     Route::put('/api/inventory/{id}', [InventoryController::class, 'update'])->name('api.inventory.update');
     Route::delete('/api/inventory/{id}', [InventoryController::class, 'destroy'])->name('api.inventory.destroy');
+
+    // Purchase API routes
+    Route::get('/api/purchases/branch/{branchId}', [PurchaseController::class, 'getBranchPurchases'])->name('api.purchases.branch');
+    Route::get('/api/purchases/products', [PurchaseController::class, 'getProducts'])->name('api.purchases.products');
+    Route::get('/api/purchases/branches', [PurchaseController::class, 'getBranches'])->name('api.purchases.branches');
+    Route::post('/api/purchases', [PurchaseController::class, 'store'])->name('api.purchases.store');
+    Route::get('/api/purchases/{id}', [PurchaseController::class, 'show'])->name('api.purchases.show');
+    Route::put('/api/purchases/{id}', [PurchaseController::class, 'update'])->name('api.purchases.update');
+    Route::delete('/api/purchases/{id}', [PurchaseController::class, 'destroy'])->name('api.purchases.destroy');
 });
 
 require __DIR__.'/auth.php';

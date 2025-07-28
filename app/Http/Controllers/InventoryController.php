@@ -30,11 +30,55 @@ class InventoryController extends Controller
     }
 
     // API: Get inventory for a specific branch
-    public function getBranchInventory($branchId)
+    public function getBranchInventory(Request $request, $branchId)
     {
-        $inventory = Inventory::with(['product.category'])
-            ->where('branch_id', $branchId)
-            ->get();
+        $perPage = $request->get('per_page', 10);
+        $search = $request->get('search', '');
+        $category = $request->get('category', '');
+        $stockFilter = $request->get('stock_filter', '');
+        
+        $query = Inventory::with(['product.category', 'product.setComponents.componentProduct'])
+            ->where('branch_id', $branchId);
+        
+        // Apply search filter
+        if ($search) {
+            $query->whereHas('product', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+        
+        // Apply category filter
+        if ($category) {
+            $query->whereHas('product', function($q) use ($category) {
+                $q->where('category_id', $category);
+            });
+        }
+        
+        // Apply stock filter
+        if ($stockFilter) {
+            if ($stockFilter === 'low') {
+                $query->where('reorder_level', '>', 0)
+                      ->whereRaw('(available_stock <= reorder_level OR available_length <= reorder_level)');
+            } elseif ($stockFilter === 'out') {
+                $query->whereRaw('(available_stock = 0 OR available_stock IS NULL) AND (available_length = 0 OR available_length IS NULL)');
+            } elseif ($stockFilter === 'normal') {
+                $query->whereRaw('(available_stock > reorder_level OR available_length > reorder_level)');
+            }
+        }
+        
+        $inventory = $query->join('products', 'inventories.product_id', '=', 'products.id')
+                           ->orderBy('products.name', 'asc')
+                           ->select('inventories.*')
+                           ->paginate($perPage);
+        
+        // Calculate set stock for set products
+        foreach ($inventory as $item) {
+            if ($item->product->base_unit === 'per set') {
+                $item->calculated_stock = $item->calculateSetStock();
+                $item->stock_status = $item->getStockStatus();
+            }
+        }
             
         return response()->json($inventory);
     }
@@ -42,7 +86,7 @@ class InventoryController extends Controller
     // API: Get inventory summary for a branch
     public function getBranchInventorySummary($branchId)
     {
-        $inventory = Inventory::with(['product.category'])
+        $inventory = Inventory::with(['product.category', 'product.setComponents.componentProduct'])
             ->where('branch_id', $branchId)
             ->get();
             
@@ -54,8 +98,10 @@ class InventoryController extends Controller
             $reorderLevel = $item->reorder_level ?? 0;
             
             // Calculate current stock based on product type
-            if ($item->product->base_unit === 'per pc') {
-                $currentStock = $item->available_pieces ?? 0;
+            if ($item->product->base_unit === 'per set') {
+                $currentStock = $item->calculateSetStock();
+            } elseif ($item->product->base_unit === 'per pc') {
+                $currentStock = $item->available_stock ?? 0;
             } else {
                 $currentStock = $item->available_length ?? 0;
             }
@@ -82,7 +128,7 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'product_id' => 'required|exists:products,id',
-            'available_pieces' => 'nullable|numeric|min:0',
+            'available_stock' => 'nullable|numeric|min:0',
             'available_length' => 'nullable|numeric|min:0',
             'available_area' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
@@ -97,6 +143,14 @@ class InventoryController extends Controller
             return response()->json(['error' => 'Inventory already exists for this product in this branch'], 422);
         }
 
+        // For set products, ensure no direct stock is set
+        $product = Product::find($validated['product_id']);
+        if ($product && $product->base_unit === 'per set') {
+            $validated['available_stock'] = null;
+            $validated['available_length'] = null;
+            $validated['available_area'] = null;
+        }
+
         $inventory = Inventory::create($validated);
         $inventory->load(['product.category']);
         
@@ -108,11 +162,18 @@ class InventoryController extends Controller
         $inventory = Inventory::findOrFail($id);
         
         $validated = $request->validate([
-            'available_pieces' => 'nullable|numeric|min:0',
+            'available_stock' => 'nullable|numeric|min:0',
             'available_length' => 'nullable|numeric|min:0',
             'available_area' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
+        
+        // For set products, ensure no direct stock is updated
+        if ($inventory->product->base_unit === 'per set') {
+            $validated['available_stock'] = null;
+            $validated['available_length'] = null;
+            $validated['available_area'] = null;
+        }
         
         $inventory->update($validated);
         $inventory->load(['product.category']);

@@ -111,7 +111,7 @@
         <!-- Inventory Table -->
         <div class="bg-white rounded-xl shadow p-4 sm:p-6">
             <div class="relative overflow-x-auto">
-                <table class="w-full text-sm text-left text-gray-500" id="inventoryTable">
+                <table class="w-full text-sm text-left text-gray-500" id="inventoryTable" data-current-page="1">
                     <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
@@ -128,6 +128,11 @@
                         <!-- Inventory rows will be injected here -->
                     </tbody>
                 </table>
+            </div>
+            
+            <!-- Pagination -->
+            <div id="inventoryPagination" class="mt-4">
+                <!-- Pagination will be rendered here -->
             </div>
         </div>
 
@@ -165,9 +170,13 @@
                 
                 <div>
                     <label for="productSelect" class="block text-sm font-medium text-gray-700 mb-1">Product *</label>
-                    <select id="productSelect" name="product_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <option value="">Select product</option>
-                    </select>
+                    <div class="relative">
+                        <input type="text" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="hidden" id="productSelect" name="product_id" required>
+                        <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
+                            <!-- Product options will be populated here -->
+                        </div>
+                    </div>
                     <div id="product_idError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
@@ -194,8 +203,8 @@
                     <!-- Available Pieces (for per pc products) -->
                     <div id="availablePiecesSection" class="hidden">
                         <label for="availablePieces" class="block text-sm font-medium text-gray-700 mb-1">Available Pieces *</label>
-                        <input type="number" id="availablePieces" name="available_pieces" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="available_piecesError" class="text-red-500 text-sm mt-1 hidden"></div>
+                        <input type="number" id="availablePieces" name="available_stock" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     
                     <!-- Available Length (for per ft products) -->
@@ -218,6 +227,24 @@
                         <input type="number" id="availableWeight" name="available_weight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="available_weightError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                    
+                    <!-- Set Product Info (for per set products) -->
+                    <div id="setProductSection" class="hidden">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <span class="font-medium text-blue-800">Set Product</span>
+                            </div>
+                            <p class="text-sm text-blue-700">
+                                This is a set product. Its stock is calculated automatically based on the availability of its component products in this branch.
+                            </p>
+                            <div id="setComponentsInfo" class="mt-3 text-sm text-blue-600">
+                                <!-- Component info will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 
                 <div>
@@ -231,6 +258,28 @@
                     <button type="submit" id="submitBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Item</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Set Components Modal -->
+<div id="setComponentsModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="setComponentsModalTitle" class="text-lg font-medium text-gray-900">Set Components</h3>
+                <button id="closeSetComponentsModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="setComponentsContent" class="space-y-4">
+                <!-- Component details will be loaded here -->
+            </div>
+            <div class="flex justify-end pt-4">
+                <button id="closeSetComponentsBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Close</button>
+            </div>
         </div>
     </div>
 </div>
@@ -282,9 +331,18 @@ function setupEventListeners() {
     document.getElementById('inventoryForm').addEventListener('submit', handleFormSubmit);
     document.getElementById('closeToast').addEventListener('click', hideToast);
     document.getElementById('retryBtn').addEventListener('click', loadInventory);
-    document.getElementById('searchInput').addEventListener('input', renderInventory);
-    document.getElementById('categoryFilter').addEventListener('change', renderInventory);
-    document.getElementById('stockFilter').addEventListener('change', renderInventory);
+    document.getElementById('searchInput').addEventListener('input', function() {
+        document.getElementById('inventoryTable').dataset.currentPage = 1;
+        renderInventory();
+    });
+    document.getElementById('categoryFilter').addEventListener('change', function() {
+        document.getElementById('inventoryTable').dataset.currentPage = 1;
+        renderInventory();
+    });
+    document.getElementById('stockFilter').addEventListener('change', function() {
+        document.getElementById('inventoryTable').dataset.currentPage = 1;
+        renderInventory();
+    });
     document.getElementById('branchSwitcher').addEventListener('change', function() {
         const selectedBranchId = this.value;
         if (selectedBranchId != branchId) {
@@ -292,21 +350,40 @@ function setupEventListeners() {
         }
     });
     
-    // Product selection handler
-    document.getElementById('productSelect').addEventListener('change', handleProductSelection);
+    // Product search and selection handlers
+    document.getElementById('productSearch').addEventListener('input', handleProductSearch);
+    document.getElementById('productSearch').addEventListener('focus', showProductDropdown);
+    document.getElementById('productSearch').addEventListener('blur', function() {
+        // Delay hiding dropdown to allow for clicks
+        setTimeout(() => {
+            hideProductDropdown();
+        }, 200);
+    });
+    
+    // Handle clicks outside the dropdown
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#productSearch') && !e.target.closest('#productDropdown')) {
+            hideProductDropdown();
+        }
+    });
+    
+    // Set components modal handlers
+    document.getElementById('closeSetComponentsModal').addEventListener('click', closeSetComponentsModal);
+    document.getElementById('closeSetComponentsBtn').addEventListener('click', closeSetComponentsModal);
 }
 
 async function loadProducts() {
     try {
-        const response = await fetch('/api/products', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
+        const response = await fetch('/api/products?per_page=1000', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load products');
         const result = await response.json();
         products = result.data || result;
         
-        // Populate product select
-        const productSelect = document.getElementById('productSelect');
-        productSelect.innerHTML = '<option value="">Select product</option>' + 
-            products.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.sku)})</option>`).join('');
+        // Sort products alphabetically by name
+        products.sort((a, b) => a.name.localeCompare(b.name));
+        
+        // Populate initial dropdown
+        populateProductDropdown(products);
     } catch (error) {
         console.error('Error loading products:', error);
     }
@@ -329,9 +406,28 @@ async function loadCategories() {
 async function loadInventory() {
     showLoading();
     try {
-        const response = await fetch(`/api/inventory/branch/${branchId}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
+        const page = document.getElementById('inventoryTable').dataset.currentPage || 1;
+        const perPage = document.getElementById('perPageFilter')?.value || 10;
+        const searchTerm = document.getElementById('searchInput').value;
+        const categoryFilter = document.getElementById('categoryFilter').value;
+        const stockFilter = document.getElementById('stockFilter').value;
+
+        const params = new URLSearchParams({
+            page: page,
+            per_page: perPage,
+            search: searchTerm,
+            category: categoryFilter,
+            stock_filter: stockFilter,
+        });
+
+        const response = await fetch(`/api/inventory/branch/${branchId}?${params.toString()}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load inventory');
-        inventory = await response.json();
+        const result = await response.json();
+
+        inventory = result.data;
+        const totalPages = result.last_page;
+        const currentPage = result.current_page;
+        const total = result.total;
         
         hideLoading();
         
@@ -341,7 +437,8 @@ async function loadInventory() {
         } else {
             hideEmptyState();
             inventoryTbody.parentElement.parentElement.classList.remove('hidden');
-            renderInventory();
+            inventoryTbody.innerHTML = inventory.map(item => createInventoryRow(item)).join('');
+            renderInventoryPagination(totalPages, currentPage);
         }
         
         // Load summary
@@ -368,32 +465,54 @@ async function loadSummary() {
 }
 
 function renderInventory() {
-    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-    const categoryFilter = document.getElementById('categoryFilter').value;
-    const stockFilter = document.getElementById('stockFilter').value;
+    // This function now just triggers a reload of inventory with current filters
+    loadInventory();
+}
+
+function renderInventoryPagination(totalPages, currentPage) {
+    const paginationDiv = document.getElementById('inventoryPagination');
+    if (!paginationDiv) return;
     
-    let filtered = inventory.filter(item => {
-        const matchesSearch = item.product.name.toLowerCase().includes(searchTerm) || 
-                            (item.product.sku && item.product.sku.toLowerCase().includes(searchTerm));
-        const matchesCategory = !categoryFilter || item.product.category_id == categoryFilter;
-        
-        let matchesStock = true;
-        if (stockFilter === 'low') {
-            matchesStock = getStockStatus(item) === 'Low Stock';
-        } else if (stockFilter === 'out') {
-            matchesStock = getStockStatus(item) === 'Out of Stock';
-        } else if (stockFilter === 'normal') {
-            matchesStock = getStockStatus(item) === 'In Stock';
-        }
-        
-        return matchesSearch && matchesCategory && matchesStock;
-    });
-    
-    if (filtered.length === 0) {
-        inventoryTbody.innerHTML = '<tr><td colspan="8" class="text-center py-8 text-gray-500">No inventory items found.</td></tr>';
-    } else {
-        inventoryTbody.innerHTML = filtered.map(item => createInventoryRow(item)).join('');
+    if (totalPages <= 1) {
+        paginationDiv.innerHTML = '';
+        return;
     }
+    
+    let paginationHtml = '<div class="flex items-center justify-between">';
+    paginationHtml += '<div class="text-sm text-gray-700">';
+    paginationHtml += `Showing page ${currentPage} of ${totalPages}`;
+    paginationHtml += '</div>';
+    paginationHtml += '<div class="flex space-x-1">';
+    
+    // Previous button
+    if (currentPage > 1) {
+        paginationHtml += `<button onclick="goToInventoryPage(${currentPage - 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Previous</button>`;
+    }
+    
+    // Page numbers
+    const startPage = Math.max(1, currentPage - 2);
+    const endPage = Math.min(totalPages, currentPage + 2);
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if (i === currentPage) {
+            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-red-500 border border-red-500 rounded-md">${i}</span>`;
+    } else {
+            paginationHtml += `<button onclick="goToInventoryPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">${i}</button>`;
+        }
+    }
+    
+    // Next button
+    if (currentPage < totalPages) {
+        paginationHtml += `<button onclick="goToInventoryPage(${currentPage + 1})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Next</button>`;
+    }
+    
+    paginationHtml += '</div></div>';
+    paginationDiv.innerHTML = paginationHtml;
+}
+
+function goToInventoryPage(page) {
+    document.getElementById('inventoryTable').dataset.currentPage = page;
+    loadInventory();
 }
 
 function createInventoryRow(item) {
@@ -403,8 +522,10 @@ function createInventoryRow(item) {
     
     // Format available stock based on product type
     let availableStock = '-';
-    if (item.product.base_unit === 'per pc') {
-        availableStock = item.available_pieces ? `${item.available_pieces} pieces` : '-';
+    if (item.product.base_unit === 'per set') {
+        availableStock = item.calculated_stock ? `${item.calculated_stock} sets` : '0 sets';
+    } else if (item.product.base_unit === 'per pc') {
+        availableStock = item.available_stock ? `${item.available_stock} pieces` : '-';
     } else if (item.product.base_unit === 'per ft') {
         availableStock = item.available_length ? `${item.available_length} ft` : '-';
     } else if (item.product.base_unit === 'per sq ft') {
@@ -427,7 +548,7 @@ function createInventoryRow(item) {
         <tr class="bg-white border-b hover:bg-gray-50">
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                 ${escapeHtml(item.product.name)}
-                <br><small class="text-gray-500">${escapeHtml(item.product.sku || 'No SKU')}</small>
+                <br><small class="text-gray-500">${escapeHtml(item.product.sku || 'No SKU')} ${item.product.base_unit === 'per set' ? `<button onclick="viewSetComponents(${item.id})" class="text-green-600 hover:text-green-900 mr-3">View Components</button>` : ''}</small>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.category?.name || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.base_unit || '-')}</td>
@@ -448,8 +569,10 @@ function getStockStatus(item) {
     let reorderLevel = item.reorder_level || 0;
     
     // Calculate current stock based on product type
-    if (item.product.base_unit === 'per pc') {
-        currentStock = item.available_pieces || 0;
+    if (item.product.base_unit === 'per set') {
+        currentStock = item.calculated_stock || 0;
+    } else if (item.product.base_unit === 'per pc') {
+        currentStock = item.available_stock || 0;
     } else if (item.product.base_unit === 'per ft') {
         currentStock = item.available_length || 0;
     } else if (item.product.base_unit === 'per sq ft') {
@@ -461,6 +584,65 @@ function getStockStatus(item) {
     if (currentStock === 0) return 'Out of Stock';
     if (currentStock <= reorderLevel) return 'Low Stock';
     return 'In Stock';
+}
+
+function populateProductDropdown(productsToShow) {
+    const dropdown = document.getElementById('productDropdown');
+    if (productsToShow.length === 0) {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500">No products found</div>';
+        return;
+    }
+    
+    // Sort products alphabetically by name
+    productsToShow.sort((a, b) => a.name.localeCompare(b.name));
+    
+    dropdown.innerHTML = productsToShow.map(product => `
+        <div class="product-option px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
+             data-product-id="${product.id}" 
+             data-product-name="${escapeHtml(product.name)}" 
+             data-product-sku="${escapeHtml(product.sku || '')}">
+            <div class="font-medium">${escapeHtml(product.name)}</div>
+            <div class="text-sm text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
+        </div>
+    `).join('');
+    
+    // Add click handlers to options
+    dropdown.querySelectorAll('.product-option').forEach(option => {
+        option.addEventListener('click', function() {
+            const productId = this.dataset.productId;
+            const productName = this.dataset.productName;
+            const productSku = this.dataset.productSku;
+            
+            document.getElementById('productSelect').value = productId;
+            document.getElementById('productSearch').value = `${productName} (${productSku})`;
+            hideProductDropdown();
+            
+            // Trigger product selection
+            handleProductSelection();
+        });
+    });
+}
+
+function handleProductSearch() {
+    const searchTerm = document.getElementById('productSearch').value.toLowerCase();
+    const filteredProducts = products.filter(product => 
+        product.name.toLowerCase().includes(searchTerm) || 
+        (product.sku && product.sku.toLowerCase().includes(searchTerm))
+    );
+    
+    populateProductDropdown(filteredProducts);
+    showProductDropdown();
+}
+
+function showProductDropdown() {
+    const dropdown = document.getElementById('productDropdown');
+    if (dropdown.children.length > 0) {
+        dropdown.classList.remove('hidden');
+    }
+}
+
+function hideProductDropdown() {
+    document.getElementById('productDropdown').classList.add('hidden');
 }
 
 async function handleProductSelection() {
@@ -516,6 +698,10 @@ async function handleProductSelection() {
             document.getElementById('weightUnit').textContent = 'Volume (L)';
             document.getElementById('availableWeight').name = 'available_length';
             document.getElementById('availableWeight').required = true;
+        } else if (product.base_unit === 'per set') {
+            document.getElementById('setProductSection').classList.remove('hidden');
+            // Load set components info
+            loadSetComponentsInfo(product.id);
         }
         
         stockInputs.classList.remove('hidden');
@@ -525,11 +711,61 @@ async function handleProductSelection() {
     }
 }
 
+async function loadSetComponentsInfo(productId) {
+    try {
+        const response = await fetch(`/api/products/${productId}/set-components`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error('Failed to load set components');
+        const components = await response.json();
+        
+        const componentsInfo = document.getElementById('setComponentsInfo');
+        if (components.length === 0) {
+            componentsInfo.innerHTML = '<p class="text-blue-600">No components defined for this set.</p>';
+            return;
+        }
+        
+        let componentsHtml = '<div class="space-y-2">';
+        componentsHtml += '<p class="font-medium">Set Components:</p>';
+        
+        for (const component of components) {
+            // Get component inventory for this branch
+            const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}`, {
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+            });
+            const branchInventory = await inventoryResponse.json();
+            const componentInventory = branchInventory.find(inv => inv.product_id === component.product_id);
+            
+            let availableStock = 'Not in inventory';
+            if (componentInventory) {
+                if (componentInventory.product.base_unit === 'per pc') {
+                    availableStock = `${componentInventory.available_stock || 0} pieces`;
+                } else {
+                    availableStock = `${componentInventory.available_length || 0} ${componentInventory.product.base_unit.replace('per ', '')}`;
+                }
+            }
+            
+            componentsHtml += `
+                <div class="flex justify-between items-center">
+                    <span>${escapeHtml(component.component_product.name)} (${component.quantity_required} required)</span>
+                    <span class="text-sm">${availableStock}</span>
+                </div>
+            `;
+        }
+        componentsHtml += '</div>';
+        componentsInfo.innerHTML = componentsHtml;
+    } catch (error) {
+        console.error('Error loading set components info:', error);
+        document.getElementById('setComponentsInfo').innerHTML = '<p class="text-red-600">Error loading component information.</p>';
+    }
+}
+
 function hideAllStockSections() {
     document.getElementById('availablePiecesSection').classList.add('hidden');
     document.getElementById('availableLengthSection').classList.add('hidden');
     document.getElementById('availableAreaSection').classList.add('hidden');
     document.getElementById('availableWeightSection').classList.add('hidden');
+    document.getElementById('setProductSection').classList.add('hidden');
     
     // Remove required attributes
     document.getElementById('availablePieces').required = false;
@@ -544,10 +780,13 @@ function openAddModal() {
     document.getElementById('modalTitle').textContent = 'Add Inventory Item';
     document.getElementById('submitBtn').textContent = 'Save Item';
     document.getElementById('inventoryForm').reset();
+    document.getElementById('productSearch').value = '';
+    document.getElementById('productSelect').value = '';
     clearFormErrors();
     hideAllStockSections();
     document.getElementById('productInfo').classList.add('hidden');
     document.getElementById('stockInputs').classList.add('hidden');
+    hideProductDropdown();
     inventoryModal.classList.remove('hidden');
 }
 
@@ -557,11 +796,12 @@ function openEditModal(inventoryItem) {
     document.getElementById('modalTitle').textContent = 'Edit Inventory Item';
     document.getElementById('submitBtn').textContent = 'Update Item';
     document.getElementById('productSelect').value = inventoryItem.product_id;
+    document.getElementById('productSearch').value = `${inventoryItem.product.name} (${inventoryItem.product.sku || 'No SKU'})`;
     document.getElementById('reorderLevel').value = inventoryItem.reorder_level || '';
     
     // Set values based on product type
     if (inventoryItem.product.base_unit === 'per pc') {
-        document.getElementById('availablePieces').value = inventoryItem.available_pieces || '';
+        document.getElementById('availablePieces').value = inventoryItem.available_stock || '';
     } else if (inventoryItem.product.base_unit === 'per ft') {
         document.getElementById('availableLength').value = inventoryItem.available_length || '';
     } else if (inventoryItem.product.base_unit === 'per sq ft') {
@@ -573,6 +813,7 @@ function openEditModal(inventoryItem) {
     // Trigger product selection to show correct fields
     handleProductSelection();
     clearFormErrors();
+    hideProductDropdown();
     inventoryModal.classList.remove('hidden');
 }
 
@@ -609,8 +850,13 @@ async function handleFormSubmit(e) {
         };
         
         // Add appropriate stock fields based on product type
-        if (product.base_unit === 'per pc') {
-            inventoryData.available_pieces = data.available_pieces || null;
+        if (product.base_unit === 'per set') {
+            // Set products don't have direct stock - it's calculated from components
+            inventoryData.available_stock = null;
+            inventoryData.available_length = null;
+            inventoryData.available_area = null;
+        } else if (product.base_unit === 'per pc') {
+            inventoryData.available_stock = data.available_stock || null;
         } else if (product.base_unit === 'per ft') {
             inventoryData.available_length = data.available_length || null;
         } else if (product.base_unit === 'per sq ft') {
@@ -761,6 +1007,108 @@ function showToast(message, type = 'success') {
 
 function hideToast() {
     toast.classList.add('hidden');
+}
+
+async function viewSetComponents(inventoryId) {
+    const inventoryItem = inventory.find(i => i.id === inventoryId);
+    if (!inventoryItem || inventoryItem.product.base_unit !== 'per set') {
+        showToast('Invalid inventory item', 'error');
+        return;
+    }
+    
+    try {
+        // Load set components
+        const response = await fetch(`/api/products/${inventoryItem.product_id}/set-components`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        });
+        if (!response.ok) throw new Error('Failed to load set components');
+        const components = await response.json();
+        
+        // Set modal title
+        document.getElementById('setComponentsModalTitle').textContent = `Set Components - ${escapeHtml(inventoryItem.product.name)}`;
+        
+        // Build component content
+        let contentHtml = '';
+        
+        if (components.length === 0) {
+            contentHtml = '<div class="text-center py-8 text-gray-500">No components defined for this set.</div>';
+        } else {
+            contentHtml = `
+                <div class="bg-gray-50 p-4 rounded-lg mb-4">
+                    <div class="text-sm text-gray-600">
+                        <strong>Available Sets:</strong> ${inventoryItem.calculated_stock || 0} sets
+                    </div>
+                </div>
+                <div class="space-y-4">
+            `;
+            
+            for (const component of components) {
+                // Get component inventory for this branch
+                const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}`, {
+                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+                });
+                const branchInventory = await inventoryResponse.json();
+                const componentInventory = branchInventory.find(inv => inv.product_id === component.product_id);
+                
+                let availableStock = 'Not in inventory';
+                let stockStatus = 'text-red-600';
+                let setsPossible = 0;
+                
+                if (componentInventory) {
+                    if (componentInventory.product.base_unit === 'per pc') {
+                        availableStock = `${componentInventory.available_stock || 0} pieces`;
+                    } else {
+                        availableStock = `${componentInventory.available_length || 0} ${componentInventory.product.base_unit.replace('per ', '')}`;
+                    }
+                    
+                    // Calculate sets possible with this component
+                    const availableQuantity = componentInventory.product.base_unit === 'per pc' 
+                        ? (componentInventory.available_stock || 0) 
+                        : (componentInventory.available_length || 0);
+                    setsPossible = Math.floor(availableQuantity / component.quantity);
+                    
+                    if (setsPossible > 0) {
+                        stockStatus = setsPossible >= (inventoryItem.calculated_stock || 0) ? 'text-green-600' : 'text-yellow-600';
+                    }
+                }
+                
+                contentHtml += `
+                    <div class="border rounded-lg p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <h4 class="font-medium text-gray-900">${escapeHtml(component.product_name)}</h4>
+                                <p class="text-sm text-gray-600">${escapeHtml(component.product_sku || 'No SKU')}</p>
+                            </div>
+                            <span class="text-sm font-medium ${stockStatus}">${setsPossible} sets possible</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4 text-sm">
+                            <div>
+                                <span class="text-gray-600">Required per set:</span>
+                                <span class="font-medium">${component.quantity}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-600">Available in branch:</span>
+                                <span class="font-medium">${availableStock}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            contentHtml += '</div>';
+        }
+        
+        document.getElementById('setComponentsContent').innerHTML = contentHtml;
+        document.getElementById('setComponentsModal').classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error loading set components:', error);
+        showToast('Failed to load set components', 'error');
+    }
+}
+
+function closeSetComponentsModal() {
+    document.getElementById('setComponentsModal').classList.add('hidden');
 }
 
 function escapeHtml(text) {

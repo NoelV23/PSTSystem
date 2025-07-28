@@ -37,7 +37,7 @@ class ProductController extends Controller
             $query->where('category_id', $category);
         }
         
-        $products = $query->orderBy('created_at', 'desc')->paginate($perPage);
+        $products = $query->orderBy('name', 'asc')->paginate($perPage);
         
         // Load set components for set products
         foreach ($products as $product) {
