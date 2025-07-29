@@ -13,15 +13,13 @@ class Inventory extends Model
         'product_id',
         'branch_id',
         'available_stock',
-        'available_length',
-        'available_area',
+        'cost',
         'reorder_level',
     ];
 
     protected $casts = [
         'available_stock' => 'integer',
-        'available_length' => 'decimal:2',
-        'available_area' => 'decimal:2',
+        'cost' => 'decimal:2',
         'reorder_level' => 'integer',
     ];
 

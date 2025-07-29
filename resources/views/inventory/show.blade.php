@@ -119,6 +119,7 @@
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Base Unit</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -200,50 +201,15 @@
                 
                 <!-- Stock Input Fields -->
                 <div id="stockInputs" class="space-y-4">
-                    <!-- Available Pieces (for per pc products) -->
-                    <div id="availablePiecesSection" class="hidden">
-                        <label for="availablePieces" class="block text-sm font-medium text-gray-700 mb-1">Available Pieces *</label>
-                        <input type="number" id="availablePieces" name="available_stock" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <div id="availableStockSection">
+                        <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
+                        <input type="number" id="availableStock" name="available_stock" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
-                    
-                    <!-- Available Length (for per ft products) -->
-                    <div id="availableLengthSection" class="hidden">
-                        <label for="availableLength" class="block text-sm font-medium text-gray-700 mb-1">Available Length (ft) *</label>
-                        <input type="number" id="availableLength" name="available_length" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="available_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
-                    </div>
-                    
-                    <!-- Available Area (for per sq ft products) -->
-                    <div id="availableAreaSection" class="hidden">
-                        <label for="availableArea" class="block text-sm font-medium text-gray-700 mb-1">Available Area (sq ft) *</label>
-                        <input type="number" id="availableArea" name="available_area" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="available_areaError" class="text-red-500 text-sm mt-1 hidden"></div>
-                    </div>
-                    
-                    <!-- Available Weight/Volume (for per kg/liter products) -->
-                    <div id="availableWeightSection" class="hidden">
-                        <label for="availableWeight" class="block text-sm font-medium text-gray-700 mb-1">Available <span id="weightUnit">Weight</span> *</label>
-                        <input type="number" id="availableWeight" name="available_weight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <div id="available_weightError" class="text-red-500 text-sm mt-1 hidden"></div>
-                    </div>
-                    
-                    <!-- Set Product Info (for per set products) -->
-                    <div id="setProductSection" class="hidden">
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <div class="flex items-center mb-2">
-                                <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                                <span class="font-medium text-blue-800">Set Product</span>
-                            </div>
-                            <p class="text-sm text-blue-700">
-                                This is a set product. Its stock is calculated automatically based on the availability of its component products in this branch.
-                            </p>
-                            <div id="setComponentsInfo" class="mt-3 text-sm text-blue-600">
-                                <!-- Component info will be loaded here -->
-                            </div>
-                        </div>
+                    <div id="costSection">
+                        <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost *</label>
+                        <input type="number" id="cost" name="cost" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="costError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 </div>
                 
@@ -295,6 +261,47 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
+        </div>
+    </div>
+</div>
+
+<div id="remainderModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="remainderModalTitle" class="text-lg font-medium text-gray-900">Remainders</h3>
+                <button id="closeRemainderModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div id="remainderModalContent" class="space-y-4"></div>
+            <div class="flex justify-end pt-4">
+                <button id="closeRemainderBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add a discard confirmation modal: -->
+<div id="discardRemainderModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900">Discard Remainder</h3>
+                <button id="closeDiscardRemainderModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="mb-4 text-gray-700">Are you sure you want to discard this remainder? Please provide a reason.</div>
+            <textarea id="discardReasonInput" class="w-full px-3 py-2 border rounded mb-4" placeholder="Reason for discarding..."></textarea>
+            <div class="flex justify-end gap-2">
+                <button id="cancelDiscardBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">Cancel</button>
+                <button id="confirmDiscardBtn" class="px-4 py-2 bg-red-500 text-white rounded">Discard</button>
+            </div>
         </div>
     </div>
 </div>
@@ -443,6 +450,7 @@ async function loadInventory() {
         
         // Load summary
         loadSummary();
+        loadRemaindersForInventory(); // Load remainders after inventory is loaded
     } catch (error) {
         console.error('Error loading inventory:', error);
         showError();
@@ -458,6 +466,7 @@ async function loadSummary() {
         document.getElementById('totalProducts').textContent = summary.total_products;
         document.getElementById('lowStockCount').textContent = summary.low_stock_count;
         document.getElementById('outOfStockCount').textContent = summary.out_of_stock_count;
+        console.log(summary);
         document.getElementById('lastUpdated').textContent = summary.last_updated;
     } catch (error) {
         console.error('Error loading summary:', error);
@@ -519,41 +528,43 @@ function createInventoryRow(item) {
     const stockStatus = getStockStatus(item);
     const statusClass = stockStatus === 'Low Stock' ? 'text-yellow-600' : 
                        stockStatus === 'Out of Stock' ? 'text-red-600' : 'text-green-600';
+    let availableStock = item.available_stock ? `${item.available_stock} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}` : '-';
+    let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
     
-    // Format available stock based on product type
-    let availableStock = '-';
-    if (item.product.base_unit === 'per set') {
-        availableStock = item.calculated_stock ? `${item.calculated_stock} sets` : '0 sets';
-    } else if (item.product.base_unit === 'per pc') {
-        availableStock = item.available_stock ? `${item.available_stock} pieces` : '-';
-    } else if (item.product.base_unit === 'per ft') {
-        availableStock = item.available_length ? `${item.available_length} ft` : '-';
-    } else if (item.product.base_unit === 'per sq ft') {
-        availableStock = item.available_area ? `${item.available_area} sq ft` : '-';
-    } else if (item.product.base_unit === 'per kg') {
-        availableStock = item.available_length ? `${item.available_length} kg` : '-';
-    } else if (item.product.base_unit === 'per liter') {
-        availableStock = item.available_length ? `${item.available_length} L` : '-';
+    // Build additional product info
+    let additionalInfo = [];
+    if (item.product.measurement_unit) {
+        additionalInfo.push(`Unit: ${item.product.measurement_unit}`);
+    }
+    if (item.product.default_length) {
+        additionalInfo.push(`L: ${item.product.default_length}`);
+    }
+    if (item.product.default_width) {
+        additionalInfo.push(`W: ${item.product.default_width}`);
+    }
+    if (item.product.default_height) {
+        additionalInfo.push(`H: ${item.product.default_height}`);
+    }
+    if (item.product.color) {
+        additionalInfo.push(`Color: ${item.product.color}`);
     }
     
-    // Format remainders (for cuttable products)
-    let remainders = '-';
-    if (item.product.base_unit === 'per pc' && item.available_length) {
-        remainders = `${item.available_length} ft remaining`;
-    } else if (item.product.base_unit === 'per ft' && item.available_area) {
-        remainders = `${item.available_area} sq ft remaining`;
-    }
+    const additionalInfoText = additionalInfo.length > 0 ? additionalInfo.join(' | ') : '';
     
     return `
         <tr class="bg-white border-b hover:bg-gray-50">
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                ${escapeHtml(item.product.name)}
-                <br><small class="text-gray-500">${escapeHtml(item.product.sku || 'No SKU')} ${item.product.base_unit === 'per set' ? `<button onclick="viewSetComponents(${item.id})" class="text-green-600 hover:text-green-900 mr-3">View Components</button>` : ''}</small>
+                <div class="flex flex-col">
+                    <div class="font-semibold">${escapeHtml(item.product.name)}</div>
+                    <div class="text-sm text-gray-500">${escapeHtml(item.product.sku || 'No SKU')}</div>
+                    ${additionalInfoText ? `<div class="text-xs text-gray-400 mt-1">${escapeHtml(additionalInfoText)}</div>` : ''}
+                </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.category?.name || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.base_unit || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${availableStock}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${remainders}</td>
+            <td class="px-6 py-4 text-sm text-gray-500" id="remainderCol-${item.product.id}">-</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${cost}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
@@ -565,22 +576,9 @@ function createInventoryRow(item) {
 }
 
 function getStockStatus(item) {
-    let currentStock = 0;
-    let reorderLevel = item.reorder_level || 0;
-    
-    // Calculate current stock based on product type
-    if (item.product.base_unit === 'per set') {
-        currentStock = item.calculated_stock || 0;
-    } else if (item.product.base_unit === 'per pc') {
-        currentStock = item.available_stock || 0;
-    } else if (item.product.base_unit === 'per ft') {
-        currentStock = item.available_length || 0;
-    } else if (item.product.base_unit === 'per sq ft') {
-        currentStock = item.available_area || 0;
-    } else if (item.product.base_unit === 'per kg' || item.product.base_unit === 'per liter') {
-        currentStock = item.available_length || 0;
-    }
-    
+    const currentStock = item.available_stock || 0;
+    const reorderLevel = item.reorder_level || 0;
+
     if (currentStock === 0) return 'Out of Stock';
     if (currentStock <= reorderLevel) return 'Low Stock';
     return 'In Stock';
@@ -666,44 +664,19 @@ async function handleProductSelection() {
         // Display product info
         document.getElementById('productBaseUnit').textContent = product.base_unit || '-';
         document.getElementById('productCategory').textContent = product.category?.name || '-';
-        
         if (product.measurement_unit) {
             document.getElementById('productMeasurementUnit').textContent = product.measurement_unit;
             document.getElementById('productMeasurement').classList.remove('hidden');
         } else {
             document.getElementById('productMeasurement').classList.add('hidden');
         }
-        
         productInfo.classList.remove('hidden');
-        
-        // Show appropriate stock input fields based on product type
+        // Show only stock and cost sections
         hideAllStockSections();
-        
-        if (product.base_unit === 'per pc') {
-            document.getElementById('availablePiecesSection').classList.remove('hidden');
-            document.getElementById('availablePieces').required = true;
-        } else if (product.base_unit === 'per ft') {
-            document.getElementById('availableLengthSection').classList.remove('hidden');
-            document.getElementById('availableLength').required = true;
-        } else if (product.base_unit === 'per sq ft') {
-            document.getElementById('availableAreaSection').classList.remove('hidden');
-            document.getElementById('availableArea').required = true;
-        } else if (product.base_unit === 'per kg') {
-            document.getElementById('availableWeightSection').classList.remove('hidden');
-            document.getElementById('weightUnit').textContent = 'Weight (kg)';
-            document.getElementById('availableWeight').name = 'available_length';
-            document.getElementById('availableWeight').required = true;
-        } else if (product.base_unit === 'per liter') {
-            document.getElementById('availableWeightSection').classList.remove('hidden');
-            document.getElementById('weightUnit').textContent = 'Volume (L)';
-            document.getElementById('availableWeight').name = 'available_length';
-            document.getElementById('availableWeight').required = true;
-        } else if (product.base_unit === 'per set') {
-            document.getElementById('setProductSection').classList.remove('hidden');
-            // Load set components info
-            loadSetComponentsInfo(product.id);
-        }
-        
+        document.getElementById('availableStockSection').classList.remove('hidden');
+        document.getElementById('costSection').classList.remove('hidden');
+        document.getElementById('availableStock').required = true;
+        document.getElementById('cost').required = true;
         stockInputs.classList.remove('hidden');
     } catch (error) {
         console.error('Error loading product details:', error);
@@ -761,17 +734,15 @@ async function loadSetComponentsInfo(productId) {
 }
 
 function hideAllStockSections() {
-    document.getElementById('availablePiecesSection').classList.add('hidden');
-    document.getElementById('availableLengthSection').classList.add('hidden');
-    document.getElementById('availableAreaSection').classList.add('hidden');
-    document.getElementById('availableWeightSection').classList.add('hidden');
-    document.getElementById('setProductSection').classList.add('hidden');
-    
+    const stockSection = document.getElementById('availableStockSection');
+    const costSection = document.getElementById('costSection');
+    if (stockSection) stockSection.classList.add('hidden');
+    if (costSection) costSection.classList.add('hidden');
+    const setSection = document.getElementById('setProductSection');
+    if (setSection) setSection.classList.add('hidden');
     // Remove required attributes
-    document.getElementById('availablePieces').required = false;
-    document.getElementById('availableLength').required = false;
-    document.getElementById('availableArea').required = false;
-    document.getElementById('availableWeight').required = false;
+    if (document.getElementById('availableStock')) document.getElementById('availableStock').required = false;
+    if (document.getElementById('cost')) document.getElementById('cost').required = false;
 }
 
 function openAddModal() {
@@ -798,17 +769,8 @@ function openEditModal(inventoryItem) {
     document.getElementById('productSelect').value = inventoryItem.product_id;
     document.getElementById('productSearch').value = `${inventoryItem.product.name} (${inventoryItem.product.sku || 'No SKU'})`;
     document.getElementById('reorderLevel').value = inventoryItem.reorder_level || '';
-    
-    // Set values based on product type
-    if (inventoryItem.product.base_unit === 'per pc') {
-        document.getElementById('availablePieces').value = inventoryItem.available_stock || '';
-    } else if (inventoryItem.product.base_unit === 'per ft') {
-        document.getElementById('availableLength').value = inventoryItem.available_length || '';
-    } else if (inventoryItem.product.base_unit === 'per sq ft') {
-        document.getElementById('availableArea').value = inventoryItem.available_area || '';
-    } else if (inventoryItem.product.base_unit === 'per kg' || inventoryItem.product.base_unit === 'per liter') {
-        document.getElementById('availableWeight').value = inventoryItem.available_length || '';
-    }
+    document.getElementById('availableStock').value = inventoryItem.available_stock || '';
+    document.getElementById('cost').value = inventoryItem.cost || '';
     
     // Trigger product selection to show correct fields
     handleProductSelection();
@@ -846,23 +808,28 @@ async function handleFormSubmit(e) {
         const inventoryData = {
             branch_id: data.branch_id,
             product_id: data.product_id,
-            reorder_level: data.reorder_level || null
+            reorder_level: data.reorder_level || null,
+            available_stock: data.available_stock || null,
+            cost: data.cost || null,
         };
         
         // Add appropriate stock fields based on product type
         if (product.base_unit === 'per set') {
             // Set products don't have direct stock - it's calculated from components
             inventoryData.available_stock = null;
-            inventoryData.available_length = null;
-            inventoryData.available_area = null;
+            inventoryData.cost = null;
         } else if (product.base_unit === 'per pc') {
             inventoryData.available_stock = data.available_stock || null;
+            inventoryData.cost = data.cost || null;
         } else if (product.base_unit === 'per ft') {
-            inventoryData.available_length = data.available_length || null;
+            inventoryData.available_stock = data.available_stock || null;
+            inventoryData.cost = data.cost || null;
         } else if (product.base_unit === 'per sq ft') {
-            inventoryData.available_area = data.available_area || null;
+            inventoryData.available_stock = data.available_stock || null;
+            inventoryData.cost = data.cost || null;
         } else if (product.base_unit === 'per kg' || product.base_unit === 'per liter') {
-            inventoryData.available_length = data.available_weight || null;
+            inventoryData.available_stock = data.available_stock || null;
+            inventoryData.cost = data.cost || null;
         }
         
         let url, method;
@@ -1111,10 +1078,118 @@ function closeSetComponentsModal() {
     document.getElementById('setComponentsModal').classList.add('hidden');
 }
 
+async function loadRemaindersForInventory() {
+    for (const item of inventory) {
+        const col = document.getElementById(`remainderCol-${item.product.id}`);
+        if (!col) continue;
+        try {
+            const res = await fetch(`/api/cut-remainders?product_id=${item.product.id}&branch_id=${branchId}`);
+            if (!res.ok) throw new Error('Failed to load remainders');
+            const remainders = await res.json();
+            if (remainders.length > 0) {
+                col.innerHTML = `${remainders.length} <a href="#" class="text-blue-600 underline" onclick="viewRemainders(${item.product.id})">View</a>`;
+            } else {
+                col.textContent = '-';
+            }
+        } catch (e) {
+            col.textContent = '-';
+        }
+    }
+}
+
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Discard Remainder Modal JS
+let discardRemainderId = null;
+window.openDiscardRemainderModal = function(id) {
+    discardRemainderId = id;
+    document.getElementById('discardReasonInput').value = '';
+    document.getElementById('discardRemainderModal').classList.remove('hidden');
+};
+document.getElementById('closeDiscardRemainderModal').addEventListener('click', function() {
+    document.getElementById('discardRemainderModal').classList.add('hidden');
+    discardRemainderId = null;
+});
+document.getElementById('cancelDiscardBtn').addEventListener('click', function() {
+    document.getElementById('discardRemainderModal').classList.add('hidden');
+    discardRemainderId = null;
+});
+document.getElementById('confirmDiscardBtn').addEventListener('click', async function() {
+    const reason = document.getElementById('discardReasonInput').value.trim();
+    if (!reason) {
+        alert('Please provide a reason for discarding.');
+        return;
+    }
+    if (!discardRemainderId) return;
+    try {
+        const res = await fetch(`/api/cut-remainders/${discardRemainderId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify({ status: 'discarded', discard_reason: reason })
+        });
+        if (!res.ok) throw new Error('Failed to discard remainder');
+        document.getElementById('discardRemainderModal').classList.add('hidden');
+        discardRemainderId = null;
+        // Refresh remainders modal and inventory table
+        if (typeof window.viewRemaindersLastProductId !== 'undefined') {
+            window.viewRemainders(window.viewRemaindersLastProductId);
+        }
+        loadInventory();
+    } catch (e) {
+        alert('Failed to discard remainder.');
+    }
+});
+// Define the real function
+window.viewRemainders = async function(productId) {
+    const modal = document.getElementById('remainderModal');
+    const content = document.getElementById('remainderModalContent');
+    const title = document.getElementById('remainderModalTitle');
+    title.textContent = 'Remainders';
+    content.innerHTML = '<div class="text-gray-500">Loading...</div>';
+    modal.classList.remove('hidden');
+    try {
+        const res = await fetch(`/api/cut-remainders?product_id=${productId}&branch_id=${branchId}`);
+        if (!res.ok) throw new Error('Failed to load remainders');
+        const remainders = await res.json();
+        if (remainders.length === 0) {
+            content.innerHTML = '<div class="text-gray-500">No remainders found.</div>';
+        } else {
+            content.innerHTML = remainders.map(r => `
+                <div class="border rounded-lg p-3 mb-2">
+                    <div><span class="font-medium">Length:</span> ${r.length_remaining ?? '-'} | <span class="font-medium">Width:</span> ${r.width_remaining ?? '-'} | <span class="font-medium">Height:</span> ${r.height_remaining ?? '-'} </div>
+                    <div><span class="font-medium">Location:</span> ${r.location_note ?? '-'}</div>
+                    <div class="mt-2 flex justify-end">
+                        <button class="text-red-600 hover:underline" onclick="openDiscardRemainderModal(${r.id})">Discard</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        content.innerHTML = '<div class="text-red-600">Failed to load remainders.</div>';
+    }
+};
+// Now wrap it for tracking
+window.viewRemaindersLastProductId = null;
+const origViewRemainders = window.viewRemainders;
+window.viewRemainders = async function(productId) {
+    window.viewRemaindersLastProductId = productId;
+    if (typeof origViewRemainders === 'function') {
+        await origViewRemainders(productId);
+    }
+};
+document.getElementById('closeRemainderModal').addEventListener('click', function() {
+    document.getElementById('remainderModal').classList.add('hidden');
+});
+document.getElementById('closeRemainderBtn').addEventListener('click', function() {
+    document.getElementById('remainderModal').classList.add('hidden');
+});
 </script>
 @endsection 

@@ -19,12 +19,10 @@ class Product extends Model
         'default_length',
         'default_width',
         'default_height',
-        'price',
         'description',
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
         'default_length' => 'decimal:2',
         'default_width' => 'decimal:2',
         'default_height' => 'decimal:2',

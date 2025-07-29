@@ -192,11 +192,6 @@
                     <div id="colorError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
-                    <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                    <input type="number" id="productPrice" name="price" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                    <div id="priceError" class="text-red-500 text-sm mt-1 hidden"></div>
-                </div>
-                <div>
                     <label for="productDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
                     <textarea id="productDescription" name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"></textarea>
                     <div id="descriptionError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -347,7 +342,7 @@ async function loadAllProductsForSet(currentId = null) {
     // Load all products for set component selection (exclude sets and self)
     try {
         const response = await fetch('/api/products?per_page=1000', { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
-        if (!response.ok) return [];
+    if (!response.ok) return [];
         const result = await response.json();
         // Handle paginated response structure
         const all = result.data || result;

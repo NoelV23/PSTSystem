@@ -86,7 +86,6 @@ class ProductFactory extends Factory
             'default_length' => $length,
             'default_width' => $width,
             'default_height' => $height,
-            'price' => fake()->randomFloat(2, 50, 5000),
             'description' => fake()->optional(0.7)->sentence(),
         ];
     }

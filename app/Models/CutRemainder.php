@@ -13,10 +13,13 @@ class CutRemainder extends Model
         'product_id',
         'branch_id',
         'length_remaining',
-        'height',
-        'width',
+        'height_remaining',
+        'width_remaining',
         'area_remaining',
         'location_note',
+        'status',
+        'discard_reason',
+        'discarded_at',
     ];
 
     public function product()

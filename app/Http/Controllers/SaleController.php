@@ -35,4 +35,352 @@ class SaleController extends Controller
         Sale::destroy($id);
         return response()->json(null, 204);
     }
+
+    // API: Get today's sales for a branch (paginated)
+    public function getBranchSales(Request $request)
+    {
+        $branchId = $request->get('branch_id');
+        $perPage = $request->get('per_page', 10);
+        $today = now()->toDateString();
+        $sales = \App\Models\Sale::with(['user', 'saleItems'])
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $today)
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+        return response()->json($sales);
+    }
+
+    // API: Store sale with items and deduct inventory
+    public function storeWithItems(Request $request)
+    {
+        $validated = $request->validate([
+            'branch_id' => 'required|exists:branches,id',
+            'user_id' => 'required|exists:users,id',
+            'total_amount' => 'required|numeric|min:0',
+            'payment_method' => 'required|string',
+            'items' => 'required|array|min:1',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+            'items.*.item_type' => 'required|in:inventory,remainder',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
+        ]);
+        
+        // Custom validation for inventory_id based on item_type
+        foreach ($request->input('items', []) as $index => $item) {
+            if ($item['item_type'] === 'inventory') {
+                if (!isset($item['inventory_id']) || !\App\Models\Inventory::find($item['inventory_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.inventory_id" => ['The inventory_id field is required and must exist for inventory items.']
+                    ]);
+                }
+            } elseif ($item['item_type'] === 'remainder') {
+                if (!isset($item['remainder_id']) || !\App\Models\CutRemainder::find($item['remainder_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.remainder_id" => ['The remainder_id field is required and must exist for remainder items.']
+                    ]);
+                }
+            }
+        }
+        
+        \DB::beginTransaction();
+        try {
+            $sale = \App\Models\Sale::create([
+                'branch_id' => $validated['branch_id'],
+                'user_id' => $validated['user_id'],
+                'total_amount' => $validated['total_amount'],
+                'payment_method' => $validated['payment_method'],
+            ]);
+            
+            foreach ($request->input('items') as $item) {
+                // Get product_id based on item type
+                $productId = null;
+                if ($item['item_type'] === 'inventory') {
+                    $inventory = \App\Models\Inventory::find($item['inventory_id']);
+                    $productId = $inventory->product_id;
+                } elseif ($item['item_type'] === 'remainder') {
+                    $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
+                    $productId = $remainder->product_id;
+                }
+                
+                $saleItem = $sale->saleItems()->create([
+                    'product_id' => $productId,
+                    'quantity' => $item['quantity'],
+                    'unit_price' => $item['unit_price'],
+                    'cut_length' => $item['cut_length'] ?? null,
+                    'cut_width' => $item['cut_width'] ?? null,
+                    'cut_height' => $item['cut_height'] ?? null,
+                    'total_price' => $item['total_price'],
+                ]);
+                
+                // If this is a remainder item, handle it differently
+                if ($item['item_type'] === 'remainder') {
+                    if (isset($item['remainder_id'])) {
+                        $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
+                        if ($remainder) {
+                            // Check if this is a cut item (has cut dimensions)
+                            $isCut = isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height']);
+                            
+                            if ($isCut) {
+                                // Handle cut remainder logic
+                                $this->handleCutRemainderSale($remainder, $item);
+                            } else {
+                                // For non-cut items, just delete the remainder (it's consumed entirely)
+                                $remainder->delete();
+                            }
+                        }
+                    }
+                    // Don't deduct from main inventory for remainder items
+                    continue;
+                }
+                
+                // For inventory items, proceed with normal logic
+                $inventory = \App\Models\Inventory::find($item['inventory_id']);
+                $product = $inventory->product;
+                $deductQty = $item['quantity'];
+                $isCut = false;
+                
+                // Check if this is a cut item
+                if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
+                    $isCut = true;
+                }
+                
+                // If this is a cut item, try to use remainders first
+                if ($isCut) {
+                    $remaindersUsed = $this->useRemaindersForSale($product, $inventory->branch_id, $deductQty, $item);
+                    
+                    // If remainders were used, don't deduct from main inventory
+                    if ($remaindersUsed) {
+                        // Create new remainder if this is a new cut
+                        $this->createNewRemainderIfNeeded($product, $inventory->branch_id, $item);
+                        continue; // Skip main inventory deduction
+                    }
+                }
+                
+                // Deduct from main inventory (only if no remainders were used or if this is not a cut item)
+                $inventory->available_stock = max(0, $inventory->available_stock - $deductQty);
+                $inventory->save();
+
+                // Create new remainder if this is a cut item
+                if ($isCut) {
+                    $this->createNewRemainderIfNeeded($product, $inventory->branch_id, $item);
+                }
+            }
+            
+            \DB::commit();
+            return response()->json($sale->load(['user', 'saleItems']), 201);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+    
+    /**
+     * Try to use available remainders for a sale
+     */
+    private function useRemaindersForSale($product, $branchId, $quantity, $item)
+    {
+        $remaindersUsed = false;
+        
+        // Check for length-based remainders
+        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length) {
+            $cutLength = $item['cut_length'];
+            $totalLengthNeeded = $cutLength * $quantity;
+            
+            // Find remainders with sufficient length
+            $availableRemainders = \App\Models\CutRemainder::where('product_id', $product->id)
+                ->where('branch_id', $branchId)
+                ->where('status', 'available')
+                ->whereNotNull('length_remaining')
+                ->where('length_remaining', '>=', $cutLength)
+                ->orderBy('length_remaining', 'desc')
+                ->get();
+            
+            $lengthUsed = 0;
+            foreach ($availableRemainders as $remainder) {
+                if ($lengthUsed >= $totalLengthNeeded) break;
+                
+                $lengthToUse = min($remainder->length_remaining, $totalLengthNeeded - $lengthUsed);
+                $remainder->length_remaining -= $lengthToUse;
+                $lengthUsed += $lengthToUse;
+                
+                if ($remainder->length_remaining <= 0) {
+                    $remainder->delete();
+                } else {
+                    $remainder->save();
+                }
+            }
+            
+            if ($lengthUsed >= $totalLengthNeeded) {
+                $remaindersUsed = true;
+            }
+        }
+        
+        // Check for area-based remainders (width x height)
+        if (isset($item['cut_width']) && isset($item['cut_height']) && 
+            $item['cut_width'] > 0 && $item['cut_height'] > 0 && 
+            $product->default_width && $product->default_height) {
+            
+            $cutWidth = $item['cut_width'];
+            $cutHeight = $item['cut_height'];
+            $totalAreaNeeded = ($cutWidth * $cutHeight) * $quantity;
+            
+            // Find remainders with sufficient area
+            $availableRemainders = \App\Models\CutRemainder::where('product_id', $product->id)
+                ->where('branch_id', $branchId)
+                ->where('status', 'available')
+                ->whereNotNull('width_remaining')
+                ->whereNotNull('height_remaining')
+                ->where('width_remaining', '>=', $cutWidth)
+                ->where('height_remaining', '>=', $cutHeight)
+                ->orderByRaw('(width_remaining * height_remaining) desc')
+                ->get();
+            
+            $areaUsed = 0;
+            foreach ($availableRemainders as $remainder) {
+                if ($areaUsed >= $totalAreaNeeded) break;
+                
+                $areaToUse = min($remainder->width_remaining * $remainder->height_remaining, $totalAreaNeeded - $areaUsed);
+                $piecesToUse = (int) ($areaToUse / ($cutWidth * $cutHeight));
+                
+                if ($piecesToUse > 0) {
+                    $actualAreaUsed = $piecesToUse * ($cutWidth * $cutHeight);
+                    $remainder->width_remaining -= $cutWidth;
+                    $remainder->height_remaining -= $cutHeight;
+                    $areaUsed += $actualAreaUsed;
+                    
+                    if ($remainder->width_remaining <= 0 || $remainder->height_remaining <= 0) {
+                        $remainder->delete();
+                    } else {
+                        $remainder->save();
+                    }
+                }
+            }
+            
+            if ($areaUsed >= $totalAreaNeeded) {
+                $remaindersUsed = true;
+            }
+        }
+        
+        return $remaindersUsed;
+    }
+    
+    /**
+     * Handle sale of a cut remainder - consume the cut portion and create new remainder with remaining amount
+     */
+    private function handleCutRemainderSale($remainder, $item)
+    {
+        $product = $remainder->product;
+        $newRemainderData = [
+            'product_id' => $remainder->product_id,
+            'branch_id' => $remainder->branch_id,
+            'location_note' => $item['location_note'] ?? $remainder->location_note,
+            'status' => $item['status'] ?? 'available',
+        ];
+        
+        // Handle length-based remainders
+        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $remainder->length_remaining) {
+            $cutLength = $item['cut_length'];
+            $originalLength = $remainder->length_remaining;
+            
+            if ($cutLength < $originalLength) {
+                // Partial consumption - create new remainder with remaining length
+                $newRemainderData['length_remaining'] = $originalLength - $cutLength;
+                $newRemainderData['width_remaining'] = $remainder->width_remaining;
+                $newRemainderData['height_remaining'] = $remainder->height_remaining;
+                
+                // Delete the original remainder
+                $remainder->delete();
+                
+                // Create new remainder with remaining dimensions
+                \App\Models\CutRemainder::create($newRemainderData);
+            } else {
+                // Full consumption - just delete the remainder
+                $remainder->delete();
+            }
+        }
+        // Handle area-based remainders (width x height)
+        elseif (isset($item['cut_width']) && isset($item['cut_height']) && 
+                $item['cut_width'] > 0 && $item['cut_height'] > 0 && 
+                $remainder->width_remaining && $remainder->height_remaining) {
+            
+            $cutWidth = $item['cut_width'];
+            $cutHeight = $item['cut_height'];
+            $originalWidth = $remainder->width_remaining;
+            $originalHeight = $remainder->height_remaining;
+            
+            if ($cutWidth < $originalWidth || $cutHeight < $originalHeight) {
+                // Partial consumption - create new remainder with remaining area
+                $newRemainderData['width_remaining'] = $originalWidth - $cutWidth;
+                $newRemainderData['height_remaining'] = $originalHeight - $cutHeight;
+                $newRemainderData['length_remaining'] = $remainder->length_remaining;
+                
+                // Delete the original remainder
+                $remainder->delete();
+                
+                // Create new remainder with remaining dimensions
+                \App\Models\CutRemainder::create($newRemainderData);
+            } else {
+                // Full consumption - just delete the remainder
+                $remainder->delete();
+            }
+        }
+        // If no cut dimensions match, just delete the remainder
+        else {
+            $remainder->delete();
+        }
+    }
+    
+    /**
+     * Create new remainder if this is a new cut
+     */
+    private function createNewRemainderIfNeeded($product, $branchId, $item)
+    {
+        $remainderData = [
+            'product_id' => $product->id,
+            'branch_id' => $branchId,
+            'location_note' => $item['location_note'] ?? null,
+            'status' => $item['status'] ?? 'available',
+        ];
+        
+        // Length remainder logic
+        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length && $item['cut_length'] < $product->default_length) {
+            $cutLength = $item['cut_length'];
+            $lengthRemaining = $product->default_length - $cutLength;
+            $remainderData['length_remaining'] = $lengthRemaining;
+        }
+        
+        // Area (width/height) remainder logic
+        if ((isset($item['cut_width']) && $item['cut_width'] > 0) && 
+            (isset($item['cut_height']) && $item['cut_height'] > 0) && 
+            $product->default_width && $product->default_height && 
+            ($item['cut_width'] < $product->default_width || $item['cut_height'] < $product->default_height)) {
+            
+            $cutWidth = $item['cut_width'];
+            $cutHeight = $item['cut_height'];
+            $widthRemaining = $product->default_width - $cutWidth;
+            $heightRemaining = $product->default_height - $cutHeight;
+            $remainderData['width_remaining'] = $widthRemaining;
+            $remainderData['height_remaining'] = $heightRemaining;
+        }
+        
+        // Only create remainder if we have remaining dimensions
+        if (isset($remainderData['length_remaining']) || isset($remainderData['width_remaining'])) {
+            if ($remainderData['status'] === 'discarded') {
+                $remainderData['discard_reason'] = $item['discard_reason'] ?? null;
+                $remainderData['discarded_at'] = now();
+            }
+            \App\Models\CutRemainder::create($remainderData);
+        }
+    }
+
+    // API: Show sale details with items and user
+    public function showDetails($id)
+    {
+        $sale = \App\Models\Sale::with(['user', 'saleItems.product'])->findOrFail($id);
+        return response()->json($sale);
+    }
 } 

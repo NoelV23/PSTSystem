@@ -75,6 +75,7 @@ Route::middleware('auth')->group(function () {
     // Inventory API routes
     Route::get('/api/inventory/branch/{branchId}', [InventoryController::class, 'getBranchInventory'])->name('api.inventory.branch');
     Route::get('/api/inventory/branch/{branchId}/summary', [InventoryController::class, 'getBranchInventorySummary'])->name('api.inventory.branch.summary');
+    Route::get('/api/inventory/branch/{branchId}/remainders', [InventoryController::class, 'getBranchRemainders'])->name('api.inventory.branch.remainders');
     Route::get('/api/inventory/product/{productId}', [InventoryController::class, 'getProductDetails'])->name('api.inventory.product.details');
     Route::post('/api/inventory', [InventoryController::class, 'store'])->name('api.inventory.store');
     Route::put('/api/inventory/{id}', [InventoryController::class, 'update'])->name('api.inventory.update');
@@ -88,6 +89,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/purchases/{id}', [PurchaseController::class, 'show'])->name('api.purchases.show');
     Route::put('/api/purchases/{id}', [PurchaseController::class, 'update'])->name('api.purchases.update');
     Route::delete('/api/purchases/{id}', [PurchaseController::class, 'destroy'])->name('api.purchases.destroy');
+
+    // Sales API routes
+    Route::get('/api/sales', [SaleController::class, 'getBranchSales'])->name('api.sales.branch');
+    Route::post('/api/sales', [SaleController::class, 'storeWithItems'])->name('api.sales.store');
+    Route::get('/api/sales/{id}', [SaleController::class, 'showDetails'])->name('api.sales.show');
+
+    // Cut Remainder API routes
+    Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');
+    Route::patch('/api/cut-remainders/{id}', [\App\Http\Controllers\CutRemainderController::class, 'update'])->name('api.cut-remainders.update');
 });
 
 require __DIR__.'/auth.php';
