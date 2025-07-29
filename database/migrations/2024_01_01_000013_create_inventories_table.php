@@ -12,12 +12,10 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('branch_id');
-            $table->decimal('available_stock', 10, 2)->nullable();
-            $table->float('available_length')->nullable();
-            $table->float('available_area')->nullable();
+            $table->integer('available_stock')->nullable();
+            $table->decimal('cost', 12, 2)->nullable();
             $table->integer('reorder_level')->nullable();
             $table->timestamps();
-
             $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
             $table->foreign('branch_id')->references('id')->on('branches')->cascadeOnDelete();
         });

@@ -11,16 +11,14 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('sku')->unique();
+            $table->string('sku')->nullable();
             $table->unsignedBigInteger('category_id');
             $table->string('base_unit');
-            $table->boolean('is_set')->default(false);
             $table->string('color')->nullable();
-            $table->string('measurement_unit')->nullable(); // e.g., ft, m, kg
-            $table->float('default_length')->nullable();
-            $table->float('default_width')->nullable();
-            $table->float('default_height')->nullable();
-            $table->decimal('price', 12, 2)->nullable();
+            $table->string('measurement_unit')->nullable();
+            $table->decimal('default_length', 8, 2)->nullable();
+            $table->decimal('default_width', 8, 2)->nullable();
+            $table->decimal('default_height', 8, 2)->nullable();
             $table->text('description')->nullable();
             $table->timestamps();
 

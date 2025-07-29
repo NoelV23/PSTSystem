@@ -11,116 +11,121 @@ class InventoryController extends Controller
 {
     public function index()
     {
-        // Get all branches for selection
         $branches = Branch::where('status', 'active')->get();
         return view('inventory.index', compact('branches'));
     }
 
     public function show($branchId)
     {
-        // Find the branch
         $branch = Branch::findOrFail($branchId);
-        
-        // Get inventory data for this branch
         $inventory = Inventory::with(['product.category'])
             ->where('branch_id', $branchId)
             ->get();
-            
         return view('inventory.show', compact('branch', 'inventory'));
     }
 
-    // API: Get inventory for a specific branch
+    // API: Get inventory for a specific branch (with pagination)
     public function getBranchInventory(Request $request, $branchId)
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search', '');
         $category = $request->get('category', '');
         $stockFilter = $request->get('stock_filter', '');
-        
-        $query = Inventory::with(['product.category', 'product.setComponents.componentProduct'])
+
+        $query = Inventory::with(['product.category'])
             ->where('branch_id', $branchId);
-        
-        // Apply search filter
+
         if ($search) {
             $query->whereHas('product', function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('sku', 'like', "%{$search}%");
             });
         }
-        
-        // Apply category filter
         if ($category) {
             $query->whereHas('product', function($q) use ($category) {
                 $q->where('category_id', $category);
             });
         }
-        
-        // Apply stock filter
-        if ($stockFilter) {
-            if ($stockFilter === 'low') {
-                $query->where('reorder_level', '>', 0)
-                      ->whereRaw('(available_stock <= reorder_level OR available_length <= reorder_level)');
-            } elseif ($stockFilter === 'out') {
-                $query->whereRaw('(available_stock = 0 OR available_stock IS NULL) AND (available_length = 0 OR available_length IS NULL)');
-            } elseif ($stockFilter === 'normal') {
-                $query->whereRaw('(available_stock > reorder_level OR available_length > reorder_level)');
-            }
+        // Stock filter logic
+        if($stockFilter === 'normal'){
+            // query only if available_stock is greater than or equal to reorder_level
+            $query->whereColumn('available_stock', '>=', 'reorder_level');
+        }else if ($stockFilter === 'low') {
+            $query->whereColumn('available_stock', '<=', 'reorder_level')
+                  ->where('available_stock', '>', 0);
+        } elseif ($stockFilter === 'out') {
+            $query->where('available_stock', '=', 0);
         }
-        
+
         $inventory = $query->join('products', 'inventories.product_id', '=', 'products.id')
-                           ->orderBy('products.name', 'asc')
-                           ->select('inventories.*')
-                           ->paginate($perPage);
-        
-        // Calculate set stock for set products
-        foreach ($inventory as $item) {
-            if ($item->product->base_unit === 'per set') {
-                $item->calculated_stock = $item->calculateSetStock();
-                $item->stock_status = $item->getStockStatus();
-            }
-        }
-            
+            ->orderBy('products.name', 'asc')
+            ->select('inventories.*')
+            ->paginate($perPage);
+
         return response()->json($inventory);
     }
 
     // API: Get inventory summary for a branch
     public function getBranchInventorySummary($branchId)
     {
-        $inventory = Inventory::with(['product.category', 'product.setComponents.componentProduct'])
+        $inventory = Inventory::with(['product.category'])
             ->where('branch_id', $branchId)
             ->get();
-            
+
+        $totalProducts = $inventory->count();
+        $totalStock = $inventory->sum('available_stock');
+        $totalCost = $inventory->sum(function ($item) {
+            return ($item->available_stock ?? 0) * ($item->cost ?? 0);
+        });
+        $lastUpdated = $inventory->max('updated_at') ? $inventory->max('updated_at')->format('M d, Y H:i') : 'Never';
+        // get the total low stock and out of stock without using whereColumn
         $lowStockCount = 0;
         $outOfStockCount = 0;
-        
         foreach ($inventory as $item) {
-            $currentStock = 0;
-            $reorderLevel = $item->reorder_level ?? 0;
-            
-            // Calculate current stock based on product type
-            if ($item->product->base_unit === 'per set') {
-                $currentStock = $item->calculateSetStock();
-            } elseif ($item->product->base_unit === 'per pc') {
-                $currentStock = $item->available_stock ?? 0;
-            } else {
-                $currentStock = $item->available_length ?? 0;
-            }
-            
-            if ($currentStock === 0) {
-                $outOfStockCount++;
-            } elseif ($currentStock <= $reorderLevel) {
+            if ($item->available_stock <= $item->reorder_level && $item->available_stock > 0) {
                 $lowStockCount++;
             }
+            if ($item->available_stock == 0) {
+                $outOfStockCount++;
+            }
         }
-        
+
         $summary = [
-            'total_products' => $inventory->count(),
+            'total_products' => $totalProducts,
+            'total_stock' => $totalStock,
+            'total_cost' => $totalCost,
+            'last_updated' => $lastUpdated,
             'low_stock_count' => $lowStockCount,
             'out_of_stock_count' => $outOfStockCount,
-            'last_updated' => $inventory->max('updated_at') ? $inventory->max('updated_at')->format('M d, Y H:i') : 'Never',
         ];
-        
+
         return response()->json($summary);
+    }
+
+    // API: Get cut remainders for a specific branch
+    public function getBranchRemainders(Request $request, $branchId)
+    {
+        $perPage = $request->get('per_page', 1000);
+        $search = $request->get('search', '');
+        $status = $request->get('status', 'available'); // Default to available only
+
+        $query = \App\Models\CutRemainder::with(['product.category'])
+            ->where('branch_id', $branchId);
+
+        if ($search) {
+            $query->whereHas('product', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%");
+            });
+        }
+
+        if ($status !== 'all') {
+            $query->where('status', $status);
+        }
+
+        $remainders = $query->orderBy('created_at', 'desc')->paginate($perPage);
+
+        return response()->json($remainders);
     }
 
     public function store(Request $request)
@@ -128,9 +133,8 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'product_id' => 'required|exists:products,id',
-            'available_stock' => 'nullable|numeric|min:0',
-            'available_length' => 'nullable|numeric|min:0',
-            'available_area' => 'nullable|numeric|min:0',
+            'available_stock' => 'required|numeric|min:0',
+            'cost' => 'required|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
 
@@ -143,41 +147,21 @@ class InventoryController extends Controller
             return response()->json(['error' => 'Inventory already exists for this product in this branch'], 422);
         }
 
-        // For set products, ensure no direct stock is set
-        $product = Product::find($validated['product_id']);
-        if ($product && $product->base_unit === 'per set') {
-            $validated['available_stock'] = null;
-            $validated['available_length'] = null;
-            $validated['available_area'] = null;
-        }
-
         $inventory = Inventory::create($validated);
         $inventory->load(['product.category']);
-        
         return response()->json($inventory, 201);
     }
 
     public function update(Request $request, $id)
     {
         $inventory = Inventory::findOrFail($id);
-        
         $validated = $request->validate([
-            'available_stock' => 'nullable|numeric|min:0',
-            'available_length' => 'nullable|numeric|min:0',
-            'available_area' => 'nullable|numeric|min:0',
+            'available_stock' => 'required|numeric|min:0',
+            'cost' => 'required|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
-        
-        // For set products, ensure no direct stock is updated
-        if ($inventory->product->base_unit === 'per set') {
-            $validated['available_stock'] = null;
-            $validated['available_length'] = null;
-            $validated['available_area'] = null;
-        }
-        
         $inventory->update($validated);
         $inventory->load(['product.category']);
-        
         return response()->json($inventory);
     }
 

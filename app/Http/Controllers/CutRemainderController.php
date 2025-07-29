@@ -7,9 +7,20 @@ use Illuminate\Http\Request;
 
 class CutRemainderController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        return CutRemainder::all();
+        $query = CutRemainder::query();
+        if ($request->has('product_id')) {
+            $query->where('product_id', $request->get('product_id'));
+        }
+        if ($request->has('branch_id')) {
+            $query->where('branch_id', $request->get('branch_id'));
+        }
+        // By default, only show available remainders
+        if (!$request->has('show_all')) {
+            $query->where('status', 'available');
+        }
+        return $query->get();
     }
 
     public function show($id)
@@ -25,9 +36,13 @@ class CutRemainderController extends Controller
 
     public function update(Request $request, $id)
     {
-        $cutRemainder = CutRemainder::findOrFail($id);
-        $cutRemainder->update($request->all());
-        return response()->json($cutRemainder);
+        $remainder = CutRemainder::findOrFail($id);
+        $data = $request->only(['status', 'discard_reason']);
+        if (isset($data['status']) && $data['status'] === 'discarded') {
+            $data['discarded_at'] = now();
+        }
+        $remainder->update($data);
+        return response()->json($remainder);
     }
 
     public function destroy($id)

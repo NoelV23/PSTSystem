@@ -12,11 +12,13 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('branch_id');
-            $table->float('length_remaining')->nullable();
-            $table->float('height')->nullable();
-            $table->float('width')->nullable();
-            $table->float('area_remaining')->nullable();
+            $table->integer('length_remaining')->nullable();
+            $table->integer('height_remaining')->nullable();
+            $table->integer('width_remaining')->nullable();
             $table->string('location_note')->nullable();
+            $table->string('status')->default('available');
+            $table->string('discard_reason')->nullable();
+            $table->timestamp('discarded_at')->nullable();
             $table->timestamps();
 
             $table->foreign('product_id')->references('id')->on('products')->cascadeOnDelete();
