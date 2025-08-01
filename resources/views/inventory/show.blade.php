@@ -117,9 +117,11 @@
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Base Unit</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Measurement</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -172,7 +174,7 @@
                 <div>
                     <label for="productSelect" class="block text-sm font-medium text-gray-700 mb-1">Product *</label>
                     <div class="relative">
-                        <input type="text" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="text" autocomplete="off" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <input type="hidden" id="productSelect" name="product_id" required>
                         <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                             <!-- Product options will be populated here -->
@@ -203,13 +205,18 @@
                 <div id="stockInputs" class="space-y-4">
                     <div id="availableStockSection">
                         <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
-                        <input type="number" id="availableStock" name="available_stock" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="availableStock" name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="costSection">
-                        <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost *</label>
-                        <input type="number" id="cost" name="cost" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost</label>
+                        <input type="number" value="0" id="cost" name="cost" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="costError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                    <div id="priceSection">
+                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Default Price</label>
+                        <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="priceError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 </div>
                 
@@ -280,6 +287,41 @@
             <div class="flex justify-end pt-4">
                 <button id="closeRemainderBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Close</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stock Adjustment Modal -->
+<div id="stockAdjustmentModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <div class="mt-3">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="stockAdjustmentModalTitle" class="text-lg font-medium text-gray-900">Adjust Stock</h3>
+                <button id="closeStockAdjustmentModal" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <form id="stockAdjustmentForm" class="space-y-4">
+                <input type="hidden" id="adjustmentInventoryId" name="inventory_id">
+                <input type="hidden" id="adjustmentType" name="type">
+                
+                <div>
+                    <label for="adjustmentQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
+                    <input type="number" id="adjustmentQuantity" name="quantity" min="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label for="adjustmentReason" class="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
+                    <textarea id="adjustmentReason" name="reason" rows="3" required placeholder="Enter reason for stock adjustment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"></textarea>
+                </div>
+                
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="cancelStockAdjustmentBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
+                    <button type="submit" id="submitStockAdjustmentBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Adjust Stock</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -389,8 +431,11 @@ async function loadProducts() {
         // Sort products alphabetically by name
         products.sort((a, b) => a.name.localeCompare(b.name));
         
+        // Filter out products already in inventory
+        const availableProducts = filterAvailableProducts(products);
+        
         // Populate initial dropdown
-        populateProductDropdown(products);
+        populateProductDropdown(availableProducts);
     } catch (error) {
         console.error('Error loading products:', error);
     }
@@ -431,14 +476,14 @@ async function loadInventory() {
         if (!response.ok) throw new Error('Failed to load inventory');
         const result = await response.json();
 
-        inventory = result.data;
-        const totalPages = result.last_page;
-        const currentPage = result.current_page;
-        const total = result.total;
+        inventory = result.data || [];
+        const totalPages = result.last_page || 1;
+        const currentPage = result.current_page || 1;
+        const total = result.total || 0;
         
         hideLoading();
         
-        if (inventory.length === 0) {
+        if (!inventory || inventory.length === 0) {
             showEmptyState();
             inventoryTbody.parentElement.parentElement.classList.add('hidden');
         } else {
@@ -528,43 +573,89 @@ function createInventoryRow(item) {
     const stockStatus = getStockStatus(item);
     const statusClass = stockStatus === 'Low Stock' ? 'text-yellow-600' : 
                        stockStatus === 'Out of Stock' ? 'text-red-600' : 'text-green-600';
-    let availableStock = item.available_stock ? `${item.available_stock} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}` : '-';
-    let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
     
-    // Build additional product info
+    // For set products, show calculated stock
+    let availableStock = '-';
+    if (item.product.base_unit === 'per set') {
+        // Use calculated stock for set products
+        availableStock = item.calculated_stock ? `${item.calculated_stock} sets` : '0 sets';
+    } else {
+        availableStock = item.available_stock ? `${item.available_stock}` : '-';
+    }
+    
+    let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
+    let price = '-';
+    if (item.product.base_unit === 'per set') {
+        // For set products, show calculated price
+        price = item.calculated_price ? `₱${parseFloat(item.calculated_price).toFixed(2)}` : '-';
+    } else {
+        // For regular products, show inventory price
+        price = item.price ? `₱${parseFloat(item.price).toFixed(2)}` : '-';
+    }
+    
+    // Build measurement display
+    let measurementDisplay = '-';
+    if (item.product.measurement_unit === 'sq ft') {
+        // For square feet, show width x height
+        if (item.product.default_width && item.product.default_height) {
+            measurementDisplay = `${item.product.default_width}×${item.product.default_height} sq ft`;
+        } else if (item.product.default_width) {
+            measurementDisplay = `${item.product.default_width} sq ft`;
+        } else if (item.product.default_height) {
+            measurementDisplay = `${item.product.default_height} sq ft`;
+        }
+    } else if (item.product.default_length) {
+        // For other units, show length with unit
+        measurementDisplay = `${item.product.default_length} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}`;
+    }
+    
+    // Build additional product info (only color now)
     let additionalInfo = [];
-    if (item.product.measurement_unit) {
-        additionalInfo.push(`Unit: ${item.product.measurement_unit}`);
-    }
-    if (item.product.default_length) {
-        additionalInfo.push(`L: ${item.product.default_length}`);
-    }
-    if (item.product.default_width) {
-        additionalInfo.push(`W: ${item.product.default_width}`);
-    }
-    if (item.product.default_height) {
-        additionalInfo.push(`H: ${item.product.default_height}`);
-    }
     if (item.product.color) {
         additionalInfo.push(`Color: ${item.product.color}`);
     }
     
     const additionalInfoText = additionalInfo.length > 0 ? additionalInfo.join(' | ') : '';
     
+    // Create view components button for set products
+    const viewComponentsButton = item.product.base_unit === 'per set' ? 
+        `<button onclick="viewSetComponents(${item.product.id}, '${escapeHtml(item.product.name)}')" class="text-blue-600 hover:text-blue-900 text-sm mt-1">(View Components)</button>` : '';
+    
     return `
         <tr class="bg-white border-b hover:bg-gray-50">
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                 <div class="flex flex-col">
-                    <div class="font-semibold">${escapeHtml(item.product.name)}</div>
+                    <div class="font-semibold">${escapeHtml(item.product.name)} ${viewComponentsButton}</div>
                     <div class="text-sm text-gray-500">${escapeHtml(item.product.sku || 'No SKU')}</div>
                     ${additionalInfoText ? `<div class="text-xs text-gray-400 mt-1">${escapeHtml(additionalInfoText)}</div>` : ''}
+                    
                 </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.category?.name || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.base_unit || '-')}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${availableStock}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${measurementDisplay}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">
+                <div class="flex items-center space-x-2">
+                    <span>${availableStock}</span>
+                    ${item.product.base_unit !== 'per set' ? `
+                        <div class="flex space-x-1">
+                            <button onclick="adjustStock(${item.id}, 'increase')" class="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50" title="Increase Stock">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                            </button>
+                            <button onclick="adjustStock(${item.id}, 'decrease')" class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50" title="Decrease Stock">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </td>
             <td class="px-6 py-4 text-sm text-gray-500" id="remainderCol-${item.product.id}">-</td>
             <td class="px-6 py-4 text-sm text-gray-500">${cost}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${price}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
@@ -576,33 +667,72 @@ function createInventoryRow(item) {
 }
 
 function getStockStatus(item) {
-    const currentStock = item.available_stock || 0;
+    let currentStock = 0;
     const reorderLevel = item.reorder_level || 0;
+
+    if (item.product.base_unit === 'per set') {
+        // For set products, use calculated stock
+        currentStock = item.calculated_stock || 0;
+    } else {
+        // For regular products, use available_stock
+        currentStock = item.available_stock || 0;
+    }
 
     if (currentStock === 0) return 'Out of Stock';
     if (currentStock <= reorderLevel) return 'Low Stock';
     return 'In Stock';
 }
 
+function filterAvailableProducts(productsToShow) {
+    // Get current inventory product IDs
+    const inventoryProductIds = (inventory || []).map(item => item.product_id);
+    
+    // Filter out products that are already in inventory
+    return productsToShow.filter(product => !inventoryProductIds.includes(product.id));
+}
+
 function populateProductDropdown(productsToShow) {
     const dropdown = document.getElementById('productDropdown');
     if (productsToShow.length === 0) {
-        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500">No products found</div>';
+        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500">No available products found</div>';
         return;
     }
     
     // Sort products alphabetically by name
     productsToShow.sort((a, b) => a.name.localeCompare(b.name));
     
-    dropdown.innerHTML = productsToShow.map(product => `
-        <div class="product-option px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
-             data-product-id="${product.id}" 
-             data-product-name="${escapeHtml(product.name)}" 
-             data-product-sku="${escapeHtml(product.sku || '')}">
-            <div class="font-medium">${escapeHtml(product.name)}</div>
-            <div class="text-sm text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
-        </div>
-    `).join('');
+    dropdown.innerHTML = productsToShow.map(product => {
+        // Build measurement info
+        let measurementInfo = [];
+        if (product.measurement_unit) {
+            measurementInfo.push(`Unit: ${product.measurement_unit}`);
+        }
+        if (product.default_length) {
+            measurementInfo.push(`L: ${product.default_length}`);
+        }
+        if (product.default_width) {
+            measurementInfo.push(`W: ${product.default_width}`);
+        }
+        if (product.default_height) {
+            measurementInfo.push(`H: ${product.default_height}`);
+        }
+        const measurementText = measurementInfo.length > 0 ? measurementInfo.join(' | ') : '';
+        
+        // Build color info
+        const colorText = product.color ? `Color: ${product.color}` : '';
+        
+        return `
+            <div class="product-option px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
+                 data-product-id="${product.id}" 
+                 data-product-name="${escapeHtml(product.name)}" 
+                 data-product-sku="${escapeHtml(product.sku || '')}">
+                <div class="font-medium">${escapeHtml(product.name)}</div>
+                <div class="text-sm text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
+                ${measurementText ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(measurementText)}</div>` : ''}
+                ${colorText ? `<div class="text-xs text-gray-500">${escapeHtml(colorText)}</div>` : ''}
+            </div>
+        `;
+    }).join('');
     
     // Add click handlers to options
     dropdown.querySelectorAll('.product-option').forEach(option => {
@@ -628,7 +758,10 @@ function handleProductSearch() {
         (product.sku && product.sku.toLowerCase().includes(searchTerm))
     );
     
-    populateProductDropdown(filteredProducts);
+    // Filter out products already in inventory
+    const availableProducts = filterAvailableProducts(filteredProducts);
+    
+    populateProductDropdown(availableProducts);
     showProductDropdown();
 }
 
@@ -655,11 +788,19 @@ async function handleProductSelection() {
     }
     
     try {
+        console.log('Loading product details for product ID:', productId);
         const response = await fetch(`/api/inventory/product/${productId}`, {
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
         });
-        if (!response.ok) throw new Error('Failed to load product details');
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Product details API error:', response.status, errorText);
+            throw new Error(`Failed to load product details: ${response.status} ${errorText}`);
+        }
+        
         const product = await response.json();
+        console.log('Product details received:', product);
         
         // Display product info
         document.getElementById('productBaseUnit').textContent = product.base_unit || '-';
@@ -671,28 +812,84 @@ async function handleProductSelection() {
             document.getElementById('productMeasurement').classList.add('hidden');
         }
         productInfo.classList.remove('hidden');
-        // Show only stock and cost sections
-        hideAllStockSections();
-        document.getElementById('availableStockSection').classList.remove('hidden');
-        document.getElementById('costSection').classList.remove('hidden');
-        document.getElementById('availableStock').required = true;
-        document.getElementById('cost').required = true;
-        stockInputs.classList.remove('hidden');
+        
+        // Handle set products differently
+        if (product.base_unit === 'per set') {
+            console.log('Product is a set product, loading components...');
+            // For set products, show set components info and disable stock inputs
+            hideAllStockSections();
+            stockInputs.classList.remove('hidden');
+            
+            // Create a set-specific section
+            const setSection = document.createElement('div');
+            setSection.id = 'setProductSection';
+            setSection.className = 'bg-blue-50 border border-blue-200 rounded-lg p-4';
+            setSection.innerHTML = `
+                <div class="flex items-center mb-2">
+                    <svg class="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span class="font-medium text-blue-800">Set Product</span>
+                </div>
+                <p class="text-sm text-blue-700 mb-3">
+                    This is a set product. Stock is calculated automatically based on component availability.
+                    No manual stock input is required.
+                </p>
+                <div id="setComponentsInfo" class="text-sm text-blue-600">
+                    Loading component information...
+                </div>
+            `;
+            
+            // Remove existing set section if it exists
+            const existingSetSection = document.getElementById('setProductSection');
+            if (existingSetSection) {
+                existingSetSection.remove();
+            }
+            
+            stockInputs.appendChild(setSection);
+            
+            // Load set components information
+            await loadSetComponentsInfo(product.id);
+            
+        } else {
+            console.log('Product is a regular product, showing stock inputs...');
+            // For regular products, show stock and cost inputs
+            hideAllStockSections();
+            document.getElementById('availableStockSection').classList.remove('hidden');
+            document.getElementById('costSection').classList.remove('hidden');
+            document.getElementById('priceSection').classList.remove('hidden');
+            document.getElementById('availableStock').required = true;
+            document.getElementById('cost').required = false; // Cost is optional
+            stockInputs.classList.remove('hidden');
+        }
     } catch (error) {
         console.error('Error loading product details:', error);
-        showToast('Failed to load product details', 'error');
+        showToast('Failed to load product details: ' + error.message, 'error');
     }
 }
 
 async function loadSetComponentsInfo(productId) {
     try {
+        console.log('Loading set components for product:', productId);
         const response = await fetch(`/api/products/${productId}/set-components`, {
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
         });
-        if (!response.ok) throw new Error('Failed to load set components');
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Set components API error:', response.status, errorText);
+            throw new Error(`Failed to load set components: ${response.status} ${errorText}`);
+        }
+        
         const components = await response.json();
+        console.log('Set components received:', components);
         
         const componentsInfo = document.getElementById('setComponentsInfo');
+        if (!componentsInfo) {
+            console.error('setComponentsInfo element not found');
+            return;
+        }
+        
         if (components.length === 0) {
             componentsInfo.innerHTML = '<p class="text-blue-600">No components defined for this set.</p>';
             return;
@@ -702,12 +899,24 @@ async function loadSetComponentsInfo(productId) {
         componentsHtml += '<p class="font-medium">Set Components:</p>';
         
         for (const component of components) {
-            // Get component inventory for this branch
-            const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}`, {
+            console.log('Processing component:', component);
+            
+            // Get component inventory for this branch - use a larger per_page to get all inventory
+            const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}?per_page=1000`, {
                 headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
             });
+            
+            if (!inventoryResponse.ok) {
+                console.error('Inventory API error:', inventoryResponse.status);
+                throw new Error('Failed to load branch inventory');
+            }
+            
             const branchInventory = await inventoryResponse.json();
-            const componentInventory = branchInventory.find(inv => inv.product_id === component.product_id);
+            console.log('Branch inventory:', branchInventory);
+            
+            // Handle paginated response
+            const inventoryItems = branchInventory.data || branchInventory;
+            const componentInventory = inventoryItems.find(inv => inv.product_id === component.product_id);
             
             let availableStock = 'Not in inventory';
             if (componentInventory) {
@@ -729,15 +938,20 @@ async function loadSetComponentsInfo(productId) {
         componentsInfo.innerHTML = componentsHtml;
     } catch (error) {
         console.error('Error loading set components info:', error);
-        document.getElementById('setComponentsInfo').innerHTML = '<p class="text-red-600">Error loading component information.</p>';
+        const componentsInfo = document.getElementById('setComponentsInfo');
+        if (componentsInfo) {
+            componentsInfo.innerHTML = `<p class="text-red-600">Error loading component information: ${error.message}</p>`;
+        }
     }
 }
 
 function hideAllStockSections() {
     const stockSection = document.getElementById('availableStockSection');
     const costSection = document.getElementById('costSection');
+    const priceSection = document.getElementById('priceSection');
     if (stockSection) stockSection.classList.add('hidden');
     if (costSection) costSection.classList.add('hidden');
+    if (priceSection) priceSection.classList.add('hidden');
     const setSection = document.getElementById('setProductSection');
     if (setSection) setSection.classList.add('hidden');
     // Remove required attributes
@@ -758,6 +972,10 @@ function openAddModal() {
     document.getElementById('productInfo').classList.add('hidden');
     document.getElementById('stockInputs').classList.add('hidden');
     hideProductDropdown();
+    
+    // Reload products to get updated available products list
+    loadProducts();
+    
     inventoryModal.classList.remove('hidden');
 }
 
@@ -771,6 +989,7 @@ function openEditModal(inventoryItem) {
     document.getElementById('reorderLevel').value = inventoryItem.reorder_level || '';
     document.getElementById('availableStock').value = inventoryItem.available_stock || '';
     document.getElementById('cost').value = inventoryItem.cost || '';
+    document.getElementById('price').value = inventoryItem.price || '';
     
     // Trigger product selection to show correct fields
     handleProductSelection();
@@ -809,8 +1028,6 @@ async function handleFormSubmit(e) {
             branch_id: data.branch_id,
             product_id: data.product_id,
             reorder_level: data.reorder_level || null,
-            available_stock: data.available_stock || null,
-            cost: data.cost || null,
         };
         
         // Add appropriate stock fields based on product type
@@ -818,18 +1035,12 @@ async function handleFormSubmit(e) {
             // Set products don't have direct stock - it's calculated from components
             inventoryData.available_stock = null;
             inventoryData.cost = null;
-        } else if (product.base_unit === 'per pc') {
+            inventoryData.price = null;
+        } else {
+            // Regular products need stock and cost (cost can be blank)
             inventoryData.available_stock = data.available_stock || null;
             inventoryData.cost = data.cost || null;
-        } else if (product.base_unit === 'per ft') {
-            inventoryData.available_stock = data.available_stock || null;
-            inventoryData.cost = data.cost || null;
-        } else if (product.base_unit === 'per sq ft') {
-            inventoryData.available_stock = data.available_stock || null;
-            inventoryData.cost = data.cost || null;
-        } else if (product.base_unit === 'per kg' || product.base_unit === 'per liter') {
-            inventoryData.available_stock = data.available_stock || null;
-            inventoryData.cost = data.cost || null;
+            inventoryData.price = data.price || null;
         }
         
         let url, method;
@@ -862,10 +1073,11 @@ async function handleFormSubmit(e) {
         }
         
         if (isEditMode) {
-            const idx = inventory.findIndex(i => i.id === currentInventoryId);
+            const idx = (inventory || []).findIndex(i => i.id === currentInventoryId);
             if (idx !== -1) inventory[idx] = result;
             showToast('Inventory item updated successfully!', 'success');
         } else {
+            if (!inventory) inventory = [];
             inventory.unshift(result);
             showToast('Inventory item created successfully!', 'success');
         }
@@ -880,7 +1092,7 @@ async function handleFormSubmit(e) {
 }
 
 function editInventory(inventoryId) {
-    const inventoryItem = inventory.find(i => i.id === inventoryId);
+    const inventoryItem = (inventory || []).find(i => i.id === inventoryId);
     if (inventoryItem) openEditModal(inventoryItem);
 }
 
@@ -896,7 +1108,7 @@ function deleteInventory(inventoryId) {
     })
     .then(response => {
         if (!response.ok) throw new Error('Failed to delete inventory item');
-        inventory = inventory.filter(i => i.id !== inventoryId);
+        inventory = (inventory || []).filter(i => i.id !== inventoryId);
         renderInventory();
         loadSummary();
         showToast('Inventory item deleted successfully!', 'success');
@@ -976,106 +1188,135 @@ function hideToast() {
     toast.classList.add('hidden');
 }
 
-async function viewSetComponents(inventoryId) {
-    const inventoryItem = inventory.find(i => i.id === inventoryId);
-    if (!inventoryItem || inventoryItem.product.base_unit !== 'per set') {
-        showToast('Invalid inventory item', 'error');
-        return;
-    }
-    
+async function viewSetComponents(productId, productName) {
     try {
-        // Load set components
-        const response = await fetch(`/api/products/${inventoryItem.product_id}/set-components`, {
+        console.log('Loading components for set product:', productId);
+        const response = await fetch(`/api/products/${productId}/set-components`, {
             headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
         });
-        if (!response.ok) throw new Error('Failed to load set components');
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Set components API error:', response.status, errorText);
+            throw new Error(`Failed to load set components: ${response.status} ${errorText}`);
+        }
+        
         const components = await response.json();
+        console.log('Set components received:', components);
         
-        // Set modal title
-        document.getElementById('setComponentsModalTitle').textContent = `Set Components - ${escapeHtml(inventoryItem.product.name)}`;
+        // Get branch inventory for component stock information
+        const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}?per_page=1000`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        });
         
-        // Build component content
-        let contentHtml = '';
+        if (!inventoryResponse.ok) {
+            throw new Error('Failed to load branch inventory');
+        }
         
+        const branchInventory = await inventoryResponse.json();
+        const inventoryItems = branchInventory.data || branchInventory;
+        
+        // Build components HTML
+        let componentsHtml = '';
         if (components.length === 0) {
-            contentHtml = '<div class="text-center py-8 text-gray-500">No components defined for this set.</div>';
+            componentsHtml = '<p class="text-gray-600">No components defined for this set.</p>';
         } else {
-            contentHtml = `
-                <div class="bg-gray-50 p-4 rounded-lg mb-4">
-                    <div class="text-sm text-gray-600">
-                        <strong>Available Sets:</strong> ${inventoryItem.calculated_stock || 0} sets
-                    </div>
-                </div>
-                <div class="space-y-4">
-            `;
+            componentsHtml = '<div class="space-y-3">';
+            componentsHtml += '<div class="text-sm font-medium text-gray-700 mb-2">Set Components:</div>';
             
             for (const component of components) {
-                // Get component inventory for this branch
-                const inventoryResponse = await fetch(`/api/inventory/branch/${branchId}`, {
-                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
-                });
-                const branchInventory = await inventoryResponse.json();
-                const componentInventory = branchInventory.find(inv => inv.product_id === component.product_id);
+                const componentInventory = inventoryItems.find(inv => inv.product_id === component.product_id);
                 
                 let availableStock = 'Not in inventory';
-                let stockStatus = 'text-red-600';
-                let setsPossible = 0;
+                let stockClass = 'text-red-600';
                 
                 if (componentInventory) {
-                    if (componentInventory.product.base_unit === 'per pc') {
+                    if (componentInventory.product.base_unit === 'per pc' || componentInventory.product.base_unit === 'per length') {
                         availableStock = `${componentInventory.available_stock || 0} pieces`;
                     } else {
                         availableStock = `${componentInventory.available_length || 0} ${componentInventory.product.base_unit.replace('per ', '')}`;
                     }
                     
-                    // Calculate sets possible with this component
-                    const availableQuantity = componentInventory.product.base_unit === 'per pc' 
-                        ? (componentInventory.available_stock || 0) 
-                        : (componentInventory.available_length || 0);
-                    setsPossible = Math.floor(availableQuantity / component.quantity);
+                    // Determine stock status
+                    const stock = componentInventory.available_stock || componentInventory.available_length || 0;
+                    const required = component.quantity_required;
                     
-                    if (setsPossible > 0) {
-                        stockStatus = setsPossible >= (inventoryItem.calculated_stock || 0) ? 'text-green-600' : 'text-yellow-600';
+                    if (stock >= required) {
+                        stockClass = 'text-green-600';
+                    } else if (stock > 0) {
+                        stockClass = 'text-yellow-600';
                     }
                 }
                 
-                contentHtml += `
-                    <div class="border rounded-lg p-4">
-                        <div class="flex justify-between items-start mb-2">
-                            <div>
-                                <h4 class="font-medium text-gray-900">${escapeHtml(component.product_name)}</h4>
-                                <p class="text-sm text-gray-600">${escapeHtml(component.product_sku || 'No SKU')}</p>
-                            </div>
-                            <span class="text-sm font-medium ${stockStatus}">${setsPossible} sets possible</span>
+                componentsHtml += `
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <div class="flex-1">
+                            <div class="font-medium text-gray-900">${escapeHtml(component.component_product.name)}</div>
+                            <div class="text-sm text-gray-500">SKU: ${escapeHtml(component.component_product.sku || 'No SKU')}</div>
+                            <div class="text-sm text-gray-600">Required: ${component.quantity_required} ${componentInventory?.product?.base_unit === 'per length' ? 'length' : componentInventory?.product?.base_unit?.replace('per ', '') || 'units'}</div>
                         </div>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <span class="text-gray-600">Required per set:</span>
-                                <span class="font-medium">${component.quantity}</span>
-                            </div>
-                            <div>
-                                <span class="text-gray-600">Available in branch:</span>
-                                <span class="font-medium">${availableStock}</span>
-                            </div>
+                        <div class="text-right">
+                            <div class="text-sm font-medium ${stockClass}">${availableStock}</div>
+                            <div class="text-xs text-gray-500">Available</div>
                         </div>
                     </div>
                 `;
             }
-            
-            contentHtml += '</div>';
+            componentsHtml += '</div>';
         }
         
-        document.getElementById('setComponentsContent').innerHTML = contentHtml;
-        document.getElementById('setComponentsModal').classList.remove('hidden');
+        // Show modal with components
+        showComponentsModal(productName, componentsHtml);
         
     } catch (error) {
         console.error('Error loading set components:', error);
-        showToast('Failed to load set components', 'error');
+        showToast('Failed to load set components: ' + error.message, 'error');
     }
 }
 
-function closeSetComponentsModal() {
-    document.getElementById('setComponentsModal').classList.add('hidden');
+function showComponentsModal(productName, componentsHtml) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('componentsModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'componentsModal';
+        modal.className = 'fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50';
+        modal.innerHTML = `
+            <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+                <div class="mt-3">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900" id="componentsModalTitle">Set Components</h3>
+                        <button onclick="closeComponentsModal()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="componentsModalContent" class="text-sm text-gray-600">
+                        ${componentsHtml}
+                    </div>
+                    <div class="mt-6 flex justify-end">
+                        <button onclick="closeComponentsModal()" class="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        document.getElementById('componentsModalTitle').textContent = `Set Components - ${productName}`;
+        document.getElementById('componentsModalContent').innerHTML = componentsHtml;
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+function closeComponentsModal() {
+    const modal = document.getElementById('componentsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
 }
 
 async function loadRemaindersForInventory() {
@@ -1188,8 +1429,72 @@ window.viewRemainders = async function(productId) {
 document.getElementById('closeRemainderModal').addEventListener('click', function() {
     document.getElementById('remainderModal').classList.add('hidden');
 });
-document.getElementById('closeRemainderBtn').addEventListener('click', function() {
-    document.getElementById('remainderModal').classList.add('hidden');
-});
+    document.getElementById('closeRemainderBtn').addEventListener('click', function() {
+        document.getElementById('remainderModal').classList.add('hidden');
+    });
+
+    // Stock Adjustment Functions
+    window.adjustStock = function(inventoryId, type) {
+        document.getElementById('adjustmentInventoryId').value = inventoryId;
+        document.getElementById('adjustmentType').value = type;
+        document.getElementById('adjustmentQuantity').value = 1;
+        document.getElementById('adjustmentReason').value = '';
+        
+        const title = type === 'increase' ? 'Increase Stock' : 'Decrease Stock';
+        document.getElementById('stockAdjustmentModalTitle').textContent = title;
+        
+        document.getElementById('stockAdjustmentModal').classList.remove('hidden');
+    };
+
+    document.getElementById('closeStockAdjustmentModal').addEventListener('click', function() {
+        document.getElementById('stockAdjustmentModal').classList.add('hidden');
+    });
+
+    document.getElementById('cancelStockAdjustmentBtn').addEventListener('click', function() {
+        document.getElementById('stockAdjustmentModal').classList.add('hidden');
+    });
+
+    document.getElementById('stockAdjustmentForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const inventoryId = document.getElementById('adjustmentInventoryId').value;
+        const type = document.getElementById('adjustmentType').value;
+        const quantity = document.getElementById('adjustmentQuantity').value;
+        const reason = document.getElementById('adjustmentReason').value;
+        
+        if (!reason.trim()) {
+            showToast('Please provide a reason for the adjustment.', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/inventory/${inventoryId}/adjust`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    type: type,
+                    quantity: parseInt(quantity),
+                    reason: reason
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                showToast(data.message, 'success');
+                document.getElementById('stockAdjustmentModal').classList.add('hidden');
+                loadInventory(); // Reload inventory to show updated stock
+            } else {
+                showToast(data.message, 'error');
+            }
+        } catch (error) {
+            console.error('Error adjusting stock:', error);
+            showToast('Failed to adjust stock. Please try again.', 'error');
+        }
+    });
 </script>
 @endsection 

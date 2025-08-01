@@ -14,7 +14,11 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->decimal('total_amount', 12, 2);
             $table->string('payment_method');
-            $table->timestamps();
+            $table->boolean('is_delivered')->default(false);
+            $table->string('delivered_to')->nullable();
+            $table->string('delivery_address')->nullable();
+            $table->date('delivery_date')->nullable();
+            $table->text('delivery_note')->nullable();
 
             $table->foreign('branch_id')->references('id')->on('branches')->cascadeOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();

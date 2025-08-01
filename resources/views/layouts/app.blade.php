@@ -16,7 +16,7 @@
     </head>
     <body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
         <x-navbar />
-        <div x-data="{ sidebarOpen: true }" class="flex flex-1 min-h-0">
+        <div x-data="{ sidebarOpen: false }" class="flex flex-1 min-h-0">
             <!-- Sidebar -->
             <div>
                 <x-sidebar x-model="sidebarOpen" />

@@ -74,7 +74,6 @@
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Color</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -139,6 +138,7 @@
                     <label for="productBaseUnit" class="block text-sm font-medium text-gray-700 mb-1">Base Unit *</label>
                     <select id="productBaseUnit" name="base_unit" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <option value="per pc">Per pc</option>
+                        <option value="per length">Per length</option>
                         <option value="per ft">Per ft</option>
                         <option value="per sq ft">Per sq ft</option>
                         <option value="per set">Per set</option>
@@ -154,6 +154,7 @@
                         <option value="ft">Feet (ft)</option>
                         <option value="m">Meters (m)</option>
                         <option value="inch">Inches (in)</option>
+                        <option value="sq ft">Square Feet (sq ft)</option>
                     </select>
                     <div id="measurement_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
@@ -254,17 +255,21 @@ function setupEventListeners() {
     document.getElementById('retryBtn').addEventListener('click', loadProducts);
     
     // Filter event listeners with pagination reset
+    let searchTimeout;
     document.getElementById('searchInput').addEventListener('input', function() {
-        document.getElementById('productsTable').dataset.currentPage = 1;
-        renderProducts();
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('productsTable').dataset.currentPage = 1;
+            loadProducts();
+        }, 300); // 300ms delay
     });
     document.getElementById('categoryFilter').addEventListener('change', function() {
         document.getElementById('productsTable').dataset.currentPage = 1;
-        renderProducts();
+        loadProducts();
     });
     document.getElementById('perPageFilter').addEventListener('change', function() {
         document.getElementById('productsTable').dataset.currentPage = 1;
-        renderProducts();
+        loadProducts();
     });
     
     // Base unit change handler
@@ -305,6 +310,8 @@ async function loadProducts() {
         const searchTerm = document.getElementById('searchInput').value;
         const categoryFilter = document.getElementById('categoryFilter').value;
 
+        console.log('Loading products with filters:', { page, perPage, searchTerm, categoryFilter });
+
         const params = new URLSearchParams({
             page: page,
             per_page: perPage,
@@ -320,6 +327,8 @@ async function loadProducts() {
         const totalPages = result.last_page;
         const currentPage = result.current_page;
         const total = result.total;
+
+        console.log('Products loaded:', { count: products.length, total, currentPage, totalPages });
 
         hideLoading();
         
@@ -539,8 +548,8 @@ function handleBaseUnitChange() {
     measurementUnitSection.classList.add('hidden');
     setComponentsSection.classList.add('hidden');
     
-    if (baseUnit === 'per pc') {
-        // Show measurement section for per pc products
+    if (baseUnit === 'per pc' || baseUnit === 'per length') {
+        // Show measurement section for per pc and per length products
         measurementSection.classList.remove('hidden');
         measurementUnitSection.classList.remove('hidden');
         updateMeasurementLabels();
@@ -571,17 +580,31 @@ function handleBaseUnitChange() {
 function updateMeasurementLabels() {
     const measurementUnit = document.getElementById('productMeasurementUnit').value;
     const baseUnit = document.getElementById('productBaseUnit').value;
-    
+    // Show/hide measurement fields based on measurement unit
+    const lengthDiv = document.getElementById('productLength').closest('div');
+    const widthDiv = document.getElementById('productWidth').closest('div');
+    const heightDiv = document.getElementById('productHeight').closest('div');
+    if (measurementUnit === 'sq ft') {
+        // Only show width and height
+        lengthDiv.classList.add('hidden');
+        widthDiv.classList.remove('hidden');
+        heightDiv.classList.remove('hidden');
+    } else {
+        // Only show length
+        lengthDiv.classList.remove('hidden');
+        widthDiv.classList.add('hidden');
+        heightDiv.classList.add('hidden');
+    }
     let unitLabel = measurementUnit;
     if (baseUnit === 'per kg') {
         unitLabel = measurementUnit === 'kg' ? '(kg)' : '(g)';
     } else if (baseUnit === 'per liter') {
         unitLabel = measurementUnit === 'liter' ? '(L)' : '(ml)';
+    } else if (measurementUnit === 'sq ft') {
+        unitLabel = '(sq ft)';
     } else {
         unitLabel = `(${measurementUnit})`;
     }
-    
-    // Update all measurement field labels
     document.getElementById('lengthUnit').textContent = unitLabel;
     document.getElementById('widthUnit').textContent = unitLabel;
     document.getElementById('heightUnit').textContent = unitLabel;
@@ -592,9 +615,21 @@ window.removeComponent = function(idx) {
     renderSetComponents();
 };
 
-function renderProducts() {
-    // This function now just triggers a reload of products with current filters
-    loadProducts();
+function renderProducts(useLocalData = false) {
+    if (useLocalData) {
+        // Use local products array for immediate updates
+        if (products.length === 0) {
+            showEmptyState();
+            productsTbody.parentElement.parentElement.classList.add('hidden');
+        } else {
+            hideEmptyState();
+            productsTbody.parentElement.parentElement.classList.remove('hidden');
+            productsTbody.innerHTML = products.map(product => createProductRow(product)).join('');
+        }
+    } else {
+        // Reload from server for search/filtering
+        loadProducts();
+    }
 }
 
 function renderPagination(totalPages, currentPage) {
@@ -659,7 +694,6 @@ function createProductRow(product) {
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_length || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_width || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${product.price ? `₱${product.price}` : '-'}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.color || '-')}</td>
             <td class="px-6 py-4 text-right">
                 <button onclick="editProduct(${product.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
@@ -685,6 +719,7 @@ function openAddModal() {
 }
 
 function openEditModal(product) {
+    console.log('Opening edit modal for product:', product);
     isEditMode = true;
     currentProductId = product.id;
     allProducts = [];
@@ -700,13 +735,15 @@ function openEditModal(product) {
     document.getElementById('productLength').value = product.default_length || '';
     document.getElementById('productWidth').value = product.default_width || '';
     document.getElementById('productHeight').value = product.default_height || '';
-    document.getElementById('productPrice').value = product.price || '';
     document.getElementById('productDescription').value = product.description || '';
+    
+    console.log('Form fields populated');
     
     // Handle base unit change and measurement fields
     handleBaseUnitChange();
     
     if (product.base_unit === 'per set') {
+        console.log('Loading set components for product:', product.id);
         // Load existing set components
         loadSetComponents(product.id);
     }
@@ -714,6 +751,7 @@ function openEditModal(product) {
     clearFormErrors();
     hideAllComponentDropdowns();
     productModal.classList.remove('hidden');
+    console.log('Modal opened');
 }
 
 async function loadSetComponents(productId) {
@@ -725,7 +763,7 @@ async function loadSetComponents(productId) {
             const components = await response.json();
             setComponents = components.map(comp => ({
                 product_id: comp.product_id,
-                quantity: comp.quantity
+                quantity: comp.quantity_required
             }));
             renderSetComponents();
         }
@@ -783,13 +821,19 @@ async function handleFormSubmit(e) {
         }
         if (isEditMode) {
             const idx = products.findIndex(p => p.id === currentProductId);
-            if (idx !== -1) products[idx] = result;
+            if (idx !== -1) {
+                // Update the product with the result from the server
+                products[idx] = result;
+                // Use local data for immediate update
+                renderProducts(true);
+            }
             showToast('Product updated successfully!', 'success');
         } else {
             products.unshift(result);
             showToast('Product created successfully!', 'success');
+            // Use local data for immediate update
+            renderProducts(true);
         }
-        renderProducts();
         closeModal();
     } catch (error) {
         console.error('Error saving product:', error);
@@ -798,8 +842,15 @@ async function handleFormSubmit(e) {
 }
 
 function editProduct(productId) {
+    console.log('Edit product called with ID:', productId);
     const product = products.find(p => p.id === productId);
-    if (product) openEditModal(product);
+    console.log('Found product:', product);
+    if (product) {
+        openEditModal(product);
+    } else {
+        console.error('Product not found with ID:', productId);
+        showToast('Product not found', 'error');
+    }
 }
 
 function deleteProduct(productId) {
@@ -814,7 +865,7 @@ function deleteProduct(productId) {
     .then(response => {
         if (!response.ok) throw new Error('Failed to delete product');
         products = products.filter(p => p.id !== productId);
-        renderProducts();
+        renderProducts(true);
         showToast('Product deleted successfully!', 'success');
     })
     .catch(error => {

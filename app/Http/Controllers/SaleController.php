@@ -41,12 +41,21 @@ class SaleController extends Controller
     {
         $branchId = $request->get('branch_id');
         $perPage = $request->get('per_page', 10);
+        $deliveryStatus = $request->get('delivery_status');
         $today = now()->toDateString();
-        $sales = \App\Models\Sale::with(['user', 'saleItems'])
+        
+        $query = \App\Models\Sale::with(['user', 'saleItems'])
             ->where('branch_id', $branchId)
-            ->whereDate('created_at', $today)
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+            ->whereDate('created_at', $today);
+        
+        // Apply delivery status filter
+        if ($deliveryStatus === 'delivered') {
+            $query->where('is_delivered', true);
+        } elseif ($deliveryStatus === 'not_delivered') {
+            $query->where('is_delivered', false);
+        }
+        
+        $sales = $query->orderBy('created_at', 'desc')->paginate($perPage);
         return response()->json($sales);
     }
 
@@ -67,6 +76,11 @@ class SaleController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
+            'is_delivered' => 'nullable|boolean',
+            'delivered_to' => 'nullable|string',
+            'delivery_date' => 'nullable|date',
+            'delivery_note' => 'nullable|string',
+            'delivery_address' => 'nullable|string',
         ]);
         
         // Custom validation for inventory_id based on item_type
@@ -93,6 +107,11 @@ class SaleController extends Controller
                 'user_id' => $validated['user_id'],
                 'total_amount' => $validated['total_amount'],
                 'payment_method' => $validated['payment_method'],
+                'is_delivered' => $validated['is_delivered'] ?? false,
+                'delivered_to' => $validated['delivered_to'] ?? null,
+                'delivery_date' => $validated['delivery_date'] ?? null,
+                'delivery_note' => $validated['delivery_note'] ?? null,
+                'delivery_address' => $validated['delivery_address'] ?? null,
             ]);
             
             foreach ($request->input('items') as $item) {
@@ -145,10 +164,19 @@ class SaleController extends Controller
                 
                 // Check if this is a cut item
                 if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
-                    $isCut = true;
+                        $isCut = true;
                 }
                 
-                // If this is a cut item, try to use remainders first
+                // Handle set products differently
+                if ($product->base_unit === 'per set') {
+                    // Set products cannot be cut
+                    if ($isCut) {
+                        throw new \Exception("Set products cannot be cut. Please sell the complete set.");
+                    }
+                    // For set products, deduct from component products
+                    $this->deductSetComponents($product, $inventory->branch_id, $deductQty);
+                } else {
+                    // For regular products, handle cuts and remainders
                 if ($isCut) {
                     $remaindersUsed = $this->useRemaindersForSale($product, $inventory->branch_id, $deductQty, $item);
                     
@@ -167,6 +195,7 @@ class SaleController extends Controller
                 // Create new remainder if this is a cut item
                 if ($isCut) {
                     $this->createNewRemainderIfNeeded($product, $inventory->branch_id, $item);
+                    }
                 }
             }
             
@@ -335,6 +364,36 @@ class SaleController extends Controller
     }
     
     /**
+     * Deduct components from set products
+     */
+    private function deductSetComponents($product, $branchId, $quantity)
+    {
+        $setComponents = $product->setComponents;
+        
+        foreach ($setComponents as $component) {
+            $componentInventory = \App\Models\Inventory::where('product_id', $component->component_product_id)
+                ->where('branch_id', $branchId)
+                ->first();
+            
+            if (!$componentInventory) {
+                throw new \Exception("Component product {$component->componentProduct->name} not found in inventory for this branch.");
+            }
+            
+            // Calculate how much of this component is needed
+            $requiredQuantity = $component->quantity_required * $quantity;
+            
+            // Check if we have enough stock
+            if ($componentInventory->available_stock < $requiredQuantity) {
+                throw new \Exception("Insufficient stock for component {$component->componentProduct->name}. Available: {$componentInventory->available_stock}, Required: {$requiredQuantity}");
+            }
+            
+            // Deduct from component inventory
+            $componentInventory->available_stock -= $requiredQuantity;
+            $componentInventory->save();
+        }
+    }
+    
+    /**
      * Create new remainder if this is a new cut
      */
     private function createNewRemainderIfNeeded($product, $branchId, $item)
@@ -382,5 +441,147 @@ class SaleController extends Controller
     {
         $sale = \App\Models\Sale::with(['user', 'saleItems.product'])->findOrFail($id);
         return response()->json($sale);
+    }
+
+    // Delivery Receipt
+    public function deliveryReceipt($id)
+    {
+        $sale = \App\Models\Sale::with(['user', 'saleItems.product', 'branch'])->findOrFail($id);
+        return view('sales.delivery-receipt', compact('sale'));
+    }
+
+    // Edit sale view
+    public function edit($id)
+    {
+        $sale = \App\Models\Sale::with(['user', 'saleItems.product', 'branch'])->findOrFail($id);
+        $branches = \App\Models\Branch::where('status', 'active')->get();
+        return view('sales.edit', compact('sale', 'branches'));
+    }
+
+    // Add items to existing sale
+    public function addItems(Request $request, $id)
+    {
+        $sale = \App\Models\Sale::findOrFail($id);
+        
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.total_price' => 'required|numeric|min:0',
+            'items.*.item_type' => 'required|in:inventory,remainder',
+            'items.*.inventory_id' => 'nullable|exists:inventories,id',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
+        ]);
+        
+        // Custom validation for inventory_id based on item_type
+        foreach ($request->input('items', []) as $index => $item) {
+            if ($item['item_type'] === 'inventory') {
+                if (!isset($item['inventory_id']) || !\App\Models\Inventory::find($item['inventory_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.inventory_id" => ['The inventory_id field is required and must exist for inventory items.']
+                    ]);
+                }
+            } elseif ($item['item_type'] === 'remainder') {
+                if (!isset($item['remainder_id']) || !\App\Models\CutRemainder::find($item['remainder_id'])) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.remainder_id" => ['The remainder_id field is required and must exist for remainder items.']
+                    ]);
+                }
+            }
+        }
+
+        try {
+            \DB::beginTransaction();
+            
+            $newTotalAmount = $sale->total_amount;
+            
+            foreach ($validated['items'] as $item) {
+                if ($item['item_type'] === 'inventory') {
+                    $inventory = \App\Models\Inventory::find($item['inventory_id']);
+                    $product = $inventory->product;
+                    
+                    // Check stock availability
+                    if ($product->base_unit === 'per set') {
+                        $availableStock = $inventory->calculateSetStock();
+                    } else {
+                        $availableStock = $inventory->available_stock;
+                    }
+                    
+                    if ($availableStock < $item['quantity']) {
+                        throw new \Exception("Insufficient stock for {$product->name}. Available: {$availableStock}, Requested: {$item['quantity']}");
+                    }
+                    
+                    // Deduct from inventory
+                    if ($product->base_unit === 'per set') {
+                        $this->deductSetComponents($product, $sale->branch_id, $item['quantity']);
+                    } else {
+                        $inventory->available_stock -= $item['quantity'];
+                        $inventory->save();
+                    }
+                    
+                    // Create sale item
+                    \App\Models\SaleItem::create([
+                        'sale_id' => $sale->id,
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $item['total_price'],
+                        'fulfillment_source' => 'inventory',
+                        'cut_length' => $item['cut_length'] ?? null,
+                        'cut_width' => $item['cut_width'] ?? null,
+                        'cut_height' => $item['cut_height'] ?? null,
+                    ]);
+                    
+                    // Create remainder if needed
+                    if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
+                        $this->createNewRemainderIfNeeded($product, $sale->branch_id, $item);
+                    }
+                    
+                } elseif ($item['item_type'] === 'remainder') {
+                    $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
+                    $product = $remainder->product;
+                    
+                    // Handle remainder sale
+                    $this->handleCutRemainderSale($remainder, $item);
+                    
+                    // Create sale item
+                    \App\Models\SaleItem::create([
+                        'sale_id' => $sale->id,
+                        'product_id' => $product->id,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $item['total_price'],
+                        'fulfillment_source' => 'remainder',
+                        'cut_length' => $item['cut_length'] ?? null,
+                        'cut_width' => $item['cut_width'] ?? null,
+                        'cut_height' => $item['cut_height'] ?? null,
+                    ]);
+                }
+                
+                $newTotalAmount += $item['total_price'];
+            }
+            
+            // Update sale total
+            $sale->total_amount = $newTotalAmount;
+            $sale->save();
+            
+            \DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Items added successfully',
+                'sale' => $sale->load(['saleItems.product'])
+            ]);
+            
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to add items: ' . $e->getMessage()
+            ], 500);
+        }
     }
 } 

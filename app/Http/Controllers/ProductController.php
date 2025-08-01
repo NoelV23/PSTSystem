@@ -92,6 +92,18 @@ class ProductController extends Controller
                         'quantity_required' => $component['quantity'],
                     ]);
                 }
+                
+                // Automatically create inventory entries for set products in all active branches
+                $activeBranches = \App\Models\Branch::where('status', 'active')->get();
+                foreach ($activeBranches as $branch) {
+                    \App\Models\Inventory::create([
+                        'product_id' => $product->id,
+                        'branch_id' => $branch->id,
+                        'available_stock' => null, // Set products don't have direct stock
+                        'cost' => null, // Set products don't have direct cost
+                        'reorder_level' => 0, // Default reorder level
+                    ]);
+                }
             }
             
             DB::commit();
@@ -131,6 +143,7 @@ class ProductController extends Controller
 
         DB::beginTransaction();
         try {
+            $wasSetProduct = $product->base_unit === 'per set';
             $product->update($validated);
             
             // Handle set components
@@ -146,12 +159,51 @@ class ProductController extends Controller
                         'quantity_required' => $component['quantity'],
                     ]);
                 }
+                
+                // If this is a new set product or was changed to a set, create inventory entries
+                if (!$wasSetProduct) {
+                    $activeBranches = \App\Models\Branch::where('status', 'active')->get();
+                    foreach ($activeBranches as $branch) {
+                        // Check if inventory already exists
+                        $existingInventory = \App\Models\Inventory::where('product_id', $product->id)
+                            ->where('branch_id', $branch->id)
+                            ->first();
+                            
+                        if (!$existingInventory) {
+                            \App\Models\Inventory::create([
+                                'product_id' => $product->id,
+                                'branch_id' => $branch->id,
+                                'available_stock' => null, // Set products don't have direct stock
+                                'cost' => null, // Set products don't have direct cost
+                                'reorder_level' => 0, // Default reorder level
+                            ]);
+                        }
+                    }
+                }
             } else {
                 // If not a set, remove all components
                 $product->setComponents()->delete();
             }
             
             DB::commit();
+            
+            // Refresh calculated stock for all set products that use this product as a component
+            $setProductsUsingThis = \App\Models\Product::where('base_unit', 'per set')
+                ->whereHas('setComponents', function($query) use ($product) {
+                    $query->where('component_product_id', $product->id);
+                })
+                ->with(['setComponents.componentProduct'])
+                ->get();
+            
+            foreach ($setProductsUsingThis as $setProduct) {
+                $inventories = \App\Models\Inventory::where('product_id', $setProduct->id)->get();
+                foreach ($inventories as $inventory) {
+                    // Force recalculation of set stock
+                    $inventory->calculated_stock = $inventory->calculateSetStock();
+                    $inventory->calculated_price = $inventory->calculateSetPrice();
+                    $inventory->save();
+                }
+            }
             
             $product->load('category:id,name');
             if ($product->base_unit === 'per set') {
@@ -200,9 +252,12 @@ class ProductController extends Controller
             ->map(function ($component) {
                 return [
                     'product_id' => $component->component_product_id,
-                    'quantity' => $component->quantity_required,
-                    'product_name' => $component->componentProduct->name,
-                    'product_sku' => $component->componentProduct->sku,
+                    'quantity_required' => $component->quantity_required,
+                    'component_product' => [
+                        'id' => $component->componentProduct->id,
+                        'name' => $component->componentProduct->name,
+                        'sku' => $component->componentProduct->sku,
+                    ],
                 ];
             });
         

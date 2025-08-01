@@ -3,6 +3,13 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Sale;
+use App\Models\Inventory;
+use App\Models\Branch;
+use App\Models\Product;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -11,28 +18,184 @@ class DashboardController extends Controller
         return view('dashboard');
     }
 
-    public function dashboardData()
+    public function getDashboardData()
     {
-        // Dummy data for demonstration
-        $data = [
-            'kpis' => [
-                'total_sales_today' => 12500.50,
-                'low_stock_alerts' => [
-                    ['product' => 'Aluminum Sheet 21ft', 'available' => 3],
-                    ['product' => 'Glass Panel 5x8', 'available' => 2],
-                ],
-                'top_products' => [
-                    ['name' => 'Aluminum Sheet 21ft', 'sold' => 15],
-                    ['name' => 'Glass Panel 5x8', 'sold' => 10],
-                    ['name' => 'Screws (100pcs)', 'sold' => 8],
-                ],
-            ],
-            'quick_access' => [
-                ['label' => 'New Sale', 'route' => '/sales/create'],
-                ['label' => 'Inventory', 'route' => '/inventory'],
-                ['label' => 'Reports', 'route' => '/reports'],
-            ],
+        $today = Carbon::today();
+        $startOfWeek = Carbon::now()->startOfWeek();
+        $startOfMonth = Carbon::now()->startOfMonth();
+
+        // Get summary data
+        $summary = $this->getSummaryData($today);
+        
+        // Get branch performance data
+        $branches = $this->getBranchPerformanceData($today);
+        
+        // Get inventory alerts
+        $inventoryAlerts = $this->getInventoryAlerts();
+        
+        // Get recent activity
+        $activityLog = $this->getRecentActivity();
+
+        return response()->json([
+            'summary' => $summary,
+            'branches' => $branches,
+            'inventoryAlerts' => $inventoryAlerts,
+            'activityLog' => $activityLog,
+        ]);
+    }
+
+    private function getSummaryData($today)
+    {
+        // Calculate total inventory value
+        $totalInventoryValue = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+            ->selectRaw('SUM(CASE 
+                WHEN products.base_unit = "per set" THEN 0 
+                ELSE (inventories.available_stock * inventories.cost) 
+                END) as total_value')
+            ->value('total_value') ?? 0;
+
+        // Calculate today's sales
+        $salesToday = Sale::whereDate('created_at', $today)
+            ->sum('total_amount') ?? 0;
+
+        // Count active branches
+        $activeBranches = Branch::where('status', 'active')->count();
+
+        // Count low stock items
+        $lowStockCount = Inventory::whereColumn('available_stock', '<=', 'reorder_level')
+            ->where('available_stock', '>', 0)
+            ->count();
+
+        return [
+            'inventoryValue' => $totalInventoryValue,
+            'salesToday' => $salesToday,
+            'activeBranches' => $activeBranches,
+            'lowStockCount' => $lowStockCount,
         ];
-        return response()->json($data);
+    }
+
+    private function getBranchPerformanceData($today)
+    {
+        $branches = Branch::where('status', 'active')->get();
+        $branchData = [];
+
+        foreach ($branches as $branch) {
+            // Get sales for today
+            $sales = Sale::where('branch_id', $branch->id)
+                ->whereDate('created_at', $today)
+                ->sum('total_amount') ?? 0;
+
+            // Get inventory value for this branch
+            $inventoryValue = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+                ->where('inventories.branch_id', $branch->id)
+                ->selectRaw('SUM(CASE 
+                    WHEN products.base_unit = "per set" THEN 0 
+                    ELSE (inventories.available_stock * inventories.cost) 
+                    END) as total_value')
+                ->value('total_value') ?? 0;
+
+            // Get low stock count for this branch
+            $lowStock = Inventory::where('branch_id', $branch->id)
+                ->whereColumn('available_stock', '<=', 'reorder_level')
+                ->where('available_stock', '>', 0)
+                ->count();
+
+            // Get last activity (most recent sale or inventory update)
+            $lastSale = Sale::where('branch_id', $branch->id)
+                ->latest('created_at')
+                ->first();
+
+            $lastInventory = Inventory::where('branch_id', $branch->id)
+                ->latest('updated_at')
+                ->first();
+
+            $lastActivity = 'No activity';
+            if ($lastSale && $lastInventory) {
+                $lastActivity = $lastSale->created_at->gt($lastInventory->updated_at) 
+                    ? $lastSale->created_at->format('g:i A')
+                    : $lastInventory->updated_at->format('g:i A');
+            } elseif ($lastSale) {
+                $lastActivity = $lastSale->created_at->format('g:i A');
+            } elseif ($lastInventory) {
+                $lastActivity = $lastInventory->updated_at->format('g:i A');
+            }
+
+            $branchData[] = [
+                'id' => $branch->id,
+                'name' => $branch->name,
+                'sales' => $sales,
+                'inventoryValue' => $inventoryValue,
+                'lowStock' => $lowStock,
+                'lastActivity' => $lastActivity,
+            ];
+        }
+
+        return $branchData;
+    }
+
+    private function getInventoryAlerts()
+    {
+        $alerts = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+            ->join('branches', 'inventories.branch_id', '=', 'branches.id')
+            ->whereColumn('inventories.available_stock', '<=', 'inventories.reorder_level')
+            ->where('inventories.available_stock', '>', 0)
+            ->select([
+                'inventories.id',
+                'products.name as product_name',
+                'branches.name as branch_name',
+                'branches.id as branch_id',
+                'inventories.available_stock',
+                'inventories.reorder_level'
+            ])
+            ->orderBy('inventories.available_stock', 'asc')
+            ->limit(10)
+            ->get();
+
+        return $alerts->map(function ($alert) {
+            return [
+                'id' => $alert->id,
+                'product' => $alert->product_name,
+                'branch' => $alert->branch_name,
+                'branchId' => $alert->branch_id,
+                'stock' => $alert->available_stock,
+                'minStock' => $alert->reorder_level,
+            ];
+        });
+    }
+
+    private function getRecentActivity()
+    {
+        // This is a simplified activity log. In a real application, you might want to create an activity log table
+        $recentSales = Sale::with(['branch', 'user'])
+            ->latest('created_at')
+            ->limit(5)
+            ->get()
+            ->map(function ($sale) {
+                return [
+                    'id' => $sale->id,
+                    'time' => $sale->created_at->format('g:i A'),
+                    'user' => $sale->user ? $sale->user->name : 'System',
+                    'action' => "Added new sale for {$sale->branch->name} branch",
+                ];
+            });
+
+        $recentInventory = Inventory::with(['branch', 'product'])
+            ->where('updated_at', '>=', Carbon::now()->subHours(24))
+            ->latest('updated_at')
+            ->limit(3)
+            ->get()
+            ->map(function ($inventory) {
+                return [
+                    'id' => 'inv_' . $inventory->id,
+                    'time' => $inventory->updated_at->format('g:i A'),
+                    'user' => 'System',
+                    'action' => "Updated inventory for {$inventory->branch->name} - {$inventory->product->name}",
+                ];
+            });
+
+        return $recentSales->merge($recentInventory)
+            ->sortByDesc('time')
+            ->take(5)
+            ->values();
     }
 } 

@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="w-full max-w-full sm:max-w-3xl md:max-w-5xl lg:max-w-7xl mx-auto py-4 px-2 sm:px-4" x-data="dashboardDemo()">
+<div class="w-full max-w-full sm:max-w-3xl md:max-w-5xl lg:max-w-7xl mx-auto py-4 px-2 sm:px-4" x-data="dashboardData()">
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
         <!-- Total Inventory Value -->
@@ -14,7 +14,7 @@
                 </span>
             </div>
             <div class="text-gray-700 font-medium text-sm sm:text-base">Total Inventory Value</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.inventoryValue.toLocaleString()"></span></div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.inventoryValue ? summary.inventoryValue.toLocaleString() : '0'"></span></div>
         </div>
         <!-- Total Sales Today -->
         <div class="bg-green-50 border border-green-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
@@ -27,7 +27,7 @@
                 </span>
             </div>
             <div class="text-gray-700 font-medium text-sm sm:text-base">Total Sales Today</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday.toLocaleString()"></span></div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday ? summary.salesToday.toLocaleString() : '0'"></span></div>
         </div>
         <!-- Active Branches Today -->
         <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
@@ -39,8 +39,8 @@
                     </svg>
                 </span>
             </div>
-            <div class="text-gray-700 font-medium text-sm sm:text-base">Active Branches Today</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.activeBranches"></div>
+            <div class="text-gray-700 font-medium text-sm sm:text-base">Active Branches</div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.activeBranches || '0'"></div>
         </div>
         <!-- Low Stock Alerts -->
         <div class="bg-red-50 border border-red-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
@@ -53,7 +53,7 @@
                 </span>
             </div>
             <div class="text-gray-700 font-medium text-sm sm:text-base">Low Stock Alerts</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.lowStockCount"></div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1" x-text="summary.lowStockCount || '0'"></div>
         </div>
     </div>
 
@@ -68,8 +68,14 @@
             </select>
         </div>
 
+        <!-- Loading State -->
+        <div x-show="loading" class="flex justify-center items-center py-8">
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            <span class="ml-3 text-gray-600">Loading dashboard data...</span>
+        </div>
+
         <!-- Scrollable container -->
-        <div class="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
+        <div x-show="!loading" class="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
             <table class="min-w-[600px] sm:min-w-full divide-y divide-gray-200 text-sm">
                 <thead class="bg-gray-50">
                     <tr>
@@ -85,12 +91,12 @@
                     <template x-for="branch in branches" :key="branch.id">
                         <tr>
                             <td class="px-4 py-2 text-gray-900 font-medium" x-text="branch.name"></td>
-                            <td class="px-4 py-2 text-green-700 font-bold">₱<span x-text="branch.sales.toLocaleString()"></span></td>
-                            <td class="px-4 py-2 text-blue-700 font-bold">₱<span x-text="branch.inventoryValue.toLocaleString()"></span></td>
-                            <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.lowStock"></td>
-                            <td class="px-4 py-2 text-gray-500" x-text="branch.lastActivity"></td>
+                            <td class="px-4 py-2 text-green-700 font-bold">₱<span x-text="branch.sales ? branch.sales.toLocaleString() : '0'"></span></td>
+                            <td class="px-4 py-2 text-blue-700 font-bold">₱<span x-text="branch.inventoryValue ? branch.inventoryValue.toLocaleString() : '0'"></span></td>
+                            <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.lowStock || '0'"></td>
+                            <td class="px-4 py-2 text-gray-500" x-text="branch.lastActivity || 'No activity'"></td>
                             <td class="px-4 py-2 text-right">
-                                <button class="text-blue-600 hover:underline font-semibold">View Details</button>
+                                <a :href="`/inventory/${branch.id}`" class="text-blue-600 hover:underline font-semibold">View Details</a>
                             </td>
                         </tr>
                     </template>
@@ -99,21 +105,7 @@
         </div>
     </div>
 
-    <!-- Sales Chart (Placeholder) -->
-    <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
-            <div class="text-xl font-bold text-gray-900">Sales Chart</div>
-            <select x-model="salesChartFilter" class="border rounded px-2 py-1 text-sm w-full sm:w-auto">
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-            </select>
-        </div>
-        <div class="h-64 flex items-center justify-center text-gray-400">
-            <!-- Replace with chart.js or similar for real chart -->
-            <span>[Sales Chart Placeholder]</span>
-        </div>
-    </div>
+
 
     <!-- Inventory Alerts Table -->
     <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8 overflow-x-auto">
@@ -139,7 +131,7 @@
                             <td class="px-4 py-2 font-bold" :class="alert.stock < alert.minStock ? 'text-red-700' : 'text-gray-700'" x-text="alert.stock"></td>
                             <td class="px-4 py-2 text-gray-700" x-text="alert.minStock"></td>
                             <td class="px-4 py-2 text-right">
-                                <button class="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold">Restock Now</button>
+                                <a :href="`/inventory/${alert.branchId || 1}`" class="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold">Restock Now</a>
                             </td>
                         </tr>
                     </template>
@@ -166,41 +158,61 @@
 
     <!-- Quick Actions Panel -->
     <div class="flex flex-col sm:flex-row flex-wrap gap-4 mt-8">
-        <a href="/branches/create" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded shadow transition text-center">Add New Branch</a>
+        <a href="/branches" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded shadow transition text-center">Manage Branches</a>
         <a href="/users" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded shadow transition text-center">Manage Users</a>
         <a href="/inventory" class="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded shadow transition text-center">View All Inventory</a>
-        <a href="/reports" class="bg-orange-400 hover:bg-orange-500 text-white font-bold py-3 px-6 rounded shadow transition text-center">Generate Reports</a>
+        <a href="/sales" class="bg-orange-400 hover:bg-orange-500 text-white font-bold py-3 px-6 rounded shadow transition text-center">View Sales</a>
     </div>
 </div>
+
 <script>
-function dashboardDemo() {
+function dashboardData() {
     return {
+        loading: true,
         summary: {
-            inventoryValue: 1200000,
-            salesToday: 12500,
-            activeBranches: 3,
-            lowStockCount: 4,
+            inventoryValue: 0,
+            salesToday: 0,
+            activeBranches: 0,
+            lowStockCount: 0,
         },
         branchTableFilter: 'today',
-        salesChartFilter: 'today',
-        branches: [
-            {id: 1, name: 'Main', sales: 8000, inventoryValue: 500000, lowStock: 2, lastActivity: '10:15 AM'},
-            {id: 2, name: 'Branch 1', sales: 3000, inventoryValue: 400000, lowStock: 1, lastActivity: '09:50 AM'},
-            {id: 3, name: 'Branch 2', sales: 1500, inventoryValue: 300000, lowStock: 1, lastActivity: '08:30 AM'},
-        ],
-        inventoryAlerts: [
-            {id: 1, product: 'Aluminum Sheet 21ft', branch: 'Main', stock: 3, minStock: 5},
-            {id: 2, product: 'Glass Panel 5x8', branch: 'Branch 1', stock: 2, minStock: 4},
-            {id: 3, product: 'Screws (100pcs)', branch: 'Main', stock: 10, minStock: 20},
-            {id: 4, product: 'Sealant', branch: 'Branch 2', stock: 1, minStock: 5},
-        ],
-        activityLog: [
-            {id: 1, time: '10:20 AM', user: 'Alice', action: 'Added new sale for Main branch'},
-            {id: 2, time: '10:10 AM', user: 'Bob', action: 'Updated inventory for Branch 1'},
-            {id: 3, time: '09:55 AM', user: 'Carol', action: 'Edited user profile'},
-            {id: 4, time: '09:40 AM', user: 'Alice', action: 'Restocked Aluminum Sheet 21ft'},
-            {id: 5, time: '09:30 AM', user: 'Bob', action: 'Generated sales report'},
-        ],
+        branches: [],
+        inventoryAlerts: [],
+        activityLog: [],
+        
+        async init() {
+            await this.loadDashboardData();
+        },
+        
+        async loadDashboardData() {
+            try {
+                this.loading = true;
+                const response = await fetch('/api/dashboard/data', {
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        'Accept': 'application/json',
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to load dashboard data');
+                }
+                
+                const data = await response.json();
+                
+                this.summary = data.summary || {};
+                this.branches = data.branches || [];
+                this.inventoryAlerts = data.inventoryAlerts || [];
+                this.activityLog = data.activityLog || [];
+                
+                console.log('Dashboard data loaded:', data);
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                // Show error state or fallback to empty data
+            } finally {
+                this.loading = false;
+            }
+        }
     }
 }
 </script>
