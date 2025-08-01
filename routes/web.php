@@ -15,36 +15,52 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// dashboard
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-Route::get('/dashboard/data', [DashboardController::class, 'dashboardData'])->name('dashboard.data');
-
-// branches
-Route::get('/branches', [BranchController::class, 'index'])->name('branches.index');
-
-// users
-Route::get('/users', [UserController::class, 'index'])->name('users.index');
-
-// inventory
-Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
-Route::get('/inventory/{branch}', [InventoryController::class, 'show'])->name('inventory.show');
-
-// sales
-Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
-
-// products
-Route::get('/products', [ProductController::class, 'index'])->name('products.index');
-Route::get('/products/categories', [CategoryController::class, 'index'])->name('products.categories');
-
-// purchases
-Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
-
-
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
     
+    // dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/api/dashboard/data', [DashboardController::class, 'getDashboardData'])->name('api.dashboard.data');
+
+    // branches
+    Route::get('/branches', [BranchController::class, 'index'])->name('branches.index');
+
+    // users
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');
+
+    // inventory
+    Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+    Route::get('/inventory/{branch}', [InventoryController::class, 'show'])->name('inventory.show');
+
+    // sales
+    Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
+
+    // products
+    Route::get('/products', [ProductController::class, 'index'])->name('products.index');
+    Route::get('/products/categories', [CategoryController::class, 'index'])->name('products.categories');
+
+    // purchases
+    Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
+
+    // reports
+    Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
+    Route::get('/reports/sales', [\App\Http\Controllers\ReportsController::class, 'sales'])->name('reports.sales');
+    Route::get('/reports/purchases', [\App\Http\Controllers\ReportsController::class, 'purchases'])->name('reports.purchases');
+    Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory');
+    
+    // Export routes
+    Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export');
+    Route::get('/reports/purchases/export', [\App\Http\Controllers\ReportsController::class, 'exportPurchases'])->name('reports.purchases.export');
+    Route::get('/reports/inventory/export', [\App\Http\Controllers\ReportsController::class, 'exportInventory'])->name('reports.inventory.export');
+    
+    // Stock Adjustment routes
+    Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\StockAdjustmentController::class, 'adjust'])->name('inventory.adjust');
+    Route::get('/stock-adjustments/history', [\App\Http\Controllers\StockAdjustmentController::class, 'history'])->name('stock-adjustments.history');
+    Route::get('/stock-adjustments', [\App\Http\Controllers\StockAdjustmentController::class, 'historyPage'])->name('stock-adjustments.index');
+
+
     // Branch API routes
     Route::get('/api/branches', [BranchController::class, 'getAllBranches'])->name('api.branches.index');
     Route::get('/api/branches/{id}', [BranchController::class, 'show'])->name('api.branches.show');
@@ -94,6 +110,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/sales', [SaleController::class, 'getBranchSales'])->name('api.sales.branch');
     Route::post('/api/sales', [SaleController::class, 'storeWithItems'])->name('api.sales.store');
     Route::get('/api/sales/{id}', [SaleController::class, 'showDetails'])->name('api.sales.show');
+    Route::get('/sales/{id}/edit', [SaleController::class, 'edit'])->name('sales.edit');
+    Route::post('/api/sales/{id}/add-items', [SaleController::class, 'addItems'])->name('api.sales.addItems');
+    Route::get('/sales/{id}/delivery-receipt', [SaleController::class, 'deliveryReceipt'])->name('sales.delivery-receipt');
 
     // Cut Remainder API routes
     Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');

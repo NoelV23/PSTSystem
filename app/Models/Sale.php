@@ -14,7 +14,12 @@ class Sale extends Model
         'user_id',
         'total_amount',
         'payment_method',
+        'delivery_address',
         'created_at',
+        'is_delivered',
+        'delivered_to',
+        'delivery_date',
+        'delivery_note',
     ];
 
     public function branch()

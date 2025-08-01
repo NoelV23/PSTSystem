@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Inventory extends Model
 {
@@ -14,13 +15,19 @@ class Inventory extends Model
         'branch_id',
         'available_stock',
         'cost',
+        'price',
         'reorder_level',
+        'calculated_stock',
+        'calculated_price',
     ];
 
     protected $casts = [
         'available_stock' => 'integer',
         'cost' => 'decimal:2',
+        'price' => 'decimal:2',
         'reorder_level' => 'integer',
+        'calculated_stock' => 'integer',
+        'calculated_price' => 'decimal:2',
     ];
 
     public function product()
@@ -31,6 +38,11 @@ class Inventory extends Model
     public function branch()
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function stockAdjustments(): HasMany
+    {
+        return $this->hasMany(StockAdjustment::class);
     }
 
     /**
@@ -60,7 +72,7 @@ class Inventory extends Model
 
             // Calculate available quantity of this component
             $availableQuantity = 0;
-            if ($component->componentProduct->base_unit === 'per pc') {
+            if ($component->componentProduct->base_unit === 'per pc' || $component->componentProduct->base_unit === 'per length') {
                 $availableQuantity = $componentInventory->available_stock ?? 0;
             } else {
                 $availableQuantity = $componentInventory->available_length ?? 0;
@@ -75,6 +87,39 @@ class Inventory extends Model
     }
 
     /**
+     * Calculate default price for set products based on component costs
+     */
+    public function calculateSetPrice()
+    {
+        if ($this->product->base_unit !== 'per set') {
+            return null;
+        }
+
+        $setComponents = $this->product->setComponents;
+        if ($setComponents->isEmpty()) {
+            return 0;
+        }
+
+        $totalPrice = 0;
+        
+        foreach ($setComponents as $component) {
+            $componentInventory = Inventory::where('product_id', $component->component_product_id)
+                ->where('branch_id', $this->branch_id)
+                ->first();
+
+            if (!$componentInventory) {
+                continue; // Skip if component not in inventory
+            }
+
+            // Use price if available, otherwise use cost, otherwise 0
+            $componentPrice = $componentInventory->price ?? $componentInventory->cost ?? 0;
+            $totalPrice += $componentPrice * $component->quantity_required;
+        }
+
+        return $totalPrice;
+    }
+
+    /**
      * Get the stock status for this inventory item
      */
     public function getStockStatus()
@@ -84,7 +129,7 @@ class Inventory extends Model
 
         if ($this->product->base_unit === 'per set') {
             $currentStock = $this->calculateSetStock();
-        } elseif ($this->product->base_unit === 'per pc') {
+        } elseif ($this->product->base_unit === 'per pc' || $this->product->base_unit === 'per length') {
             $currentStock = $this->available_stock ?? 0;
         } else {
             $currentStock = $this->available_length ?? 0;

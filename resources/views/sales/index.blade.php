@@ -22,6 +22,15 @@
         </nav>
     </div>
 
+    <!-- Delivery Filter -->
+    <div class="mb-4">
+        <select id="deliveryFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <option value="">All Sales</option>
+            <option value="delivered">Delivered</option>
+            <option value="not_delivered">Not Delivered</option>
+        </select>
+    </div>
+
     <!-- Tab Content -->
     <div id="salesTodayTab" class="tab-content">
         <!-- Loader -->
@@ -39,6 +48,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                     </tr>
                 </thead>
@@ -124,6 +134,12 @@
                         </tbody>
                     </table>
                 </div>
+                <!-- Delivery Checkbox -->
+                <div class="flex items-center gap-2 mb-4">
+                    <input type="checkbox" id="isDelivered" name="is_delivered" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                    <label for="isDelivered" class="text-sm font-medium text-gray-700">Delivered</label>
+                </div>
+                
                 <!-- Total Amount & Submit -->
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="text-lg font-bold text-gray-700">Total: ₱ <span id="saleTotalAmount">0.00</span></div>
@@ -136,6 +152,17 @@
     <!-- Toast Notification -->
     <div id="saleToast" class="hidden"></div>
 
+    <!-- Sale Details Modal -->
+    <div id="saleDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl mx-4 p-6 relative">
+            <button id="closeSaleDetailsModal" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl">&times;</button>
+            <h2 class="text-xl font-bold mb-4">Sale Details</h2>
+            <div id="saleDetailsContent" class="space-y-4">
+                <!-- Sale details will be loaded here -->
+            </div>
+        </div>
+    </div>
+
     <!-- Cut Remainder Modal -->
     <div id="cutRemainderModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
         <div class="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-6 relative">
@@ -145,7 +172,6 @@
             <!-- No length/width/height inputs, just note -->
             <input id="cutRemainderNote" type="text" class="w-full px-3 py-2 border rounded mb-2" placeholder="Location note (optional)">
             <div class="flex justify-end gap-2">
-                <button id="skipCutRemainderBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">Skip</button>
                 <button id="discardCutRemainderBtn" class="px-4 py-2 bg-yellow-500 text-white rounded">Mark as Discarded</button>
                 <button id="saveCutRemainderBtn" class="px-4 py-2 bg-red-500 text-white rounded">Save Remainder</button>
             </div>
@@ -164,6 +190,36 @@
             </div>
         </div>
     </div>
+
+    <!-- Delivery Details Modal -->
+    <div id="deliveryDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-6 relative">
+            <button id="closeDeliveryDetailsModal" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl">&times;</button>
+            <h2 class="text-xl font-bold mb-4">Delivery Details</h2>
+            <form id="deliveryDetailsForm" class="space-y-4">
+                <div>
+                    <label for="deliveryDate" class="block text-sm font-medium text-gray-700 mb-1">Delivery Date *</label>
+                    <input type="date" id="deliveryDate" name="delivery_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                </div>
+                <div>
+                    <label for="deliveredTo" class="block text-sm font-medium text-gray-700 mb-1">Delivered To *</label>
+                    <input type="text" id="deliveredTo" name="delivered_to" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter recipient name">
+                </div>
+                <div>
+                    <label for="deliveryAddress" class="block text-sm font-medium text-gray-700 mb-1">Delivery Address (Optional)</label>
+                    <textarea id="deliveryAddress" name="delivery_address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter delivery address..."></textarea>
+                </div>
+                <div>
+                    <label for="deliveryNote" class="block text-sm font-medium text-gray-700 mb-1">Delivery Note (Optional)</label>
+                    <textarea id="deliveryNote" name="delivery_note" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter delivery notes..."></textarea>
+                </div>
+                <div class="flex justify-end gap-3 pt-4">
+                    <button type="button" id="cancelDeliveryBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
+                    <button type="submit" id="saveDeliveryBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -179,6 +235,7 @@ let selectedProduct = null;
 let pendingCutRemainder = null;
 let cutRemainderDiscardMode = false;
 let cutRemainderDiscardReason = '';
+let pendingDeliveryData = null;
 
 // --- DOM Elements ---
 const branchSelector = document.getElementById('branchSelector');
@@ -210,7 +267,6 @@ const paymentMethod = document.getElementById('paymentMethod');
 const cutRemainderModal = document.getElementById('cutRemainderModal');
 const closeCutRemainderModal = document.getElementById('closeCutRemainderModal');
 const cutRemainderNote = document.getElementById('cutRemainderNote');
-const skipCutRemainderBtn = document.getElementById('skipCutRemainderBtn');
 const saveCutRemainderBtn = document.getElementById('saveCutRemainderBtn');
 const discardCutRemainderBtn = document.getElementById('discardCutRemainderBtn');
 const discardCutReasonModal = document.getElementById('discardCutReasonModal');
@@ -218,6 +274,20 @@ const closeDiscardCutReasonModal = document.getElementById('closeDiscardCutReaso
 const discardCutReasonInput = document.getElementById('discardCutReasonInput');
 const cancelDiscardCutBtn = document.getElementById('cancelDiscardCutBtn');
 const confirmDiscardCutBtn = document.getElementById('confirmDiscardCutBtn');
+const saleDetailsModal = document.getElementById('saleDetailsModal');
+const closeSaleDetailsModal = document.getElementById('closeSaleDetailsModal');
+const saleDetailsContent = document.getElementById('saleDetailsContent');
+const isDelivered = document.getElementById('isDelivered');
+const deliveryDetailsModal = document.getElementById('deliveryDetailsModal');
+const closeDeliveryDetailsModal = document.getElementById('closeDeliveryDetailsModal');
+const deliveryDetailsForm = document.getElementById('deliveryDetailsForm');
+const deliveryDate = document.getElementById('deliveryDate');
+const deliveredTo = document.getElementById('deliveredTo');
+const deliveryAddress = document.getElementById('deliveryAddress');
+const deliveryNote = document.getElementById('deliveryNote');
+const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
+const saveDeliveryBtn = document.getElementById('saveDeliveryBtn');
+const deliveryFilter = document.getElementById('deliveryFilter');
 
 // --- Utility ---
 function showToast(message, type = 'success') {
@@ -234,6 +304,7 @@ function resetProductFields() {
     if (document.getElementById('productMeta')) document.getElementById('productMeta').innerHTML = '';
     productPrice.value = '';
     saleQuantity.value = '';
+    productSearch.value = ''; // Clear the product search input
     cutFields.classList.add('hidden');
     const cutLengthInput = document.getElementById('cutLength');
     const cutWidthInput = document.getElementById('cutWidth');
@@ -250,6 +321,8 @@ function resetSaleForm() {
     addSaleForm.reset();
     // Set date to today
     saleDate.value = new Date().toISOString().slice(0, 10);
+    // Reset delivery checkbox
+    isDelivered.checked = false;
 }
 
 // --- Branch Selector ---
@@ -258,15 +331,21 @@ async function loadBranches() {
     branches = await res.json();
     branchSelector.innerHTML = '<option value="">Select Branch</option>' +
         branches.filter(b => b.status === 'active').map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-    if (branches.length > 0) {
-        branchSelector.value = branches[0].id;
-        currentBranchId = branches[0].id;
-        loadSales();
-        loadInventory();
-    }
+    // Remove automatic branch selection - admin must select branch first
 }
 branchSelector.addEventListener('change', function() {
     currentBranchId = this.value;
+    
+    // Enable/disable Add New Sale button based on branch selection
+    const addSaleBtn = document.getElementById('addSaleBtn');
+    if (currentBranchId) {
+        addSaleBtn.disabled = false;
+        addSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        addSaleBtn.disabled = true;
+        addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+    
     loadSales();
     loadInventory();
     resetSaleForm();
@@ -291,17 +370,41 @@ function switchTab(tab) {
     }
 }
 tabSalesToday.addEventListener('click', () => switchTab('today'));
-tabAddSale.addEventListener('click', () => switchTab('add'));
-addSaleBtn.addEventListener('click', () => switchTab('add'));
+tabAddSale.addEventListener('click', () => {
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    switchTab('add');
+});
+addSaleBtn.addEventListener('click', () => {
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    switchTab('add');
+});
 
 // --- Sales Today ---
 async function loadSales(page = 1) {
-    if (!currentBranchId) return;
+    if (!currentBranchId) {
+        salesTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">Please select a branch to view sales.</td></tr>';
+        return;
+    }
     salesLoader.classList.remove('hidden');
     salesError.classList.add('hidden');
     salesTableBody.innerHTML = '';
     try {
-        const res = await fetch(`/api/sales?branch_id=${currentBranchId}&page=${page}`);
+        const deliveryFilterValue = deliveryFilter.value;
+        const params = new URLSearchParams({
+            branch_id: currentBranchId,
+            page: page
+        });
+        if (deliveryFilterValue) {
+            params.append('delivery_status', deliveryFilterValue);
+        }
+        
+        const res = await fetch(`/api/sales?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to load sales');
         const data = await res.json();
         sales = data.data || [];
@@ -316,21 +419,29 @@ async function loadSales(page = 1) {
 }
 function renderSalesTable() {
     if (!sales.length) {
-        salesTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-gray-400 py-8">No sales found for today.</td></tr>';
+        salesTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">No sales found for today.</td></tr>';
         return;
     }
-    salesTableBody.innerHTML = sales.map(sale => `
-        <tr>
-            <td class="px-6 py-4 text-sm text-gray-700">${sale.created_at ? sale.created_at.slice(0, 16).replace('T', ' ') : ''}</td>
-            <td class="px-6 py-4 text-sm text-gray-700">${sale.user?.name || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-700">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-            <td class="px-6 py-4 text-sm text-gray-700">${sale.payment_method || '-'}</td>
-            <td class="px-6 py-4 text-sm text-gray-700">
-                <button class="text-blue-600 hover:underline" onclick="viewSaleDetails(${sale.id})">View</button>
-                <button class="text-green-600 hover:underline ml-2" onclick="printSaleReceipt(${sale.id})">Print</button>
-            </td>
-        </tr>
-    `).join('');
+    salesTableBody.innerHTML = sales.map(sale => {
+        const deliveryStatus = sale.is_delivered ? 
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Delivered</span>` :
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Not Delivered</span>`;
+        
+        return `
+            <tr>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.created_at ? sale.created_at.slice(0, 16).replace('T', ' ') : ''}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.user?.name || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.payment_method || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${deliveryStatus}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                                            <button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
+                        <a href="/sales/${sale.id}/edit" class="text-green-600 hover:underline">Edit</a>
+                    ${sale.is_delivered ? `<button class="text-purple-600 hover:underline ml-2" onclick="printDeliveryReceipt(${sale.id})">Delivery Receipt</button>` : ''}
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 function renderSalesPagination() {
     // TODO: Implement pagination controls if needed
@@ -339,7 +450,11 @@ function renderSalesPagination() {
 
 // --- Inventory/Product Search ---
 async function loadInventory() {
-    if (!currentBranchId) return;
+    if (!currentBranchId) {
+        inventory = [];
+        remainders = [];
+        return;
+    }
     const res = await fetch(`/api/inventory/branch/${currentBranchId}?per_page=1000`);
     const data = await res.json();
     inventory = data.data || [];
@@ -349,10 +464,21 @@ async function loadInventory() {
     const remaindersData = await remaindersRes.json();
     remainders = remaindersData.data || [];
 }
+
+// Function to reload inventory and remainders data
+async function loadInventoryAndRemainders() {
+    await loadInventory();
+}
 productSearch.addEventListener('input', function() {
     const query = this.value.trim().toLowerCase();
     if (!query) {
         productDropdown.classList.add('hidden');
+        return;
+    }
+    
+    if (!currentBranchId) {
+        productDropdown.innerHTML = '<div class="px-4 py-2 text-gray-400">Please select a branch first.</div>';
+        productDropdown.classList.remove('hidden');
         return;
     }
     
@@ -372,11 +498,17 @@ productSearch.addEventListener('input', function() {
     
     // Add inventory items
     filteredInventory.forEach(item => {
+        // Use calculated stock for set products, otherwise use available_stock
+        let stock = item.available_stock;
+        if (item.product.base_unit === 'per set') {
+            stock = item.calculated_stock || 0;
+        }
+        
         results.push({
             type: 'inventory',
             id: item.id,
             product: item.product,
-            available_stock: item.available_stock,
+            available_stock: stock,
             cost: item.cost,
             source: 'Main Stock'
         });
@@ -409,15 +541,50 @@ productSearch.addEventListener('input', function() {
         return;
     }
     
-    productDropdown.innerHTML = results.map(item =>
-        `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
-            <div class="font-medium">${item.product.name} (${item.product.sku || 'No SKU'})</div>
-            <div class="text-xs text-gray-500">
-                ${item.source} - Available: ${item.available_stock}
-                ${item.remainderInfo ? ` - ${item.remainderInfo}` : ''}
+    productDropdown.innerHTML = results.map(item => {
+        // Build measurement display
+        let measurementDisplay = '';
+        if (item.product.measurement_unit === 'sq ft') {
+            // For square feet, show width x height
+            if (item.product.default_width && item.product.default_height) {
+                measurementDisplay = `${item.product.default_width}×${item.product.default_height} sq ft`;
+            } else if (item.product.default_width) {
+                measurementDisplay = `${item.product.default_width} sq ft`;
+            } else if (item.product.default_height) {
+                measurementDisplay = `${item.product.default_height} sq ft`;
+            }
+        } else if (item.product.default_length) {
+            // For other units, show length with unit
+            measurementDisplay = `${item.product.default_length} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}`;
+        }
+        
+        // Build color info
+        const colorText = item.product.color ? item.product.color : '';
+        
+        // Build display name with color and measurement
+        let displayName = item.product.name;
+        if (colorText) {
+            displayName += ` ${colorText}`;
+        }
+        if (measurementDisplay) {
+            displayName += ` ${measurementDisplay}`;
+        }
+        
+        // Add set indicator for set products
+        if (item.product.base_unit === 'per set') {
+            displayName += ' [Set]';
+        }
+        
+        return `
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
+                <div class="font-medium">${displayName} (${item.product.sku || 'No SKU'})</div>
+                <div class="text-xs text-gray-500">
+                    ${item.source} - Available: ${item.available_stock}
+                    ${item.remainderInfo ? ` - ${item.remainderInfo}` : ''}
+                </div>
             </div>
-        </div>`
-    ).join('');
+        `;
+    }).join('');
     productDropdown.classList.remove('hidden');
 });
 window.selectProduct = function(type, id) {
@@ -426,6 +593,11 @@ window.selectProduct = function(type, id) {
         item = inventory.find(i => i.id === id);
         item.type = 'inventory';
         item.inventoryId = item.id; // Set inventoryId for inventory items
+        
+        // Update available_stock for set products to use calculated_stock
+        if (item.product.base_unit === 'per set') {
+            item.available_stock = item.calculated_stock || 0;
+        }
     } else if (type === 'remainder') {
         item = remainders.find(r => r.id === id);
         item.type = 'remainder';
@@ -437,9 +609,40 @@ window.selectProduct = function(type, id) {
     selectedProduct = item;
     productDropdown.classList.add('hidden');
     
-    let displayName = `${item.product.name} (${item.product.sku || 'No SKU'})`;
+    // Build measurement display for selected product
+    let measurementDisplay = '';
+    if (item.product.measurement_unit === 'sq ft') {
+        // For square feet, show width x height
+        if (item.product.default_width && item.product.default_height) {
+            measurementDisplay = `${item.product.default_width}×${item.product.default_height} sq ft`;
+        } else if (item.product.default_width) {
+            measurementDisplay = `${item.product.default_width} sq ft`;
+        } else if (item.product.default_height) {
+            measurementDisplay = `${item.product.default_height} sq ft`;
+        }
+    } else if (item.product.default_length) {
+        // For other units, show length with unit
+        measurementDisplay = `${item.product.default_length} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}`;
+    }
+    
+    // Build color info
+    const colorText = item.product.color ? item.product.color : '';
+    
+    // Build display name with color and measurement
+    let displayName = item.product.name;
+    if (colorText) {
+        displayName += ` ${colorText}`;
+    }
+    if (measurementDisplay) {
+        displayName += ` ${measurementDisplay}`;
+    }
+    displayName += ` (${item.product.sku || 'No SKU'})`;
+    
     if (item.type === 'remainder') {
         displayName += ' [Remainder]';
+    }
+    if (item.product.base_unit === 'per set') {
+        displayName += ' [Set]';
     }
     productSearch.value = displayName;
     
@@ -448,7 +651,13 @@ window.selectProduct = function(type, id) {
     // Show measurement unit in meta
     let unit = item.product.measurement_unit ? ` (${item.product.measurement_unit})` : '';
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
-    let stockInfo = item.type === 'remainder' ? '1 piece' : item.available_stock;
+    let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' ? (item.calculated_stock || 0) : item.available_stock);
+    
+    // Add set indicator for set products
+    let setIndicator = '';
+    if (item.product.base_unit === 'per set') {
+        setIndicator = ' [Set]';
+    }
     
     // For remainder items, show the available dimensions
     let remainderInfo = '';
@@ -463,7 +672,18 @@ window.selectProduct = function(type, id) {
     
     document.getElementById('productMeta').innerHTML = `Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}`;
     
-    productPrice.value = '';
+    // Set default price from inventory if available, otherwise leave empty
+    if (item.type === 'inventory') {
+        if (item.product.base_unit === 'per set') {
+            // For set products, use calculated price
+            productPrice.value = item.calculated_price || '';
+        } else {
+            // For regular products, use inventory price
+            productPrice.value = item.price || '';
+        }
+    } else {
+        productPrice.value = '';
+    }
     saleQuantity.value = '';
     
     // Show cut fields for remainder items or if product has default dimensions
@@ -471,12 +691,13 @@ window.selectProduct = function(type, id) {
     const hasWidth = !!item.product.default_width;
     const hasHeight = !!item.product.default_height;
     const isRemainder = item.type === 'remainder';
+    const isSet = item.product.base_unit === 'per set';
     const cutFieldsDiv = document.getElementById('cutFields');
     const cutFieldsInputs = document.getElementById('cutFieldsInputs');
     cutFieldsInputs.innerHTML = '';
     
-    // Show cut fields for remainders or products with default dimensions
-    if (isRemainder || hasLength || hasWidth || hasHeight) {
+    // Show cut fields for remainders or products with default dimensions (but not for sets)
+    if ((isRemainder || hasLength || hasWidth || hasHeight) && !isSet) {
         cutFieldsDiv.classList.remove('hidden');
         
         if (isRemainder) {
@@ -489,17 +710,17 @@ window.selectProduct = function(type, id) {
             }
         } else {
             // For regular inventory items, show default dimension fields
-            if (hasLength && !hasWidth && !hasHeight) {
-                cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-24 px-2 py-1 border rounded" placeholder="Length${unit}">`;
-            } else {
-                if (hasWidth) {
-                    cutFieldsInputs.innerHTML += `<input id="cutWidth" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Width${unit}">`;
-                }
-                if (hasHeight) {
-                    cutFieldsInputs.innerHTML += `<input id="cutHeight" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Height${unit}">`;
-                }
-                if (hasLength) {
-                    cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Length${unit}">` + cutFieldsInputs.innerHTML;
+        if (hasLength && !hasWidth && !hasHeight) {
+            cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-24 px-2 py-1 border rounded" placeholder="Length${unit}">`;
+        } else {
+            if (hasWidth) {
+                cutFieldsInputs.innerHTML += `<input id="cutWidth" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Width${unit}">`;
+            }
+            if (hasHeight) {
+                cutFieldsInputs.innerHTML += `<input id="cutHeight" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Height${unit}">`;
+            }
+            if (hasLength) {
+                cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Length${unit}">` + cutFieldsInputs.innerHTML;
                 }
             }
         }
@@ -560,10 +781,10 @@ addSaleItemBtn.addEventListener('click', function(e) {
         }
     } else {
         // For inventory items, validate against product default dimensions
-        const def = selectedProduct.product;
-        if (cutLengthInput && l >= Number(def.default_length)) return showToast('Cut length must be less than product length', 'error');
-        if (cutWidthInput && w >= Number(def.default_width)) return showToast('Cut width must be less than product width', 'error');
-        if (cutHeightInput && h >= Number(def.default_height)) return showToast('Cut height must be less than product height', 'error');
+    const def = selectedProduct.product;
+    if (cutLengthInput && l >= Number(def.default_length)) return showToast('Cut length must be less than product length', 'error');
+    if (cutWidthInput && w >= Number(def.default_width)) return showToast('Cut width must be less than product width', 'error');
+    if (cutHeightInput && h >= Number(def.default_height)) return showToast('Cut height must be less than product height', 'error');
     }
     
     if (cutFields && !cutFields.classList.contains('hidden')) {
@@ -590,7 +811,8 @@ addSaleItemBtn.addEventListener('click', function(e) {
         cutSize,
         unitPrice,
         totalPrice,
-        remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null
+        remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null,
+        isSet: selectedProduct.product.base_unit === 'per set'
     });
     
     renderSaleItems();
@@ -607,6 +829,7 @@ function renderSaleItems() {
             <td class="px-4 py-2 text-sm">
                 ${item.productName} (${item.sku || 'No SKU'})
                 ${item.type === 'remainder' ? '<span class="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded">Remainder</span>' : ''}
+                ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
             </td>
             <td class="px-4 py-2 text-sm">${item.qty}</td>
             <td class="px-4 py-2 text-sm">${item.cutSize || '-'}</td>
@@ -625,11 +848,23 @@ window.removeSaleItem = function(idx) {
 // --- Add Sale Form Submit ---
 addSaleForm.addEventListener('submit', async function(e) {
     e.preventDefault();
-    if (!currentBranchId) return showToast('Select a branch', 'error');
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
     if (!saleItems.length) return showToast('Add at least one item', 'error');
     if (!paymentMethod.value) return showToast('Select payment method', 'error');
     const userId = document.getElementById('saleUserId')?.value;
     if (!userId) return showToast('User not found', 'error');
+    
+    // Check if delivery is selected
+    if (isDelivered.checked) {
+        // Set default delivery date to today
+        deliveryDate.value = new Date().toISOString().slice(0, 10);
+        deliveryDetailsModal.classList.remove('hidden');
+        return;
+    }
+    
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
     // Check if any item is a cut
     const cutItemIdx = saleItems.findIndex(item =>
@@ -644,7 +879,7 @@ addSaleForm.addEventListener('submit', async function(e) {
     await submitSale({ location_note: null });
 });
 
-async function submitSale({ location_note, status, discard_reason }) {
+async function submitSale({ location_note, status, discard_reason, delivery_data = null }) {
     const userId = document.getElementById('saleUserId')?.value;
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
     
@@ -692,7 +927,14 @@ async function submitSale({ location_note, status, discard_reason }) {
             user_id: userId,
             total_amount: totalAmount,
             payment_method: paymentMethod.value,
-            items
+            items,
+            ...(delivery_data && {
+                is_delivered: true,
+                delivered_to: delivery_data.delivered_to,
+                delivery_date: delivery_data.delivery_date,
+                delivery_note: delivery_data.delivery_note,
+                delivery_address: delivery_data.delivery_address
+            })
         };
         
         const res = await fetch('/api/sales', {
@@ -708,26 +950,40 @@ async function submitSale({ location_note, status, discard_reason }) {
             const err = await res.json();
             throw new Error(err.error || 'Failed to create sale');
         }
-        showToast('Sale created!', 'success');
+        
+        const result = await res.json();
+        showToast('Sale created! Inventory data has been refreshed.', 'success');
+        
+        // If delivery was selected, show delivery receipt option
+        if (delivery_data) {
+            if (confirm('Sale created successfully! Would you like to print the delivery receipt?')) {
+                printDeliveryReceipt(result.id);
+            }
+        }
+        
         resetSaleForm();
         switchTab('today');
         loadSales();
+        
+        // Reload inventory and remainders data to reflect updated stock levels
+        if (currentBranchId) {
+            await loadInventoryAndRemainders();
+            // Small delay to ensure UI updates are visible
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
     } catch (err) {
         showToast(err.message || 'Failed to create sale', 'error');
     } finally {
         document.getElementById('cutRemainderModal').classList.add('hidden');
         pendingCutRemainder = null;
+        pendingDeliveryData = null;
     }
 }
 
 document.getElementById('saveCutRemainderBtn').addEventListener('click', async function() {
     cutRemainderDiscardMode = false;
     const note = document.getElementById('cutRemainderNote').value;
-    await submitSale({ location_note: note, status: 'available', discard_reason: null });
-});
-document.getElementById('skipCutRemainderBtn').addEventListener('click', async function() {
-    cutRemainderDiscardMode = false;
-    await submitSale({ location_note: null, status: null, discard_reason: null });
+    await submitSale({ location_note: note, status: 'available', discard_reason: null, delivery_data: pendingDeliveryData });
 });
 document.getElementById('discardCutRemainderBtn').addEventListener('click', function() {
     cutRemainderDiscardMode = true;
@@ -749,14 +1005,185 @@ document.getElementById('confirmDiscardCutBtn').addEventListener('click', async 
         return;
     }
     document.getElementById('discardCutReasonModal').classList.add('hidden');
-    await submitSale({ location_note: null, status: 'discarded', discard_reason: reason });
+    await submitSale({ location_note: null, status: 'discarded', discard_reason: reason, delivery_data: pendingDeliveryData });
 });
+
+// --- Sale Details Modal ---
+closeSaleDetailsModal.addEventListener('click', function() {
+    saleDetailsModal.classList.add('hidden');
+});
+
+// View Sale Details Function
+window.viewSaleDetails = async function(saleId) {
+    try {
+        const response = await fetch(`/api/sales/${saleId}`, {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load sale details');
+        }
+        
+        const sale = await response.json();
+        
+        // Format the sale details
+        const saleDetailsHtml = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg mb-3">Sale Information</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="font-medium">Sale ID:</span>
+                                <span>#${sale.id}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Date:</span>
+                                <span>${sale.created_at ? new Date(sale.created_at).toLocaleString() : '-'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">User:</span>
+                                <span>${sale.user?.name || '-'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Payment Method:</span>
+                                <span>${sale.payment_method || '-'}</span>
+                            </div>
+                            ${sale.delivery_address ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Delivery Address:</span>
+                                <span class="text-right max-w-xs">${sale.delivery_address}</span>
+                            </div>
+                            ` : ''}
+                            <div class="flex justify-between">
+                                <span class="font-medium">Total Amount:</span>
+                                <span class="font-bold text-lg">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg mb-3">Sale Items</h3>
+                        ${sale.sale_items && sale.sale_items.length > 0 ? `
+                            <div class="space-y-3">
+                                ${sale.sale_items.map(item => `
+                                    <div class="border-b border-gray-200 pb-3 last:border-b-0">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex-1">
+                                                <div class="font-medium">${item.product?.name || 'Unknown Product'}</div>
+                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
+                                                ${item.cut_length || item.cut_width || item.cut_height ? `
+                                                    <div class="text-sm text-gray-600">
+                                                        Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-medium">₱${Number(item.unit_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
+                                                <div class="text-sm text-gray-600">Qty: ${item.quantity}</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span>Unit Price × Quantity</span>
+                                            <span class="font-medium">₱${Number(item.total_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-gray-500">No items found</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        saleDetailsContent.innerHTML = saleDetailsHtml;
+        saleDetailsModal.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error loading sale details:', error);
+        showToast('Failed to load sale details', 'error');
+    }
+};
+
+
+
+// --- Delivery Modal Handlers ---
+closeDeliveryDetailsModal.addEventListener('click', function() {
+    deliveryDetailsModal.classList.add('hidden');
+    isDelivered.checked = false;
+    pendingDeliveryData = null;
+});
+
+cancelDeliveryBtn.addEventListener('click', function() {
+    deliveryDetailsModal.classList.add('hidden');
+    isDelivered.checked = false;
+    pendingDeliveryData = null;
+});
+
+deliveryDetailsForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const deliveryData = {
+        delivery_date: deliveryDate.value,
+        delivered_to: deliveredTo.value,
+        delivery_address: deliveryAddress.value,
+        delivery_note: deliveryNote.value
+    };
+    
+    // Validate required fields
+    if (!deliveryData.delivery_date || !deliveryData.delivered_to) {
+        showToast('Please fill in all required delivery fields', 'error');
+        return;
+    }
+    
+    deliveryDetailsModal.classList.add('hidden');
+    
+    // Store delivery data for potential remainder modal
+    pendingDeliveryData = deliveryData;
+    
+    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    // Check if any item is a cut
+    const cutItemIdx = saleItems.findIndex(item =>
+        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
+    );
+    if (cutItemIdx !== -1) {
+        // Show cut remainder modal
+        pendingCutRemainder = cutItemIdx;
+        document.getElementById('cutRemainderModal').classList.remove('hidden');
+        return;
+    }
+    
+    await submitSale({ location_note: null, delivery_data: deliveryData });
+});
+
+// --- Delivery Filter ---
+deliveryFilter.addEventListener('change', function() {
+    loadSales();
+});
+
+// --- Print Delivery Receipt ---
+window.printDeliveryReceipt = function(saleId) {
+    const printWindow = window.open(`/sales/${saleId}/delivery-receipt`, '_blank');
+    if (!printWindow) {
+        showToast('Please allow popups to print delivery receipts', 'error');
+    }
+};
 
 // --- On Page Load ---
 document.addEventListener('DOMContentLoaded', function() {
     loadBranches();
     switchTab('today');
     resetSaleForm();
+    
+    // Initialize Add New Sale button as disabled
+    const addSaleBtn = document.getElementById('addSaleBtn');
+    addSaleBtn.disabled = true;
+    addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
 });
 </script>
 @endsection

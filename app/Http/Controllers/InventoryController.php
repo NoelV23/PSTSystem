@@ -46,23 +46,67 @@ class InventoryController extends Controller
                 $q->where('category_id', $category);
             });
         }
-        // Stock filter logic
-        if($stockFilter === 'normal'){
-            // query only if available_stock is greater than or equal to reorder_level
-            $query->whereColumn('available_stock', '>=', 'reorder_level');
-        }else if ($stockFilter === 'low') {
-            $query->whereColumn('available_stock', '<=', 'reorder_level')
-                  ->where('available_stock', '>', 0);
-        } elseif ($stockFilter === 'out') {
-            $query->where('available_stock', '=', 0);
-        }
 
         $inventory = $query->join('products', 'inventories.product_id', '=', 'products.id')
             ->orderBy('products.name', 'asc')
             ->select('inventories.*')
             ->paginate($perPage);
 
-        return response()->json($inventory);
+        // Load set components for set products and calculate set stock
+        foreach ($inventory as $item) {
+            if ($item->product->base_unit === 'per set') {
+                $item->product->load(['setComponents.componentProduct']);
+                $item->calculated_stock = $item->calculateSetStock();
+                $item->calculated_price = $item->calculateSetPrice();
+            }
+        }
+
+        // Apply stock filtering after calculating set stock
+        if ($stockFilter === 'normal') {
+            $filteredItems = $inventory->filter(function ($item) {
+                if ($item->product->base_unit === 'per set') {
+                    return ($item->calculated_stock ?? 0) >= ($item->reorder_level ?? 0);
+                } else {
+                    return ($item->available_stock ?? 0) >= ($item->reorder_level ?? 0);
+                }
+            });
+        } else if ($stockFilter === 'low') {
+            $filteredItems = $inventory->filter(function ($item) {
+                if ($item->product->base_unit === 'per set') {
+                    $stock = $item->calculated_stock ?? 0;
+                    $reorderLevel = $item->reorder_level ?? 0;
+                    return $stock <= $reorderLevel && $stock > 0;
+                } else {
+                    $stock = $item->available_stock ?? 0;
+                    $reorderLevel = $item->reorder_level ?? 0;
+                    return $stock <= $reorderLevel && $stock > 0;
+                }
+            });
+        } elseif ($stockFilter === 'out') {
+            $filteredItems = $inventory->filter(function ($item) {
+                if ($item->product->base_unit === 'per set') {
+                    return ($item->calculated_stock ?? 0) === 0;
+                } else {
+                    return ($item->available_stock ?? 0) === 0;
+                }
+            });
+        } else {
+            $filteredItems = $inventory;
+        }
+
+        // Create a new paginated response with filtered items
+        $filteredCollection = new \Illuminate\Pagination\LengthAwarePaginator(
+            $filteredItems->values(),
+            $filteredItems->count(),
+            $perPage,
+            $request->get('page', 1),
+            [
+                'path' => $request->url(),
+                'pageName' => 'page',
+            ]
+        );
+
+        return response()->json($filteredCollection);
     }
 
     // API: Get inventory summary for a branch
@@ -73,19 +117,53 @@ class InventoryController extends Controller
             ->get();
 
         $totalProducts = $inventory->count();
-        $totalStock = $inventory->sum('available_stock');
-        $totalCost = $inventory->sum(function ($item) {
-            return ($item->available_stock ?? 0) * ($item->cost ?? 0);
-        });
+        
+        // Calculate total stock considering set products
+        $totalStock = 0;
+        $totalCost = 0;
+        foreach ($inventory as $item) {
+            // Load set components for set products and calculate set stock
+            if ($item->product->base_unit === 'per set') {
+                $item->product->load(['setComponents.componentProduct']);
+                $item->calculated_stock = $item->calculateSetStock();
+                $totalStock += $item->calculated_stock ?? 0;
+            } else {
+                $totalStock += $item->available_stock ?? 0;
+            }
+            
+            // Calculate cost (for set products, cost might be null)
+            if ($item->product->base_unit === 'per set') {
+                $stock = $item->calculated_stock ?? 0;
+            } else {
+                $stock = $item->available_stock ?? 0;
+            }
+            $totalCost += $stock * ($item->cost ?? 0);
+        }
         $lastUpdated = $inventory->max('updated_at') ? $inventory->max('updated_at')->format('M d, Y H:i') : 'Never';
         // get the total low stock and out of stock without using whereColumn
         $lowStockCount = 0;
         $outOfStockCount = 0;
         foreach ($inventory as $item) {
-            if ($item->available_stock <= $item->reorder_level && $item->available_stock > 0) {
+            // Load set components for set products and calculate set stock
+            if ($item->product->base_unit === 'per set') {
+                $item->product->load(['setComponents.componentProduct']);
+                $item->calculated_stock = $item->calculateSetStock();
+            }
+            
+            // Determine current stock based on product type
+            $currentStock = 0;
+            if ($item->product->base_unit === 'per set') {
+                $currentStock = $item->calculated_stock ?? 0;
+            } else {
+                $currentStock = $item->available_stock ?? 0;
+            }
+            
+            $reorderLevel = $item->reorder_level ?? 0;
+            
+            if ($currentStock <= $reorderLevel && $currentStock > 0) {
                 $lowStockCount++;
             }
-            if ($item->available_stock == 0) {
+            if ($currentStock == 0) {
                 $outOfStockCount++;
             }
         }
@@ -133,11 +211,15 @@ class InventoryController extends Controller
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'product_id' => 'required|exists:products,id',
-            'available_stock' => 'required|numeric|min:0',
-            'cost' => 'required|numeric|min:0',
+            'available_stock' => 'nullable|numeric|min:0',
+            'cost' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
 
+        // Get the product to check if it's a set product
+        $product = \App\Models\Product::find($validated['product_id']);
+        
         // Check if inventory already exists for this product and branch
         $existingInventory = Inventory::where('product_id', $validated['product_id'])
             ->where('branch_id', $validated['branch_id'])
@@ -145,6 +227,20 @@ class InventoryController extends Controller
 
         if ($existingInventory) {
             return response()->json(['error' => 'Inventory already exists for this product in this branch'], 422);
+        }
+
+        // For set products, stock and cost are not required
+        if ($product->base_unit === 'per set') {
+            $validated['available_stock'] = null;
+            $validated['cost'] = null;
+        } else {
+            // For regular products, stock and cost are required
+            if (!isset($validated['available_stock']) || $validated['available_stock'] === null) {
+                return response()->json(['error' => 'Available stock is required for non-set products'], 422);
+            }
+            if (!isset($validated['cost']) || $validated['cost'] === null) {
+                return response()->json(['error' => 'Cost is required for non-set products'], 422);
+            }
         }
 
         $inventory = Inventory::create($validated);
@@ -156,10 +252,29 @@ class InventoryController extends Controller
     {
         $inventory = Inventory::findOrFail($id);
         $validated = $request->validate([
-            'available_stock' => 'required|numeric|min:0',
-            'cost' => 'required|numeric|min:0',
+            'available_stock' => 'nullable|numeric|min:0',
+            'cost' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
+        
+        // Get the product to check if it's a set product
+        $product = $inventory->product;
+        
+        // For set products, stock and cost are not required
+        if ($product->base_unit === 'per set') {
+            $validated['available_stock'] = null;
+            $validated['cost'] = null;
+        } else {
+            // For regular products, stock and cost are required
+            if (!isset($validated['available_stock']) || $validated['available_stock'] === null) {
+                return response()->json(['error' => 'Available stock is required for non-set products'], 422);
+            }
+            if (!isset($validated['cost']) || $validated['cost'] === null) {
+                return response()->json(['error' => 'Cost is required for non-set products'], 422);
+            }
+        }
+        
         $inventory->update($validated);
         $inventory->load(['product.category']);
         return response()->json($inventory);

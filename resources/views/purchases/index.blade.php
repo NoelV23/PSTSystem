@@ -254,6 +254,12 @@ function setupEventListeners() {
         }
     });
     
+    // Selected branch in modal
+    document.getElementById('selectedBranch').addEventListener('change', function() {
+        const branchId = this.value;
+        document.getElementById('selectedBranchId').value = branchId;
+    });
+    
     // Filter event listeners with pagination reset
     document.getElementById('searchInput').addEventListener('input', function() {
         document.getElementById('purchasesTable').dataset.currentPage = 1;
@@ -441,10 +447,14 @@ async function handleFormSubmit(e) {
     const formData = new FormData(e.target);
     const purchaseData = {
         supplier_name: formData.get('supplier_name'),
-        branch_id: formData.get('branch_id'),
+        branch_id: document.getElementById('selectedBranchId').value,
         order_date: formData.get('order_date'),
         note: formData.get('note'),
-        items: purchaseItems
+        items: purchaseItems.map(item => ({
+            product_id: item.product_id,
+            quantity: item.quantity,
+            cost_price: item.cost_price
+        }))
     };
     
     try {
@@ -506,13 +516,14 @@ function renderPurchaseItems() {
     
     container.innerHTML = purchaseItems.map((item, index) => `
         <div class="flex items-center space-x-3 p-3 bg-white rounded border">
-            <div class="flex-1">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                <select class="item-product w-full px-2 py-1 border rounded text-sm" data-index="${index}">
-                    <option value="">Select product...</option>
-                    ${products.map(p => `<option value="${p.id}" ${item.product_id == p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(p.sku || 'No SKU')})</option>`).join('')}
-                </select>
-            </div>
+                            <div class="flex-1">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                    <div class="relative">
+                        <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? getProductDisplayName(item.product_id) : ''}">
+                        <div class="item-product-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+                    </div>
+                    <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
+                </div>
             <div class="w-24">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
                 <input type="number" class="item-quantity w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.quantity}" min="1">
@@ -531,11 +542,41 @@ function renderPurchaseItems() {
         </div>
     `).join('');
     
-    // Add event listeners
-    container.querySelectorAll('.item-product').forEach(select => {
-        select.addEventListener('change', function() {
+    // Add event listeners for product search
+    container.querySelectorAll('.item-product-search').forEach(input => {
+        input.addEventListener('input', function() {
             const index = parseInt(this.dataset.index);
-            purchaseItems[index].product_id = this.value;
+            const query = this.value.trim().toLowerCase();
+            
+            if (!query) {
+                this.nextElementSibling.classList.add('hidden');
+                return;
+            }
+            
+            // Filter products
+            const filteredProducts = products.filter(p => {
+                const displayName = getProductDisplayName(p.id);
+                return displayName.toLowerCase().includes(query) || 
+                       p.sku?.toLowerCase().includes(query);
+            });
+            
+            const dropdown = this.nextElementSibling;
+            if (filteredProducts.length === 0) {
+                dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+            } else {
+                dropdown.innerHTML = filteredProducts.map(p => `
+                    <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" onclick="selectProduct(${index}, ${p.id})">
+                        ${escapeHtml(getProductDisplayName(p.id))} (${escapeHtml(p.sku || 'No SKU')})
+                    </div>
+                `).join('');
+            }
+            dropdown.classList.remove('hidden');
+        });
+        
+        input.addEventListener('blur', function() {
+            setTimeout(() => {
+                this.nextElementSibling.classList.add('hidden');
+            }, 200);
         });
     });
     
@@ -773,6 +814,65 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// Helper function to get product display name
+function getProductDisplayName(productId) {
+    const product = products.find(p => p.id == productId);
+    if (!product) return '';
+    
+    // Build measurement display
+    let measurementDisplay = '';
+    if (product.measurement_unit === 'sq ft') {
+        // For square feet, show width x height
+        if (product.default_width && product.default_height) {
+            measurementDisplay = `${product.default_width}×${product.default_height} sq ft`;
+        } else if (product.default_width) {
+            measurementDisplay = `${product.default_width} sq ft`;
+        } else if (product.default_height) {
+            measurementDisplay = `${product.default_height} sq ft`;
+        }
+    } else if (product.default_length) {
+        // For other units, show length with unit
+        measurementDisplay = `${product.default_length} ${product.measurement_unit || product.base_unit.replace('per ', '')}`;
+    }
+    
+    // Build color info
+    const colorText = product.color ? product.color : '';
+    
+    // Build display name with color and measurement
+    let displayName = product.name;
+    if (colorText) {
+        displayName += ` ${colorText}`;
+    }
+    if (measurementDisplay) {
+        displayName += ` ${measurementDisplay}`;
+    }
+    
+    return displayName;
+}
+
+// Function to select product from dropdown
+window.selectProduct = function(index, productId) {
+    const product = products.find(p => p.id == productId);
+    if (!product) return;
+    
+    purchaseItems[index].product_id = productId;
+    
+    // Update the search input with the selected product name
+    const searchInput = document.querySelector(`.item-product-search[data-index="${index}"]`);
+    const hiddenInput = document.querySelector(`.item-product-id[data-index="${index}"]`);
+    
+    if (searchInput) {
+        searchInput.value = getProductDisplayName(productId);
+    }
+    if (hiddenInput) {
+        hiddenInput.value = productId;
+    }
+    
+    // Hide dropdown
+    const dropdown = searchInput.nextElementSibling;
+    dropdown.classList.add('hidden');
+};
 
 // Load products when modal opens
 document.getElementById('addPurchaseBtn').addEventListener('click', function() {

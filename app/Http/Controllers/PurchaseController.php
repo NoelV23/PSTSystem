@@ -99,7 +99,7 @@ class PurchaseController extends Controller
 
             // Update inventory for each product
             foreach ($validated['items'] as $item) {
-                $this->updateInventory($item['product_id'], $validated['branch_id'], $item['quantity']);
+                $this->updateInventory($item['product_id'], $validated['branch_id'], $item['quantity'], $item['cost_price']);
             }
 
             DB::commit();
@@ -167,7 +167,7 @@ class PurchaseController extends Controller
 
             // Update inventory for each product
             foreach ($validated['items'] as $item) {
-                $this->updateInventory($item['product_id'], $purchaseOrder->branch_id, $item['quantity']);
+                $this->updateInventory($item['product_id'], $purchaseOrder->branch_id, $item['quantity'], $item['cost_price']);
             }
 
             DB::commit();
@@ -205,7 +205,7 @@ class PurchaseController extends Controller
     }
 
     // Helper method to update inventory
-    private function updateInventory($productId, $branchId, $quantity)
+    private function updateInventory($productId, $branchId, $quantity, $costPrice = null)
     {
         $product = Product::find($productId);
         $inventory = Inventory::where('product_id', $productId)
@@ -220,6 +220,7 @@ class PurchaseController extends Controller
                 'available_stock' => 0,
                 'available_length' => 0,
                 'available_area' => 0,
+                'cost' => $costPrice,
             ];
 
             // Set initial values based on product type
@@ -244,6 +245,11 @@ class PurchaseController extends Controller
                 $inventory->increment('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
                 $inventory->increment('available_length', $quantity);
+            }
+            
+            // Update cost price if provided
+            if ($costPrice !== null) {
+                $inventory->update(['cost' => $costPrice]);
             }
         }
     }

@@ -12,9 +12,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('branch_id');
-            $table->integer('length_remaining')->nullable();
-            $table->integer('height_remaining')->nullable();
-            $table->integer('width_remaining')->nullable();
+            $table->decimal('length_remaining', 8, 2)->nullable();
+            $table->decimal('height_remaining', 8, 2)->nullable();
+            $table->decimal('width_remaining', 8, 2)->nullable();
             $table->string('location_note')->nullable();
             $table->string('status')->default('available');
             $table->string('discard_reason')->nullable();
