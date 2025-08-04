@@ -19,11 +19,21 @@ class ReportsController extends Controller
 {
     public function index()
     {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
         return view('reports.index');
     }
 
     public function sales(Request $request)
     {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
         $branchId = $request->get('branch_id');
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
@@ -84,6 +94,11 @@ class ReportsController extends Controller
 
     public function purchases(Request $request)
     {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
         $branchId = $request->get('branch_id');
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
@@ -144,6 +159,11 @@ class ReportsController extends Controller
 
     public function inventory(Request $request)
     {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
         $branchId = $request->get('branch_id');
         $categoryId = $request->get('category_id');
         $lowStockOnly = $request->get('low_stock_only', false);
@@ -210,6 +230,85 @@ class ReportsController extends Controller
             'branchId',
             'categoryId',
             'lowStockOnly'
+        ));
+    }
+
+    public function installationSales(Request $request)
+    {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
+        $branchId = $request->get('branch_id');
+        $dateFrom = $request->get('date_from', Carbon::today()->subDays(30)->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
+        $status = $request->get('status', '');
+        $branches = Branch::where('status', 'active')->get();
+
+        $query = Sale::with(['user', 'branch', 'saleItems.product'])
+            ->where('is_installation', true)
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $installationSales = $query->orderBy('created_at', 'desc')->get();
+
+        // Calculate totals
+        $totalAmount = $installationSales->sum('total_amount');
+        $totalInstallations = $installationSales->count();
+        $pendingInstallations = $installationSales->where('status', 'pending')->count();
+        $completedInstallations = $installationSales->where('status', 'completed')->count();
+        
+        // Calculate total cost from completed installations
+        $totalCost = 0;
+        foreach ($installationSales as $sale) {
+            if ($sale->status === 'completed') {
+                $saleCost = $sale->saleItems->sum(function($item) {
+                    return $item->quantity * $item->unit_price;
+                });
+                $totalCost += $saleCost;
+            }
+        }
+
+        // Group by status
+        $statusStats = $installationSales->groupBy('status')
+            ->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'total' => $group->sum('total_amount')
+                ];
+            });
+
+        // Group by description (installation types)
+        $installationTypeStats = $installationSales->groupBy('description')
+            ->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'total' => $group->sum('total_amount')
+                ];
+            })->sortByDesc('total')->take(10);
+
+        return view('reports.installation-sales', compact(
+            'installationSales',
+            'branches',
+            'branchId',
+            'dateFrom',
+            'dateTo',
+            'status',
+            'totalAmount',
+            'totalCost',
+            'totalInstallations',
+            'pendingInstallations',
+            'completedInstallations',
+            'statusStats',
+            'installationTypeStats'
         ));
     }
 
@@ -428,5 +527,64 @@ class ReportsController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    public function exportInstallationSales(Request $request)
+    {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
+        $branchId = $request->get('branch_id');
+        $dateFrom = $request->get('date_from', Carbon::today()->subDays(30)->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
+        $status = $request->get('status', '');
+
+        $query = Sale::with(['user', 'branch', 'saleItems.product'])
+            ->where('is_installation', true)
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $installationSales = $query->orderBy('created_at', 'desc')->get();
+
+        // Create CSV content
+        $csvData = [];
+        $csvData[] = ['Date', 'Branch', 'User', 'Installation Address', 'Description', 'Total Amount', 'Status', 'Payment Method'];
+
+        foreach ($installationSales as $sale) {
+            $csvData[] = [
+                $sale->created_at ? $sale->created_at->format('Y-m-d H:i:s') : '',
+                $sale->branch ? $sale->branch->name : '',
+                $sale->user ? $sale->user->name : '',
+                $sale->installation_address ?? '',
+                $sale->description ?? '',
+                number_format($sale->total_amount, 2),
+                $sale->status ?? '',
+                $sale->payment_method ?? ''
+            ];
+        }
+
+        // Convert to CSV string
+        $csvContent = '';
+        foreach ($csvData as $row) {
+            $csvContent .= implode(',', array_map(function($field) {
+                return '"' . str_replace('"', '""', $field) . '"';
+            }, $row)) . "\n";
+        }
+
+        // Create response with BOM for Excel compatibility
+        $response = new Response("\xEF\xBB\xBF" . $csvContent);
+        $response->header('Content-Type', 'text/csv; charset=UTF-8');
+        $response->header('Content-Disposition', 'attachment; filename="installation-sales-' . $dateFrom . '-to-' . $dateTo . '.csv"');
+
+        return $response;
     }
 } 

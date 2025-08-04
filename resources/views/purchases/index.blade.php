@@ -18,6 +18,7 @@
             </div>
         </div>
 
+        @if(auth()->user()->role === 'admin')
         <!-- Branch Selection -->
         <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -39,6 +40,12 @@
                 </div>
             </div>
         </div>
+        @else
+        <!-- Auto-set branch for non-admin users -->
+        <script>
+            window.currentUserBranchId = {{ auth()->user()->branch_id }};
+        </script>
+        @endif
 
         <!-- Loading State -->
         <div id="loadingState" class="bg-white rounded-xl shadow p-12 text-center hidden">
@@ -126,6 +133,7 @@
                         <input type="date" id="orderDate" name="order_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="order_dateError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                    @if(auth()->user()->role === 'admin')
                     <div>
                         <label for="selectedBranch" class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
                         <select id="selectedBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
@@ -133,6 +141,10 @@
                         </select>
                         <div id="branch_idError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                    @else
+                    <input type="hidden" id="selectedBranch" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                    <input type="hidden" id="selectedBranchId" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                    @endif
                 </div>
                 
                 <div>
@@ -254,21 +266,32 @@ function setupEventListeners() {
         }
     });
     
-    // Selected branch in modal
-    document.getElementById('selectedBranch').addEventListener('change', function() {
-        const branchId = this.value;
-        document.getElementById('selectedBranchId').value = branchId;
-    });
+    // Selected branch in modal (only for admin users)
+    const selectedBranchElement = document.getElementById('selectedBranch');
+    if (selectedBranchElement) {
+        selectedBranchElement.addEventListener('change', function() {
+            const branchId = this.value;
+            document.getElementById('selectedBranchId').value = branchId;
+        });
+    }
     
     // Filter event listeners with pagination reset
-    document.getElementById('searchInput').addEventListener('input', function() {
-        document.getElementById('purchasesTable').dataset.currentPage = 1;
-        loadPurchases();
-    });
-    document.getElementById('perPageFilter').addEventListener('change', function() {
-        document.getElementById('purchasesTable').dataset.currentPage = 1;
-        loadPurchases();
-    });
+    const searchInput = document.getElementById('searchInput');
+    const perPageFilter = document.getElementById('perPageFilter');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            document.getElementById('purchasesTable').dataset.currentPage = 1;
+            loadPurchases();
+        });
+    }
+    
+    if (perPageFilter) {
+        perPageFilter.addEventListener('change', function() {
+            document.getElementById('purchasesTable').dataset.currentPage = 1;
+            loadPurchases();
+        });
+    }
 }
 
 async function loadBranches() {
@@ -281,8 +304,24 @@ async function loadBranches() {
         const selectedBranch = document.getElementById('selectedBranch');
         
         const options = branches.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
-        branchSelector.innerHTML = '<option value="">Choose a branch...</option>' + options;
-        selectedBranch.innerHTML = '<option value="">Select branch...</option>' + options;
+        
+        // Only update branch selectors if they exist (admin users)
+        if (branchSelector) {
+            branchSelector.innerHTML = '<option value="">Choose a branch...</option>' + options;
+        }
+        if (selectedBranch) {
+            selectedBranch.innerHTML = '<option value="">Select branch...</option>' + options;
+        }
+        
+        // Auto-set branch for non-admin users
+        if (window.currentUserBranchId) {
+            selectedBranchId = window.currentUserBranchId;
+            if (branchSelector) {
+                branchSelector.value = selectedBranchId;
+            }
+            // Load purchases immediately for non-admin users
+            loadPurchases();
+        }
     } catch (error) {
         console.error('Error loading branches:', error);
     }
@@ -304,8 +343,11 @@ async function loadPurchases() {
     showLoading();
     try {
         const page = document.getElementById('purchasesTable').dataset.currentPage || 1;
-        const perPage = document.getElementById('perPageFilter').value;
-        const searchTerm = document.getElementById('searchInput').value;
+        const perPageFilter = document.getElementById('perPageFilter');
+        const searchInput = document.getElementById('searchInput');
+        
+        const perPage = perPageFilter ? perPageFilter.value : '10';
+        const searchTerm = searchInput ? searchInput.value : '';
 
         const params = new URLSearchParams({
             page: page,
@@ -353,7 +395,9 @@ function createPurchaseRow(purchase) {
             <td class="px-6 py-4 text-right">
                 <button onclick="viewPurchase(${purchase.id})" class="text-blue-600 hover:text-blue-900 mr-3">View</button>
                 <button onclick="editPurchase(${purchase.id})" class="text-green-600 hover:text-green-900 mr-3">Edit</button>
+                @if(auth()->user()->role !== 'staff')
                 <button onclick="deletePurchase(${purchase.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                @endif
             </td>
         </tr>
     `;

@@ -20,21 +20,22 @@ class DashboardController extends Controller
 
     public function getDashboardData()
     {
+        $currentUser = auth()->user();
         $today = Carbon::today();
         $startOfWeek = Carbon::now()->startOfWeek();
         $startOfMonth = Carbon::now()->startOfMonth();
 
-        // Get summary data
-        $summary = $this->getSummaryData($today);
+        // Get summary data based on user role
+        $summary = $this->getSummaryData($today, $currentUser);
         
-        // Get branch performance data
-        $branches = $this->getBranchPerformanceData($today);
+        // Get branch performance data based on user role
+        $branches = $this->getBranchPerformanceData($today, $currentUser);
         
-        // Get inventory alerts
-        $inventoryAlerts = $this->getInventoryAlerts();
+        // Get inventory alerts based on user role
+        $inventoryAlerts = $this->getInventoryAlerts($currentUser);
         
-        // Get recent activity
-        $activityLog = $this->getRecentActivity();
+        // Get recent activity based on user role
+        $activityLog = $this->getRecentActivity($currentUser);
 
         return response()->json([
             'summary' => $summary,
@@ -44,10 +45,20 @@ class DashboardController extends Controller
         ]);
     }
 
-    private function getSummaryData($today)
+    private function getSummaryData($today, $user)
     {
+        // Filter by branch if user is manager
+        $branchFilter = [];
+        if ($user->role === 'manager') {
+            $branchFilter = ['branch_id' => $user->branch_id];
+        }
+
         // Calculate total inventory value
-        $totalInventoryValue = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+        $inventoryQuery = Inventory::join('products', 'inventories.product_id', '=', 'products.id');
+        if ($user->role === 'manager') {
+            $inventoryQuery->where('inventories.branch_id', $user->branch_id);
+        }
+        $totalInventoryValue = $inventoryQuery
             ->selectRaw('SUM(CASE 
                 WHEN products.base_unit = "per set" THEN 0 
                 ELSE (inventories.available_stock * inventories.cost) 
@@ -55,16 +66,26 @@ class DashboardController extends Controller
             ->value('total_value') ?? 0;
 
         // Calculate today's sales
-        $salesToday = Sale::whereDate('created_at', $today)
-            ->sum('total_amount') ?? 0;
+        $salesQuery = Sale::whereDate('created_at', $today);
+        if ($user->role === 'manager') {
+            $salesQuery->where('branch_id', $user->branch_id);
+        }
+        $salesToday = $salesQuery->sum('total_amount') ?? 0;
 
         // Count active branches
+        if ($user->role === 'manager') {
+            $activeBranches = 1; // Manager only sees their branch
+        } else {
         $activeBranches = Branch::where('status', 'active')->count();
+        }
 
         // Count low stock items
-        $lowStockCount = Inventory::whereColumn('available_stock', '<=', 'reorder_level')
-            ->where('available_stock', '>', 0)
-            ->count();
+        $lowStockQuery = Inventory::whereColumn('available_stock', '<=', 'reorder_level')
+            ->where('available_stock', '>', 0);
+        if ($user->role === 'manager') {
+            $lowStockQuery->where('branch_id', $user->branch_id);
+        }
+        $lowStockCount = $lowStockQuery->count();
 
         return [
             'inventoryValue' => $totalInventoryValue,
@@ -74,9 +95,18 @@ class DashboardController extends Controller
         ];
     }
 
-    private function getBranchPerformanceData($today)
+    private function getBranchPerformanceData($today, $user)
     {
+        if ($user->role === 'manager') {
+            // Manager only sees their branch
+            $branches = Branch::where('status', 'active')
+                ->where('id', $user->branch_id)
+                ->get();
+        } else {
+            // Admin sees all branches
         $branches = Branch::where('status', 'active')->get();
+        }
+        
         $branchData = [];
 
         foreach ($branches as $branch) {
@@ -133,12 +163,18 @@ class DashboardController extends Controller
         return $branchData;
     }
 
-    private function getInventoryAlerts()
+    private function getInventoryAlerts($user)
     {
-        $alerts = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+        $alertsQuery = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
             ->join('branches', 'inventories.branch_id', '=', 'branches.id')
             ->whereColumn('inventories.available_stock', '<=', 'inventories.reorder_level')
-            ->where('inventories.available_stock', '>', 0)
+            ->where('inventories.available_stock', '>', 0);
+            
+        if ($user->role === 'manager') {
+            $alertsQuery->where('inventories.branch_id', $user->branch_id);
+        }
+        
+        $alerts = $alertsQuery
             ->select([
                 'inventories.id',
                 'products.name as product_name',
@@ -163,10 +199,14 @@ class DashboardController extends Controller
         });
     }
 
-    private function getRecentActivity()
+    private function getRecentActivity($user)
     {
         // This is a simplified activity log. In a real application, you might want to create an activity log table
-        $recentSales = Sale::with(['branch', 'user'])
+        $salesQuery = Sale::with(['branch', 'user']);
+        if ($user->role === 'manager') {
+            $salesQuery->where('branch_id', $user->branch_id);
+        }
+        $recentSales = $salesQuery
             ->latest('created_at')
             ->limit(5)
             ->get()
@@ -179,8 +219,12 @@ class DashboardController extends Controller
                 ];
             });
 
-        $recentInventory = Inventory::with(['branch', 'product'])
-            ->where('updated_at', '>=', Carbon::now()->subHours(24))
+        $inventoryQuery = Inventory::with(['branch', 'product'])
+            ->where('updated_at', '>=', Carbon::now()->subHours(24));
+        if ($user->role === 'manager') {
+            $inventoryQuery->where('branch_id', $user->branch_id);
+        }
+        $recentInventory = $inventoryQuery
             ->latest('updated_at')
             ->limit(3)
             ->get()

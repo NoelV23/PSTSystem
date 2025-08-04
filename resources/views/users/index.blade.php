@@ -23,6 +23,7 @@
             <select id="roleFilter" class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
                 <option value="">All Roles</option>
                 <option value="admin">Admin</option>
+                <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
             </select>
             <select id="branchFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
@@ -94,7 +95,13 @@
     <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
         <div class="mt-3">
             <div class="flex justify-between items-center mb-4">
-                <h3 id="modalTitle" class="text-lg font-medium text-gray-900">Add New User</h3>
+                <h3 id="modalTitle" class="text-lg font-medium text-gray-900">
+                    @if(auth()->user()->role === 'admin')
+                        Add New User
+                    @else
+                        Add Staff User
+                    @endif
+                </h3>
                 <button id="closeModal" class="text-gray-400 hover:text-gray-600">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
@@ -118,10 +125,12 @@
                     <input type="password" id="userPassword" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                     <div id="passwordError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                @if(auth()->user()->role === 'admin')
                 <div>
                     <label for="userRole" class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
                     <select id="userRole" name="role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <option value="admin">Admin</option>
+                        <option value="manager">Manager</option>
                         <option value="staff">Staff</option>
                         </select>
                     <div id="roleError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -133,6 +142,23 @@
                         </select>
                     <div id="branchError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                @else
+                <!-- Manager can only create staff users and auto-assign to their branch -->
+                <input type="hidden" id="userRole" name="role" value="staff">
+                <input type="hidden" id="userBranch" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <div class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
+                        Staff (Managers can only create staff users)
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                    <div class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
+                        {{ auth()->user()->branch->name ?? 'Your Branch' }} (Auto-assigned)
+                    </div>
+                </div>
+                @endif
                 <div>
                     <label for="userStatus" class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
                     <select id="userStatus" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
@@ -227,7 +253,10 @@ function setupEventListeners() {
     document.getElementById('branchFilter').addEventListener('change', renderUsers);
     userModal.addEventListener('click', function(e) { if (e.target === userModal) closeModal(); });
     deleteModal.addEventListener('click', function(e) { if (e.target === deleteModal) closeDeleteModal(); });
-    document.getElementById('userRole').addEventListener('change', handleRoleChange);
+    const userRoleSelect = document.getElementById('userRole');
+    if (userRoleSelect) {
+        userRoleSelect.addEventListener('change', handleRoleChange);
+    }
 }
 
 async function loadBranches() {
@@ -237,8 +266,13 @@ async function loadBranches() {
         branches = await response.json();
         const branchFilter = document.getElementById('branchFilter');
         const userBranch = document.getElementById('userBranch');
+        
         branchFilter.innerHTML = '<option value="">All Branches</option>' + branches.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+        
+        // Only update userBranch if it exists (admin users)
+        if (userBranch) {
         userBranch.innerHTML = '<option value="">Select branch</option>' + branches.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+        }
     } catch (error) {
         console.error('Error loading branches:', error);
     }
@@ -288,7 +322,14 @@ function renderUsers() {
 }
 
 function createUserRow(user) {
-    const roleClass = user.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+    let roleClass;
+    if (user.role === 'admin') {
+        roleClass = 'bg-red-100 text-red-700';
+    } else if (user.role === 'manager') {
+        roleClass = 'bg-blue-100 text-blue-700';
+    } else {
+        roleClass = 'bg-yellow-100 text-yellow-700';
+    }
     const statusClass = user.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500';
     const branchName = user.branch ? escapeHtml(user.branch.name) : '';
     console.log(currentUserId, user.id);
@@ -309,7 +350,12 @@ function createUserRow(user) {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     <span class="hidden sm:inline ml-1">Delete</span>
                 </button>
-                ` : ''}
+                ` : `
+                <span class="flex items-center text-gray-400 text-sm font-medium ml-2 cursor-not-allowed" title="You cannot delete your own account">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    <span class="hidden sm:inline ml-1">Delete</span>
+                </span>
+                `}
             </td>
         </tr>
     `;
@@ -318,7 +364,10 @@ function createUserRow(user) {
 function openAddModal() {
     isEditMode = false;
     currentUserId = null;
-    document.getElementById('modalTitle').textContent = 'Add New User';
+    const modalTitle = document.getElementById('modalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = '{{ auth()->user()->role === "admin" ? "Add New User" : "Add Staff User" }}';
+    }
     document.getElementById('submitBtn').textContent = 'Save User';
     document.getElementById('userForm').reset();
     document.getElementById('passwordDiv').classList.remove('hidden');
@@ -422,7 +471,19 @@ async function confirmDelete() {
                 'Accept': 'application/json',
             }
         });
-        if (!response.ok) throw new Error('Failed to delete user');
+        
+        const result = await response.json();
+        
+        if (!response.ok) {
+            // Handle specific error messages from backend
+            if (result.message && result.message.includes('cannot delete yourself')) {
+                showToast('You cannot delete your own account', 'error');
+            } else {
+                throw new Error(result.error || 'Failed to delete user');
+            }
+            return;
+        }
+        
         users = users.filter(u => u.id !== userToDelete);
         renderUsers();
         showToast('User deleted successfully!', 'success');
@@ -509,13 +570,22 @@ function escapeHtml(text) {
 }
 
 function handleRoleChange() {
-    const role = document.getElementById('userRole').value;
+    const roleSelect = document.getElementById('userRole');
     const branchDiv = document.getElementById('branchFieldDiv');
     const branchSelect = document.getElementById('userBranch');
+    
+    // If userRole element doesn't exist (manager view), return early
+    if (!roleSelect) return;
+    
+    const role = roleSelect.value;
+    
     if (role === 'admin') {
         branchDiv.classList.add('hidden');
         branchSelect.removeAttribute('required');
         branchSelect.value = '';
+    } else if (role === 'manager') {
+        branchDiv.classList.remove('hidden');
+        branchSelect.setAttribute('required', 'required');
     } else {
         branchDiv.classList.remove('hidden');
         branchSelect.setAttribute('required', 'required');

@@ -121,7 +121,8 @@
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Retail Price</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Wholesale Price</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -206,6 +207,8 @@
                     <div id="availableStockSection">
                         <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
                         <input type="number" id="availableStock" name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="availableStockHelp" class="text-xs text-gray-500 mt-1">Enter initial stock level for this product</div>
+                        <div id="availableStockEditHelp" class="text-xs text-gray-500 mt-1 hidden">Stock levels can only be modified through purchases or stock adjustments</div>
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="costSection">
@@ -214,9 +217,14 @@
                         <div id="costError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="priceSection">
-                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Default Price</label>
+                        <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Retail Price (Default)</label>
                         <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="priceError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                    <div id="wholesalePriceSection">
+                        <label for="wholesalePrice" class="block text-sm font-medium text-gray-700 mb-1">Wholesale Price</label>
+                        <input type="number" value="0" id="wholesalePrice" name="wholesale_price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <div id="wholesale_priceError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 </div>
                 
@@ -366,9 +374,10 @@ const toast = document.getElementById('toast');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    loadProducts();
-    loadCategories();
-    loadInventory();
+    loadInventory().then(() => {
+        loadProducts();
+        loadCategories();
+    });
     setupEventListeners();
 });
 
@@ -496,6 +505,12 @@ async function loadInventory() {
         // Load summary
         loadSummary();
         loadRemaindersForInventory(); // Load remainders after inventory is loaded
+        
+        // Refresh product dropdown after inventory is loaded
+        if (products && products.length > 0) {
+            const availableProducts = filterAvailableProducts(products);
+            populateProductDropdown(availableProducts);
+        }
     } catch (error) {
         console.error('Error loading inventory:', error);
         showError();
@@ -585,12 +600,15 @@ function createInventoryRow(item) {
     
     let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
     let price = '-';
+    let wholesalePrice = '-';
     if (item.product.base_unit === 'per set') {
         // For set products, show calculated price
         price = item.calculated_price ? `₱${parseFloat(item.calculated_price).toFixed(2)}` : '-';
+        wholesalePrice = '-'; // Set products don't have wholesale price
     } else {
         // For regular products, show inventory price
         price = item.price ? `₱${parseFloat(item.price).toFixed(2)}` : '-';
+        wholesalePrice = item.wholesale_price ? `₱${parseFloat(item.wholesale_price).toFixed(2)}` : '-';
     }
     
     // Build measurement display
@@ -656,11 +674,14 @@ function createInventoryRow(item) {
             <td class="px-6 py-4 text-sm text-gray-500" id="remainderCol-${item.product.id}">-</td>
             <td class="px-6 py-4 text-sm text-gray-500">${cost}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${price}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${wholesalePrice}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
                 <button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                @if(auth()->user()->role !== 'staff')
                 <button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                @endif
             </td>
         </tr>
     `;
@@ -684,11 +705,19 @@ function getStockStatus(item) {
 }
 
 function filterAvailableProducts(productsToShow) {
-    // Get current inventory product IDs
+    // Get current inventory product IDs - handle case where inventory is not yet loaded
     const inventoryProductIds = (inventory || []).map(item => item.product_id);
     
+    // If inventory is not loaded yet, show all products
+    if (!inventory || inventory.length === 0) {
+        console.log('Inventory not loaded yet, showing all products');
+        return productsToShow;
+    }
+    
     // Filter out products that are already in inventory
-    return productsToShow.filter(product => !inventoryProductIds.includes(product.id));
+    const availableProducts = productsToShow.filter(product => !inventoryProductIds.includes(product.id));
+    console.log(`Filtered ${productsToShow.length} products to ${availableProducts.length} available products`);
+    return availableProducts;
 }
 
 function populateProductDropdown(productsToShow) {
@@ -858,8 +887,9 @@ async function handleProductSelection() {
             document.getElementById('availableStockSection').classList.remove('hidden');
             document.getElementById('costSection').classList.remove('hidden');
             document.getElementById('priceSection').classList.remove('hidden');
+            document.getElementById('wholesalePriceSection').classList.remove('hidden');
             document.getElementById('availableStock').required = true;
-            document.getElementById('cost').required = false; // Cost is optional
+            document.getElementById('cost').required = false; // Cost is optional (defaults to 0)
             stockInputs.classList.remove('hidden');
         }
     } catch (error) {
@@ -949,9 +979,11 @@ function hideAllStockSections() {
     const stockSection = document.getElementById('availableStockSection');
     const costSection = document.getElementById('costSection');
     const priceSection = document.getElementById('priceSection');
+    const wholesalePriceSection = document.getElementById('wholesalePriceSection');
     if (stockSection) stockSection.classList.add('hidden');
     if (costSection) costSection.classList.add('hidden');
     if (priceSection) priceSection.classList.add('hidden');
+    if (wholesalePriceSection) wholesalePriceSection.classList.add('hidden');
     const setSection = document.getElementById('setProductSection');
     if (setSection) setSection.classList.add('hidden');
     // Remove required attributes
@@ -973,6 +1005,22 @@ function openAddModal() {
     document.getElementById('stockInputs').classList.add('hidden');
     hideProductDropdown();
     
+    // Make available stock editable for new items
+    const availableStockInput = document.getElementById('availableStock');
+    availableStockInput.readOnly = false;
+    availableStockInput.classList.remove('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+    availableStockInput.classList.add('focus:outline-none', 'focus:ring-2', 'focus:ring-red-400', 'focus:border-transparent');
+    
+    // Show appropriate help text
+    document.getElementById('availableStockHelp').classList.remove('hidden');
+    document.getElementById('availableStockEditHelp').classList.add('hidden');
+    
+    // Refresh product dropdown with current inventory state
+    if (products && products.length > 0) {
+        const availableProducts = filterAvailableProducts(products);
+        populateProductDropdown(availableProducts);
+    }
+    
     // Reload products to get updated available products list
     loadProducts();
     
@@ -990,6 +1038,17 @@ function openEditModal(inventoryItem) {
     document.getElementById('availableStock').value = inventoryItem.available_stock || '';
     document.getElementById('cost').value = inventoryItem.cost || '';
     document.getElementById('price').value = inventoryItem.price || '';
+    document.getElementById('wholesalePrice').value = inventoryItem.wholesale_price || '';
+    
+    // Make available stock readonly for edit mode
+    const availableStockInput = document.getElementById('availableStock');
+    availableStockInput.readOnly = true;
+    availableStockInput.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
+    availableStockInput.classList.remove('focus:outline-none', 'focus:ring-2', 'focus:ring-red-400', 'focus:border-transparent');
+    
+    // Show appropriate help text
+    document.getElementById('availableStockHelp').classList.add('hidden');
+    document.getElementById('availableStockEditHelp').classList.remove('hidden');
     
     // Trigger product selection to show correct fields
     handleProductSelection();
@@ -1036,11 +1095,13 @@ async function handleFormSubmit(e) {
             inventoryData.available_stock = null;
             inventoryData.cost = null;
             inventoryData.price = null;
+            inventoryData.wholesale_price = null;
         } else {
             // Regular products need stock and cost (cost can be blank)
             inventoryData.available_stock = data.available_stock || null;
             inventoryData.cost = data.cost || null;
             inventoryData.price = data.price || null;
+            inventoryData.wholesale_price = data.wholesale_price || null;
         }
         
         let url, method;

@@ -39,14 +39,34 @@ class SaleController extends Controller
     // API: Get today's sales for a branch (paginated)
     public function getBranchSales(Request $request)
     {
+        $currentUser = auth()->user();
         $branchId = $request->get('branch_id');
+        
+        // Manager can only see sales from their branch
+        if ($currentUser->role === 'manager') {
+            $branchId = $currentUser->branch_id;
+        }
+        
         $perPage = $request->get('per_page', 10);
         $deliveryStatus = $request->get('delivery_status');
+        $isInstallation = $request->get('is_installation');
         $today = now()->toDateString();
         
-        $query = \App\Models\Sale::with(['user', 'saleItems'])
-            ->where('branch_id', $branchId)
-            ->whereDate('created_at', $today);
+        $query = \App\Models\Sale::with(['user', 'saleItems', 'branch'])
+            ->where('branch_id', $branchId);
+        
+        // Filter by installation sales or regular sales
+        if ($isInstallation !== null) {
+            $query->where('is_installation', $isInstallation);
+        } else {
+            // Default to regular sales (not installation)
+            $query->where('is_installation', false);
+        }
+        
+        // Apply date filter only for regular sales
+        if (!$isInstallation) {
+            $query->whereDate('created_at', $today);
+        }
         
         // Apply delivery status filter
         if ($deliveryStatus === 'delivered') {
@@ -62,6 +82,13 @@ class SaleController extends Controller
     // API: Store sale with items and deduct inventory
     public function storeWithItems(Request $request)
     {
+        $currentUser = auth()->user();
+        
+        // Manager can only create sales for their branch
+        if ($currentUser->role === 'manager') {
+            $request->merge(['branch_id' => $currentUser->branch_id]);
+        }
+        
         $validated = $request->validate([
             'branch_id' => 'required|exists:branches,id',
             'user_id' => 'required|exists:users,id',
@@ -81,6 +108,10 @@ class SaleController extends Controller
             'delivery_date' => 'nullable|date',
             'delivery_note' => 'nullable|string',
             'delivery_address' => 'nullable|string',
+            'is_installation' => 'nullable|boolean',
+            'installation_address' => 'nullable|string',
+            'description' => 'nullable|string',
+            'status' => 'nullable|string|in:pending,completed',
         ]);
         
         // Custom validation for inventory_id based on item_type
@@ -112,6 +143,10 @@ class SaleController extends Controller
                 'delivery_date' => $validated['delivery_date'] ?? null,
                 'delivery_note' => $validated['delivery_note'] ?? null,
                 'delivery_address' => $validated['delivery_address'] ?? null,
+                'is_installation' => $validated['is_installation'] ?? false,
+                'installation_address' => $validated['installation_address'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'status' => $validated['status'] ?? 'pending',
             ]);
             
             foreach ($request->input('items') as $item) {
@@ -582,6 +617,86 @@ class SaleController extends Controller
                 'success' => false,
                 'message' => 'Failed to add items: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    public function recordUsedProducts(Request $request, $id)
+    {
+        // Staff users cannot record used products
+        if (auth()->user()->role === 'staff') {
+            return response()->json(['error' => 'Staff users cannot record used products'], 403);
+        }
+        
+        $sale = Sale::findOrFail($id);
+        
+        // Check if this is an installation sale
+        if (!$sale->is_installation) {
+            return response()->json(['error' => 'This is not an installation sale'], 400);
+        }
+        
+        // Check if already completed
+        if ($sale->status === 'completed') {
+            return response()->json(['error' => 'This installation sale is already completed'], 400);
+        }
+        
+        $validated = $request->validate([
+            'used_products' => 'required|array|min:1',
+            'used_products.*.quantity' => 'required|numeric|min:1',
+            'used_products.*.cost' => 'required|numeric|min:0',
+            'used_products.*.inventory_id' => 'required|exists:inventories,id',
+        ]);
+        
+        \DB::beginTransaction();
+        try {
+            $totalCost = 0;
+            
+            foreach ($request->input('used_products') as $usedProduct) {
+                $inventory = \App\Models\Inventory::find($usedProduct['inventory_id']);
+                
+                // Check available stock
+                $availableStock = $inventory->available_stock ?? 0;
+                if ($inventory->product->base_unit === 'per set') {
+                    $availableStock = $inventory->calculateSetStock() ?? 0;
+                }
+                
+                if ($usedProduct['quantity'] > $availableStock) {
+                    throw new \Exception("Insufficient stock for product: {$inventory->product->name}");
+                }
+                
+                // Deduct inventory
+                if ($inventory->product->base_unit === 'per set') {
+                    $this->deductSetComponents($inventory->product, $sale->branch_id, $usedProduct['quantity']);
+                } else {
+                    $inventory->decrement('available_stock', $usedProduct['quantity']);
+                }
+                
+                // Create sale item for tracking
+                $sale->saleItems()->create([
+                    'product_id' => $inventory->product_id,
+                    'quantity' => $usedProduct['quantity'],
+                    'unit_price' => $usedProduct['cost'],
+                    'total_price' => $usedProduct['quantity'] * $usedProduct['cost'],
+                ]);
+                
+                $totalCost += $usedProduct['quantity'] * $usedProduct['cost'];
+            }
+            
+            // Mark installation as completed
+            $sale->update([
+                'status' => 'completed'
+            ]);
+            
+            \DB::commit();
+            
+            return response()->json([
+                'message' => 'Used products recorded successfully',
+                'total_cost' => $totalCost,
+                'sale' => $sale->fresh()
+            ]);
+            
+        } catch (\Exception $e) {
+            \DB::rollback();
+            return response()->json(['error' => 'Failed to record used products: ' . $e->getMessage()], 500);
         }
     }
 } 
