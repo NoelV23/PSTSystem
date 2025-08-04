@@ -168,7 +168,8 @@
                     </div>
                 </a>
 
-                <!-- Reports -->
+                <!-- Reports (not accessible by staff) -->
+                @if(auth()->user()->role !== 'staff')
                 <a href="/reports" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('reports*') ? 'bg-red-700' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
@@ -194,8 +195,10 @@
                         Reports
                     </div>
                 </a>
+                @endif
 
-                <!-- Stock Adjustments -->
+                <!-- Stock Adjustments (not accessible by staff) -->
+                @if(auth()->user()->role !== 'staff')
                 <a href="/stock-adjustments" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('stock-adjustments*') ? 'bg-red-700' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
@@ -221,6 +224,7 @@
                         Stock Adjustments
                     </div>
                 </a>
+                @endif
 
                 <!-- Products -->
                 <a href="/products" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('products') ? 'bg-red-700' : '' }}"
@@ -277,8 +281,8 @@
                     </div>
                 </a>
                 @endif
-                <!-- Users (only admin can see) -->
-                @if(auth()->user()->role === 'admin')
+                <!-- Users (admin and manager can see) -->
+                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
                     <a href="/users" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('users') ? 'bg-red-700' : '' }}"
                        x-data="{ showTooltip: false }"
                        @mouseenter="if (!open) showTooltip = true"

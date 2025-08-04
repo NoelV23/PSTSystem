@@ -7,10 +7,17 @@
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
             <div class="p-6 text-gray-900">
                 <h2 class="text-2xl font-bold text-gray-900">Inventory Management</h2>
-                <p class="text-gray-600 mt-1">Select a branch to manage its inventory</p>
+                <p class="text-gray-600 mt-1">
+                    @if(auth()->user()->role === 'admin')
+                        Select a branch to manage its inventory
+                    @else
+                        Managing inventory for {{ auth()->user()->branch->name ?? 'your branch' }}
+                    @endif
+                </p>
             </div>
         </div>
 
+        @if(auth()->user()->role === 'admin')
         <!-- Branch Selection Cards -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($branches as $branch)
@@ -58,6 +65,12 @@
             </div>
             @endforeach
         </div>
+        @else
+        <!-- Auto-redirect for non-admin users -->
+        <script>
+            window.location.href = '/inventory/{{ auth()->user()->branch_id }}';
+        </script>
+        @endif
 
         <!-- Empty State -->
         @if($branches->isEmpty())

@@ -11,12 +11,26 @@ class InventoryController extends Controller
 {
     public function index()
     {
+        $currentUser = auth()->user();
+        
+        // Manager should be redirected to their branch inventory
+        if ($currentUser->role === 'manager') {
+            return redirect()->route('inventory.show', $currentUser->branch_id);
+        }
+        
         $branches = Branch::where('status', 'active')->get();
         return view('inventory.index', compact('branches'));
     }
 
     public function show($branchId)
     {
+        $currentUser = auth()->user();
+        
+        // Manager can only access their assigned branch
+        if ($currentUser->role === 'manager' && $currentUser->branch_id != $branchId) {
+            return redirect()->route('inventory.show', $currentUser->branch_id);
+        }
+        
         $branch = Branch::findOrFail($branchId);
         $inventory = Inventory::with(['product.category'])
             ->where('branch_id', $branchId)
@@ -214,6 +228,7 @@ class InventoryController extends Controller
             'available_stock' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
 
@@ -233,13 +248,16 @@ class InventoryController extends Controller
         if ($product->base_unit === 'per set') {
             $validated['available_stock'] = null;
             $validated['cost'] = null;
+            $validated['price'] = null;
+            $validated['wholesale_price'] = null;
         } else {
-            // For regular products, stock and cost are required
+            // For regular products, only stock is required
             if (!isset($validated['available_stock']) || $validated['available_stock'] === null) {
                 return response()->json(['error' => 'Available stock is required for non-set products'], 422);
             }
+            // Cost is optional for regular products
             if (!isset($validated['cost']) || $validated['cost'] === null) {
-                return response()->json(['error' => 'Cost is required for non-set products'], 422);
+                $validated['cost'] = 0; // Set default cost to 0
             }
         }
 
@@ -255,6 +273,7 @@ class InventoryController extends Controller
             'available_stock' => 'nullable|numeric|min:0',
             'cost' => 'nullable|numeric|min:0',
             'price' => 'nullable|numeric|min:0',
+            'wholesale_price' => 'nullable|numeric|min:0',
             'reorder_level' => 'nullable|numeric|min:0',
         ]);
         
@@ -265,6 +284,8 @@ class InventoryController extends Controller
         if ($product->base_unit === 'per set') {
             $validated['available_stock'] = null;
             $validated['cost'] = null;
+            $validated['price'] = null;
+            $validated['wholesale_price'] = null;
         } else {
             // For regular products, stock and cost are required
             if (!isset($validated['available_stock']) || $validated['available_stock'] === null) {
@@ -282,6 +303,11 @@ class InventoryController extends Controller
 
     public function destroy($id)
     {
+        // Staff users cannot delete inventory items
+        if (auth()->user()->role === 'staff') {
+            return response()->json(['error' => 'Staff users cannot delete inventory items'], 403);
+        }
+        
         Inventory::destroy($id);
         return response()->json(['message' => 'Inventory item deleted successfully']);
     }

@@ -11,7 +11,10 @@
                 <!-- Branch options will be loaded here -->
             </select>
         </div>
-        <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
+                <div class="flex gap-2">
+            <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
+            <x-primary-button id="addInstallationSaleBtn" class="hidden md:inline-flex bg-orange-500 hover:bg-orange-600">Add New Inst. Sale</x-primary-button>
+        </div>
     </div>
 
     <!-- Tabs -->
@@ -19,47 +22,13 @@
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
             <button id="tabSalesToday" class="nav-tab text-gray-600 py-4 px-1 border-b-2 font-medium text-sm border-red-500" data-tab="today">Sales Today</button>
             <button id="tabAddSale" class="nav-tab text-gray-500 py-4 px-1 border-b-2 font-medium text-sm border-transparent" data-tab="add">Add New Sale</button>
+            <button id="tabInstallationSales" class="nav-tab text-gray-500 py-4 px-1 border-b-2 font-medium text-sm border-transparent" data-tab="installation">Installation Sales</button>
         </nav>
     </div>
 
-    <!-- Delivery Filter -->
-    <div class="mb-4">
-        <select id="deliveryFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-            <option value="">All Sales</option>
-            <option value="delivered">Delivered</option>
-            <option value="not_delivered">Not Delivered</option>
-        </select>
-    </div>
 
-    <!-- Tab Content -->
-    <div id="salesTodayTab" class="tab-content">
-        <!-- Loader -->
-        <div id="salesLoader" class="hidden">
-            <x-loader />
-        </div>
-        <!-- Error -->
-        <div id="salesError" class="hidden text-red-600 mb-4">Failed to load sales. Please try again.</div>
-        <!-- Sales Table -->
-        <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-                    </tr>
-                </thead>
-                <tbody id="salesTableBody" class="bg-white divide-y divide-gray-200">
-                    <!-- Sales rows will be loaded here -->
-                </tbody>
-            </table>
-        </div>
-        <!-- Pagination -->
-        <div id="salesPagination" class="mt-4"></div>
-    </div>
+
+    @include('sales.includes.sales-today-tab')
 
     <div id="addSaleTab" class="tab-content hidden">
         <div class="bg-white rounded-lg shadow p-6">
@@ -220,14 +189,17 @@
             </form>
         </div>
     </div>
+
+    @include('sales.includes.installation-sales-tab')
+
+    @include('sales.includes.installation-sales-modal')
 </div>
 
 <script>
 // --- State ---
 let branches = [];
 let currentBranchId = '';
-let sales = [];
-let salesPagination = {};
+
 let inventory = [];
 let remainders = [];
 let saleItems = [];
@@ -237,16 +209,35 @@ let cutRemainderDiscardMode = false;
 let cutRemainderDiscardReason = '';
 let pendingDeliveryData = null;
 
+// Check if current user is a manager or staff
+const currentUserRole = '{{ Auth::user()->role }}';
+const currentUserBranchId = '{{ Auth::user()->branch_id }}';
+
+// Initialize currentBranchId for manager/staff users
+if (currentUserRole === 'manager' || currentUserRole === 'staff') {
+    currentBranchId = currentUserBranchId;
+}
+
+@include('sales.includes.installation-sales-script')
+@include('sales.includes.sales-today-script')
+
+// Hide branch selector for managers and staff
+if (currentUserRole === 'manager' || currentUserRole === 'staff') {
+    const branchSelector = document.getElementById('branchSelector');
+    if (branchSelector) {
+        branchSelector.parentElement.style.display = 'none';
+    }
+    // Set current branch to user's branch
+    currentBranchId = currentUserBranchId;
+    // Load inventory for user's branch
+    loadInventory();
+}
+
 // --- DOM Elements ---
 const branchSelector = document.getElementById('branchSelector');
 const tabSalesToday = document.getElementById('tabSalesToday');
 const tabAddSale = document.getElementById('tabAddSale');
-const salesTodayTab = document.getElementById('salesTodayTab');
 const addSaleTab = document.getElementById('addSaleTab');
-const salesLoader = document.getElementById('salesLoader');
-const salesError = document.getElementById('salesError');
-const salesTableBody = document.getElementById('salesTableBody');
-const salesPaginationDiv = document.getElementById('salesPagination');
 const addSaleBtn = document.getElementById('addSaleBtn');
 const addSaleForm = document.getElementById('addSaleForm');
 const productSearch = document.getElementById('productSearch');
@@ -287,7 +278,6 @@ const deliveryAddress = document.getElementById('deliveryAddress');
 const deliveryNote = document.getElementById('deliveryNote');
 const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
 const saveDeliveryBtn = document.getElementById('saveDeliveryBtn');
-const deliveryFilter = document.getElementById('deliveryFilter');
 
 // --- Utility ---
 function showToast(message, type = 'success') {
@@ -354,19 +344,60 @@ branchSelector.addEventListener('change', function() {
 // --- Tabs ---
 function switchTab(tab) {
     if (tab === 'today') {
-        salesTodayTab.classList.remove('hidden');
+        const salesTodayTab = document.getElementById('salesTodayTab');
+        if (salesTodayTab) salesTodayTab.classList.remove('hidden');
         addSaleTab.classList.add('hidden');
+        const installationSalesTab = document.getElementById('installationSalesTab');
+        if (installationSalesTab) installationSalesTab.classList.add('hidden');
         tabSalesToday.classList.add('text-gray-600', 'border-red-500');
         tabSalesToday.classList.remove('text-gray-500', 'border-transparent');
         tabAddSale.classList.remove('text-gray-600', 'border-red-500');
         tabAddSale.classList.add('text-gray-500', 'border-transparent');
-    } else {
-        salesTodayTab.classList.add('hidden');
+        const tabInstallationSales1 = document.getElementById('tabInstallationSales');
+        if (tabInstallationSales1) {
+            tabInstallationSales1.classList.remove('text-gray-600', 'border-red-500');
+            tabInstallationSales1.classList.add('text-gray-500', 'border-transparent');
+        }
+        
+        // Load sales when tab is activated
+        if (typeof loadSales === 'function') {
+            loadSales();
+        }
+    } else if (tab === 'add') {
+        const salesTodayTab = document.getElementById('salesTodayTab');
+        if (salesTodayTab) salesTodayTab.classList.add('hidden');
         addSaleTab.classList.remove('hidden');
+        const installationSalesTab = document.getElementById('installationSalesTab');
+        if (installationSalesTab) installationSalesTab.classList.add('hidden');
         tabAddSale.classList.add('text-gray-600', 'border-red-500');
         tabAddSale.classList.remove('text-gray-500', 'border-transparent');
         tabSalesToday.classList.remove('text-gray-600', 'border-red-500');
         tabSalesToday.classList.add('text-gray-500', 'border-transparent');
+        const tabInstallationSales2 = document.getElementById('tabInstallationSales');
+        if (tabInstallationSales2) {
+            tabInstallationSales2.classList.remove('text-gray-600', 'border-red-500');
+            tabInstallationSales2.classList.add('text-gray-500', 'border-transparent');
+        }
+    } else if (tab === 'installation') {
+        const salesTodayTab = document.getElementById('salesTodayTab');
+        if (salesTodayTab) salesTodayTab.classList.add('hidden');
+        addSaleTab.classList.add('hidden');
+        const installationSalesTab = document.getElementById('installationSalesTab');
+        if (installationSalesTab) installationSalesTab.classList.remove('hidden');
+        const tabInstallationSales3 = document.getElementById('tabInstallationSales');
+        if (tabInstallationSales3) {
+            tabInstallationSales3.classList.add('text-gray-600', 'border-red-500');
+            tabInstallationSales3.classList.remove('text-gray-500', 'border-transparent');
+        }
+        tabSalesToday.classList.remove('text-gray-600', 'border-red-500');
+        tabSalesToday.classList.add('text-gray-500', 'border-transparent');
+        tabAddSale.classList.remove('text-gray-600', 'border-red-500');
+        tabAddSale.classList.add('text-gray-500', 'border-transparent');
+        
+        // Initialize installation sale form when tab is activated
+        if (typeof initializeInstallationSaleForm === 'function') {
+            initializeInstallationSaleForm();
+        }
     }
 }
 tabSalesToday.addEventListener('click', () => switchTab('today'));
@@ -377,6 +408,19 @@ tabAddSale.addEventListener('click', () => {
     }
     switchTab('add');
 });
+
+// Installation Sales tab event listener
+const installationSalesTabBtn = document.getElementById('tabInstallationSales');
+if (installationSalesTabBtn) {
+    installationSalesTabBtn.addEventListener('click', () => {
+        if (!currentBranchId) {
+            showToast('Please select a branch first', 'error');
+            return;
+        }
+        switchTab('installation');
+    });
+}
+
 addSaleBtn.addEventListener('click', () => {
     if (!currentBranchId) {
         showToast('Please select a branch first', 'error');
@@ -385,68 +429,22 @@ addSaleBtn.addEventListener('click', () => {
     switchTab('add');
 });
 
-// --- Sales Today ---
-async function loadSales(page = 1) {
-    if (!currentBranchId) {
-        salesTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">Please select a branch to view sales.</td></tr>';
-        return;
-    }
-    salesLoader.classList.remove('hidden');
-    salesError.classList.add('hidden');
-    salesTableBody.innerHTML = '';
-    try {
-        const deliveryFilterValue = deliveryFilter.value;
-        const params = new URLSearchParams({
-            branch_id: currentBranchId,
-            page: page
-        });
-        if (deliveryFilterValue) {
-            params.append('delivery_status', deliveryFilterValue);
+// Add Installation Sale button event listener
+const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
+if (addInstallationSaleBtn) {
+    addInstallationSaleBtn.addEventListener('click', () => {
+        if (!currentBranchId) {
+            showToast('Please select a branch first', 'error');
+            return;
         }
-        
-        const res = await fetch(`/api/sales?${params.toString()}`);
-        if (!res.ok) throw new Error('Failed to load sales');
-        const data = await res.json();
-        sales = data.data || [];
-        salesPagination = data;
-        renderSalesTable();
-        renderSalesPagination();
-    } catch (e) {
-        salesError.classList.remove('hidden');
-    } finally {
-        salesLoader.classList.add('hidden');
-    }
+        switchTab('installation');
+    });
 }
-function renderSalesTable() {
-    if (!sales.length) {
-        salesTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-8">No sales found for today.</td></tr>';
-        return;
-    }
-    salesTableBody.innerHTML = sales.map(sale => {
-        const deliveryStatus = sale.is_delivered ? 
-            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Delivered</span>` :
-            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Not Delivered</span>`;
-        
-        return `
-            <tr>
-                <td class="px-6 py-4 text-sm text-gray-700">${sale.created_at ? sale.created_at.slice(0, 16).replace('T', ' ') : ''}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">${sale.user?.name || '-'}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">${sale.payment_method || '-'}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">${deliveryStatus}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">
-                                            <button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
-                        <a href="/sales/${sale.id}/edit" class="text-green-600 hover:underline">Edit</a>
-                    ${sale.is_delivered ? `<button class="text-purple-600 hover:underline ml-2" onclick="printDeliveryReceipt(${sale.id})">Delivery Receipt</button>` : ''}
-                </td>
-            </tr>
-        `;
-    }).join('');
-}
-function renderSalesPagination() {
-    // TODO: Implement pagination controls if needed
-    salesPaginationDiv.innerHTML = '';
-}
+
+
+
+
+
 
 // --- Inventory/Product Search ---
 async function loadInventory() {
@@ -575,9 +573,15 @@ productSearch.addEventListener('input', function() {
             displayName += ' [Set]';
         }
         
+        // Add remainder indicator with color
+        const remainderIndicator = item.type === 'remainder' ? 
+            '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-2">[Remainder]</span>' : '';
+        
         return `
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
-                <div class="font-medium">${displayName} (${item.product.sku || 'No SKU'})</div>
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', '${item.id}')">
+                <div class="font-medium">
+                    ${remainderIndicator}${displayName} (${item.product.sku || 'No SKU'})
+                </div>
                 <div class="text-xs text-gray-500">
                     ${item.source} - Available: ${item.available_stock}
                     ${item.remainderInfo ? ` - ${item.remainderInfo}` : ''}
@@ -670,7 +674,15 @@ window.selectProduct = function(type, id) {
         }
     }
     
-    document.getElementById('productMeta').innerHTML = `Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}`;
+    // Add remainder indicator to product meta
+    const remainderIndicator = item.type === 'remainder' ? 
+        '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-2">[Remainder]</span>' : '';
+    
+    // Add wholesale price info if available
+    const wholesaleInfo = item.wholesale_price ? 
+        ` &nbsp; | &nbsp; Wholesale: <span class='font-semibold'>₱${Number(item.wholesale_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>` : '';
+    
+    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}`;
     
     // Set default price from inventory if available, otherwise leave empty
     if (item.type === 'inventory') {
@@ -682,9 +694,27 @@ window.selectProduct = function(type, id) {
             productPrice.value = item.price || '';
         }
     } else {
-        productPrice.value = '';
+    productPrice.value = '';
     }
     saleQuantity.value = '';
+    
+    // Set max quantity for inventory items
+    if (item.type === 'inventory') {
+        let availableStock = 0;
+        if (item.product.base_unit === 'per set') {
+            availableStock = Number(item?.calculated_stock ?? 0);
+        } else {
+            availableStock = Number(item?.available_stock ?? 0);
+        }
+        saleQuantity.max = availableStock;
+        saleQuantity.title = `Maximum quantity: ${availableStock}`;
+    } else if (item.type === 'remainder') {
+        saleQuantity.max = 1;
+        saleQuantity.title = 'Remainder items can only be sold as 1 piece';
+    } else {
+        saleQuantity.removeAttribute('max');
+        saleQuantity.title = '';
+    }
     
     // Show cut fields for remainder items or if product has default dimensions
     const hasLength = !!item.product.default_length;
@@ -729,6 +759,55 @@ window.selectProduct = function(type, id) {
     }
 };
 
+// --- Sale Items Management ---
+function renderSaleItems() {
+    if (!saleItems.length) {
+        saleItemsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No items added yet</td></tr>';
+        saleTotalAmount.textContent = '0.00';
+        return;
+    }
+    
+    saleItemsTableBody.innerHTML = saleItems.map((item, index) => {
+        // Build cut size display
+        let cutSizeDisplay = '-';
+        if (item.cutLength || item.cutWidth || item.cutHeight) {
+            const cuts = [];
+            if (item.cutLength) cuts.push(`L: ${item.cutLength}`);
+            if (item.cutWidth) cuts.push(`W: ${item.cutWidth}`);
+            if (item.cutHeight) cuts.push(`H: ${item.cutHeight}`);
+            cutSizeDisplay = cuts.join(', ');
+        }
+        
+        const totalPrice = item.quantity * item.price;
+        
+        return `
+            <tr>
+                <td class="px-4 py-2 text-sm text-gray-900">
+                    ${item.product.name} (${item.product.sku || 'No SKU'})
+                    ${item.type === 'remainder' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 ml-2">[Remainder]</span>' : ''}
+                    ${item.product.base_unit === 'per set' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">[Set]</span>' : ''}
+                </td>
+                <td class="px-4 py-2 text-sm text-gray-900">${item.quantity}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">${cutSizeDisplay}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">₱${Number(item.price).toFixed(2)}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">₱${Number(totalPrice).toFixed(2)}</td>
+                <td class="px-4 py-2 text-sm text-gray-900">
+                    <button onclick="removeSaleItem(${index})" class="text-red-600 hover:text-red-900">Remove</button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+    
+    // Update total amount
+    const totalAmount = saleItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+    saleTotalAmount.textContent = Number(totalAmount).toFixed(2);
+}
+
+function removeSaleItem(index) {
+    saleItems.splice(index, 1);
+    renderSaleItems();
+}
+
 // --- Add Sale Item ---
 addSaleItemBtn.addEventListener('click', function(e) {
     e.preventDefault();
@@ -743,447 +822,44 @@ addSaleItemBtn.addEventListener('click', function(e) {
     }
     
     // For inventory items, check stock
-    if (selectedProduct.type === 'inventory' && qty > Number(selectedProduct?.available_stock ?? 0)) {
-        return showToast('Not enough stock', 'error');
-    }
-    
-    const unitPrice = Number(productPrice.value);
-    if (!unitPrice || unitPrice <= 0) return showToast('Enter a valid unit price', 'error');
-    
-    let cutSize = '';
-    const cutLengthInput = document.getElementById('cutLength');
-    const cutWidthInput = document.getElementById('cutWidth');
-    const cutHeightInput = document.getElementById('cutHeight');
-    const l = cutLengthInput ? Number(cutLengthInput.value) : 0;
-    const w = cutWidthInput ? Number(cutWidthInput.value) : 0;
-    const h = cutHeightInput ? Number(cutHeightInput.value) : 0;
-    
-    // Validate cut input(s) based on item type
-    if (selectedProduct.type === 'remainder') {
-        // For remainder items, validate against available remainder dimensions
-        if (cutLengthInput && l > 0) {
-            const maxLength = selectedProduct.length_remaining || 0;
-            if (l > maxLength) {
-                return showToast(`Cut length cannot exceed available remainder length (${maxLength})`, 'error');
-            }
+    let availableStock = 0;
+    if (selectedProduct.type === 'inventory') {
+        if (selectedProduct.product.base_unit === 'per set') {
+            availableStock = Number(selectedProduct?.calculated_stock ?? 0);
+        } else {
+            availableStock = Number(selectedProduct?.available_stock ?? 0);
         }
-        if (cutWidthInput && w > 0) {
-            const maxWidth = selectedProduct.width_remaining || 0;
-            if (w > maxWidth) {
-                return showToast(`Cut width cannot exceed available remainder width (${maxWidth})`, 'error');
-            }
+        
+        if (qty > availableStock) {
+            return showToast(`Quantity exceeds available stock (${availableStock})`, 'error');
         }
-        if (cutHeightInput && h > 0) {
-            const maxHeight = selectedProduct.height_remaining || 0;
-            if (h > maxHeight) {
-                return showToast(`Cut height cannot exceed available remainder height (${maxHeight})`, 'error');
-            }
-        }
-    } else {
-        // For inventory items, validate against product default dimensions
-    const def = selectedProduct.product;
-    if (cutLengthInput && l >= Number(def.default_length)) return showToast('Cut length must be less than product length', 'error');
-    if (cutWidthInput && w >= Number(def.default_width)) return showToast('Cut width must be less than product width', 'error');
-    if (cutHeightInput && h >= Number(def.default_height)) return showToast('Cut height must be less than product height', 'error');
     }
     
-    if (cutFields && !cutFields.classList.contains('hidden')) {
-        if ((cutLengthInput && l <= 0) && (cutWidthInput && w <= 0) && (cutHeightInput && h <= 0)) return showToast('Enter cut size', 'error');
-        cutSize = [l, w, h].filter(v => v > 0).join(' x ');
-    }
-    
-    // Prevent duplicate product (unless cut size is different)
-    if (saleItems.some(item => 
-        item.inventoryId === selectedProduct.id && 
-        item.type === selectedProduct.type && 
-        item.cutSize === cutSize
-    )) {
-        return showToast('Product already in list', 'error');
-    }
-    
-    const totalPrice = unitPrice * qty;
-    saleItems.push({
-        inventoryId: selectedProduct.id,
+    // Add to sale items
+    const saleItem = {
+        product: selectedProduct.product,
+        quantity: qty,
+        price: Number(productPrice.value) || 0,
         type: selectedProduct.type,
-        productName: selectedProduct.product.name,
-        sku: selectedProduct.product.sku,
-        qty,
-        cutSize,
-        unitPrice,
-        totalPrice,
-        remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null,
-        isSet: selectedProduct.product.base_unit === 'per set'
-    });
+        inventoryId: selectedProduct.inventoryId,
+        cutLength: cutLength ? Number(cutLength.value) : null,
+        cutWidth: cutWidth ? Number(cutWidth.value) : null,
+        cutHeight: cutHeight ? Number(cutHeight.value) : null
+    };
     
+    saleItems.push(saleItem);
     renderSaleItems();
     resetProductFields();
 });
-function renderSaleItems() {
-    if (!saleItems.length) {
-        saleItemsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No items added.</td></tr>';
-        saleTotalAmount.textContent = '0.00';
-        return;
-    }
-    saleItemsTableBody.innerHTML = saleItems.map((item, idx) => `
-        <tr>
-            <td class="px-4 py-2 text-sm">
-                ${item.productName} (${item.sku || 'No SKU'})
-                ${item.type === 'remainder' ? '<span class="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded">Remainder</span>' : ''}
-                ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
-            </td>
-            <td class="px-4 py-2 text-sm">${item.qty}</td>
-            <td class="px-4 py-2 text-sm">${item.cutSize || '-'}</td>
-            <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-            <td class="px-4 py-2 text-sm">₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-            <td class="px-4 py-2 text-sm"><button type="button" class="text-red-500 hover:underline" onclick="removeSaleItem(${idx})">Remove</button></td>
-        </tr>
-    `).join('');
-    saleTotalAmount.textContent = saleItems.reduce((sum, i) => sum + i.totalPrice, 0).toLocaleString('en-PH', {minimumFractionDigits:2});
-}
-window.removeSaleItem = function(idx) {
-    saleItems.splice(idx, 1);
-    renderSaleItems();
-};
 
-// --- Add Sale Form Submit ---
-addSaleForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    if (!currentBranchId) {
-        showToast('Please select a branch first', 'error');
-        return;
-    }
-    if (!saleItems.length) return showToast('Add at least one item', 'error');
-    if (!paymentMethod.value) return showToast('Select payment method', 'error');
-    const userId = document.getElementById('saleUserId')?.value;
-    if (!userId) return showToast('User not found', 'error');
-    
-    // Check if delivery is selected
-    if (isDelivered.checked) {
-        // Set default delivery date to today
-        deliveryDate.value = new Date().toISOString().slice(0, 10);
-        deliveryDetailsModal.classList.remove('hidden');
-        return;
-    }
-    
-    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
-    // Check if any item is a cut
-    const cutItemIdx = saleItems.findIndex(item =>
-        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
-    );
-    if (cutItemIdx !== -1) {
-        // Show cut remainder modal
-        pendingCutRemainder = cutItemIdx;
-        document.getElementById('cutRemainderModal').classList.remove('hidden');
-        return;
-    }
-    await submitSale({ location_note: null });
-});
-
-async function submitSale({ location_note, status, discard_reason, delivery_data = null }) {
-    const userId = document.getElementById('saleUserId')?.value;
-    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
-    
-    // Attach location_note to the cut item if present
-    let items = saleItems.map((item, idx) => {
-        let obj = {
-            quantity: item.qty,
-            unit_price: item.unitPrice,
-            total_price: item.totalPrice,
-            item_type: item.type, // Add type to distinguish between inventory and remainder
-        };
-        
-        // Add the appropriate ID based on item type
-        if (item.type === 'inventory') {
-            obj.inventory_id = item.inventoryId;
-        } else if (item.type === 'remainder') {
-            obj.remainder_id = item.remainderData.id;
-        }
-        
-        if (item.cutSize && item.cutSize !== '' && item.cutSize !== '-') {
-            // Parse cut fields if available
-            const cutParts = item.cutSize.split(' x ').map(Number);
-            if (cutParts.length === 1) obj.cut_length = cutParts[0];
-            if (cutParts.length === 2) {
-                obj.cut_width = cutParts[0];
-                obj.cut_height = cutParts[1];
-            }
-            if (cutParts.length === 3) {
-                obj.cut_length = cutParts[0];
-                obj.cut_width = cutParts[1];
-                obj.cut_height = cutParts[2];
-            }
-            if (idx === pendingCutRemainder) {
-                if (location_note) obj.location_note = location_note;
-                if (status) obj.status = status;
-                if (discard_reason) obj.discard_reason = discard_reason;
-            }
-        }
-        return obj;
-    });
-    
-    try {
-        const requestData = {
-            branch_id: currentBranchId,
-            user_id: userId,
-            total_amount: totalAmount,
-            payment_method: paymentMethod.value,
-            items,
-            ...(delivery_data && {
-                is_delivered: true,
-                delivered_to: delivery_data.delivered_to,
-                delivery_date: delivery_data.delivery_date,
-                delivery_note: delivery_data.delivery_note,
-                delivery_address: delivery_data.delivery_address
-            })
-        };
-        
-        const res = await fetch('/api/sales', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-            },
-            body: JSON.stringify(requestData)
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.error || 'Failed to create sale');
-        }
-        
-        const result = await res.json();
-        showToast('Sale created! Inventory data has been refreshed.', 'success');
-        
-        // If delivery was selected, show delivery receipt option
-        if (delivery_data) {
-            if (confirm('Sale created successfully! Would you like to print the delivery receipt?')) {
-                printDeliveryReceipt(result.id);
-            }
-        }
-        
-        resetSaleForm();
-        switchTab('today');
-        loadSales();
-        
-        // Reload inventory and remainders data to reflect updated stock levels
-        if (currentBranchId) {
-            await loadInventoryAndRemainders();
-            // Small delay to ensure UI updates are visible
-            await new Promise(resolve => setTimeout(resolve, 100));
-        }
-    } catch (err) {
-        showToast(err.message || 'Failed to create sale', 'error');
-    } finally {
-        document.getElementById('cutRemainderModal').classList.add('hidden');
-        pendingCutRemainder = null;
-        pendingDeliveryData = null;
-    }
-}
-
-document.getElementById('saveCutRemainderBtn').addEventListener('click', async function() {
-    cutRemainderDiscardMode = false;
-    const note = document.getElementById('cutRemainderNote').value;
-    await submitSale({ location_note: note, status: 'available', discard_reason: null, delivery_data: pendingDeliveryData });
-});
-document.getElementById('discardCutRemainderBtn').addEventListener('click', function() {
-    cutRemainderDiscardMode = true;
-    document.getElementById('discardCutReasonInput').value = '';
-    document.getElementById('discardCutReasonModal').classList.remove('hidden');
-});
-document.getElementById('closeDiscardCutReasonModal').addEventListener('click', function() {
-    document.getElementById('discardCutReasonModal').classList.add('hidden');
-    cutRemainderDiscardMode = false;
-});
-document.getElementById('cancelDiscardCutBtn').addEventListener('click', function() {
-    document.getElementById('discardCutReasonModal').classList.add('hidden');
-    cutRemainderDiscardMode = false;
-});
-document.getElementById('confirmDiscardCutBtn').addEventListener('click', async function() {
-    const reason = document.getElementById('discardCutReasonInput').value.trim();
-    if (!reason) {
-        alert('Please provide a reason for discarding.');
-        return;
-    }
-    document.getElementById('discardCutReasonModal').classList.add('hidden');
-    await submitSale({ location_note: null, status: 'discarded', discard_reason: reason, delivery_data: pendingDeliveryData });
-});
-
-// --- Sale Details Modal ---
-closeSaleDetailsModal.addEventListener('click', function() {
-    saleDetailsModal.classList.add('hidden');
-});
-
-// View Sale Details Function
-window.viewSaleDetails = async function(saleId) {
-    try {
-        const response = await fetch(`/api/sales/${saleId}`, {
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                'Accept': 'application/json',
-            }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to load sale details');
-        }
-        
-        const sale = await response.json();
-        
-        // Format the sale details
-        const saleDetailsHtml = `
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="space-y-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="font-semibold text-lg mb-3">Sale Information</h3>
-                        <div class="space-y-2 text-sm">
-                            <div class="flex justify-between">
-                                <span class="font-medium">Sale ID:</span>
-                                <span>#${sale.id}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="font-medium">Date:</span>
-                                <span>${sale.created_at ? new Date(sale.created_at).toLocaleString() : '-'}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="font-medium">User:</span>
-                                <span>${sale.user?.name || '-'}</span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="font-medium">Payment Method:</span>
-                                <span>${sale.payment_method || '-'}</span>
-                            </div>
-                            ${sale.delivery_address ? `
-                            <div class="flex justify-between">
-                                <span class="font-medium">Delivery Address:</span>
-                                <span class="text-right max-w-xs">${sale.delivery_address}</span>
-                            </div>
-                            ` : ''}
-                            <div class="flex justify-between">
-                                <span class="font-medium">Total Amount:</span>
-                                <span class="font-bold text-lg">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="space-y-4">
-                    <div class="bg-gray-50 p-4 rounded-lg">
-                        <h3 class="font-semibold text-lg mb-3">Sale Items</h3>
-                        ${sale.sale_items && sale.sale_items.length > 0 ? `
-                            <div class="space-y-3">
-                                ${sale.sale_items.map(item => `
-                                    <div class="border-b border-gray-200 pb-3 last:border-b-0">
-                                        <div class="flex justify-between items-start mb-2">
-                                            <div class="flex-1">
-                                                <div class="font-medium">${item.product?.name || 'Unknown Product'}</div>
-                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
-                                                ${item.cut_length || item.cut_width || item.cut_height ? `
-                                                    <div class="text-sm text-gray-600">
-                                                        Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}
-                                                    </div>
-                                                ` : ''}
-                                            </div>
-                                            <div class="text-right">
-                                                <div class="font-medium">₱${Number(item.unit_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
-                                                <div class="text-sm text-gray-600">Qty: ${item.quantity}</div>
-                                            </div>
-                                        </div>
-                                        <div class="flex justify-between text-sm">
-                                            <span>Unit Price × Quantity</span>
-                                            <span class="font-medium">₱${Number(item.total_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
-                                        </div>
-                                    </div>
-                                `).join('')}
-                            </div>
-                        ` : '<p class="text-gray-500">No items found</p>'}
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        saleDetailsContent.innerHTML = saleDetailsHtml;
-        saleDetailsModal.classList.remove('hidden');
-        
-    } catch (error) {
-        console.error('Error loading sale details:', error);
-        showToast('Failed to load sale details', 'error');
-    }
-};
-
-
-
-// --- Delivery Modal Handlers ---
-closeDeliveryDetailsModal.addEventListener('click', function() {
-    deliveryDetailsModal.classList.add('hidden');
-    isDelivered.checked = false;
-    pendingDeliveryData = null;
-});
-
-cancelDeliveryBtn.addEventListener('click', function() {
-    deliveryDetailsModal.classList.add('hidden');
-    isDelivered.checked = false;
-    pendingDeliveryData = null;
-});
-
-deliveryDetailsForm.addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const deliveryData = {
-        delivery_date: deliveryDate.value,
-        delivered_to: deliveredTo.value,
-        delivery_address: deliveryAddress.value,
-        delivery_note: deliveryNote.value
-    };
-    
-    // Validate required fields
-    if (!deliveryData.delivery_date || !deliveryData.delivered_to) {
-        showToast('Please fill in all required delivery fields', 'error');
-        return;
-    }
-    
-    deliveryDetailsModal.classList.add('hidden');
-    
-    // Store delivery data for potential remainder modal
-    pendingDeliveryData = deliveryData;
-    
-    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
-    // Check if any item is a cut
-    const cutItemIdx = saleItems.findIndex(item =>
-        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
-    );
-    if (cutItemIdx !== -1) {
-        // Show cut remainder modal
-        pendingCutRemainder = cutItemIdx;
-        document.getElementById('cutRemainderModal').classList.remove('hidden');
-        return;
-    }
-    
-    await submitSale({ location_note: null, delivery_data: deliveryData });
-});
-
-// --- Delivery Filter ---
-deliveryFilter.addEventListener('change', function() {
-    loadSales();
-});
-
-// --- Print Delivery Receipt ---
-window.printDeliveryReceipt = function(saleId) {
-    const printWindow = window.open(`/sales/${saleId}/delivery-receipt`, '_blank');
-    if (!printWindow) {
-        showToast('Please allow popups to print delivery receipts', 'error');
-    }
-};
-
-// --- On Page Load ---
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadBranches();
-    switchTab('today');
-    resetSaleForm();
-    
-    // Initialize Add New Sale button as disabled
-    const addSaleBtn = document.getElementById('addSaleBtn');
-    addSaleBtn.disabled = true;
-    addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    if (currentUserRole === 'manager' || currentUserRole === 'staff') {
+        // Sales will be loaded by the include file
+    }
 });
+
+
 </script>
 @endsection

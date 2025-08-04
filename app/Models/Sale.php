@@ -15,11 +15,21 @@ class Sale extends Model
         'total_amount',
         'payment_method',
         'delivery_address',
+        'is_installation',
+        'installation_address',
+        'description',
+        'status',
         'created_at',
         'is_delivered',
         'delivered_to',
         'delivery_date',
         'delivery_note',
+    ];
+
+    protected $casts = [
+        'is_installation' => 'boolean',
+        'total_amount' => 'decimal:2',
+        'is_delivered' => 'boolean',
     ];
 
     public function branch()

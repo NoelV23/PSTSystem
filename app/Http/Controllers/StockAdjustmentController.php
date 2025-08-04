@@ -13,6 +13,14 @@ class StockAdjustmentController extends Controller
 {
     public function adjust(Request $request, $inventoryId): JsonResponse
     {
+        // Staff users cannot adjust stock
+        if (Auth::user()->role === 'staff') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Staff users cannot adjust stock.'
+            ], 403);
+        }
+        
         $request->validate([
             'type' => 'required|in:increase,decrease',
             'quantity' => 'required|integer|min:1',
@@ -83,6 +91,14 @@ class StockAdjustmentController extends Controller
 
     public function history(Request $request): JsonResponse
     {
+        // Staff users cannot access stock adjustment history
+        if (Auth::user()->role === 'staff') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Staff users cannot access stock adjustment history.'
+            ], 403);
+        }
+        
         $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user'])
             ->when($request->branch_id, function ($query, $branchId) {
                 return $query->whereHas('inventory', function ($q) use ($branchId) {
@@ -106,6 +122,11 @@ class StockAdjustmentController extends Controller
 
     public function historyPage(Request $request)
     {
+        // Staff users cannot access stock adjustment history
+        if (Auth::user()->role === 'staff') {
+            abort(403, 'Staff users cannot access stock adjustment history');
+        }
+        
         $branches = \App\Models\Branch::all();
         
         $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user'])

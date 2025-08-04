@@ -64,7 +64,7 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'sku' => 'nullable|string|max:100',
+            'sku' => 'nullable|string|max:100', // SKU is now optional as it will be auto-generated
             'category_id' => 'required|exists:categories,id',
             'base_unit' => 'required|string|max:20',
             'color' => 'nullable|string|max:255',
@@ -81,6 +81,47 @@ class ProductController extends Controller
 
         DB::beginTransaction();
         try {
+            // Generate SKU automatically if not provided
+            if (empty($validated['sku'])) {
+                $category = Category::findOrFail($validated['category_id']);
+                $categoryName = $category->name;
+                
+                // Generate SKU prefix based on category name
+                $words = explode(' ', trim($categoryName));
+                $skuPrefix = '';
+                
+                if (count($words) === 1) {
+                    // Single word: take first letter
+                    $skuPrefix = strtoupper(substr($words[0], 0, 1));
+                } else {
+                    // Multiple words: take first letter of each word
+                    $skuPrefix = implode('', array_map(function($word) {
+                        return strtoupper(substr($word, 0, 1));
+                    }, $words));
+                }
+                
+                // Find the highest existing SKU number for this prefix
+                $existingSKUs = Product::where('sku', 'like', $skuPrefix . '%')
+                    ->where('sku', 'regexp', '^' . $skuPrefix . '[0-9]+$')
+                    ->pluck('sku')
+                    ->toArray();
+                
+                $nextNumber = 1;
+                if (!empty($existingSKUs)) {
+                    // Extract numbers from existing SKUs and find the highest
+                    $numbers = array_map(function($sku) use ($skuPrefix) {
+                        $numberPart = substr($sku, strlen($skuPrefix));
+                        return intval($numberPart);
+                    }, $existingSKUs);
+                    
+                    $nextNumber = max($numbers) + 1;
+                }
+                
+                // Format the number to 6 digits
+                $formattedNumber = str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+                $validated['sku'] = $skuPrefix . $formattedNumber;
+            }
+            
             $product = Product::create($validated);
             
             // Handle set components
@@ -122,6 +163,11 @@ class ProductController extends Controller
 
     public function update(Request $request, $id)
     {
+        // Staff users cannot edit products
+        if (auth()->user()->role === 'staff') {
+            return response()->json(['error' => 'Staff users cannot edit products'], 403);
+        }
+        
         $product = Product::findOrFail($id);
         
         $validated = $request->validate([
@@ -219,6 +265,11 @@ class ProductController extends Controller
 
     public function destroy($id)
     {
+        // Staff users cannot delete products
+        if (auth()->user()->role === 'staff') {
+            return response()->json(['error' => 'Staff users cannot delete products'], 403);
+        }
+        
         $product = Product::findOrFail($id);
         
         DB::beginTransaction();
@@ -262,5 +313,59 @@ class ProductController extends Controller
             });
         
         return response()->json($components);
+    }
+
+    // API: Generate next available SKU for a category
+    public function generateNextSKU(Request $request)
+    {
+        $categoryId = $request->get('category_id');
+        
+        if (!$categoryId) {
+            return response()->json(['error' => 'Category ID is required'], 400);
+        }
+        
+        $category = Category::findOrFail($categoryId);
+        $categoryName = $category->name;
+        
+        // Generate SKU prefix based on category name
+        $words = explode(' ', trim($categoryName));
+        $skuPrefix = '';
+        
+        if (count($words) === 1) {
+            // Single word: take first letter
+            $skuPrefix = strtoupper(substr($words[0], 0, 1));
+        } else {
+            // Multiple words: take first letter of each word
+            $skuPrefix = implode('', array_map(function($word) {
+                return strtoupper(substr($word, 0, 1));
+            }, $words));
+        }
+        
+        // Find the highest existing SKU number for this prefix
+        $existingSKUs = Product::where('sku', 'like', $skuPrefix . '%')
+            ->where('sku', 'regexp', '^' . $skuPrefix . '[0-9]+$')
+            ->pluck('sku')
+            ->toArray();
+        
+        $nextNumber = 1;
+        if (!empty($existingSKUs)) {
+            // Extract numbers from existing SKUs and find the highest
+            $numbers = array_map(function($sku) use ($skuPrefix) {
+                $numberPart = substr($sku, strlen($skuPrefix));
+                return intval($numberPart);
+            }, $existingSKUs);
+            
+            $nextNumber = max($numbers) + 1;
+        }
+        
+        // Format the number to 6 digits
+        $formattedNumber = str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+        $generatedSKU = $skuPrefix . $formattedNumber;
+        
+        return response()->json([
+            'sku' => $generatedSKU,
+            'prefix' => $skuPrefix,
+            'next_number' => $nextNumber
+        ]);
     }
 } 

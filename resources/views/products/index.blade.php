@@ -122,9 +122,10 @@
                     <input type="text" id="productName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                     <div id="nameError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
-                <div>
-                    <label for="productSKU" class="block text-sm font-medium text-gray-700 mb-1">SKU *</label>
-                    <input type="text" id="productSKU" name="sku" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                <div id="skuSection" class="hidden">
+                    <label for="productSKU" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+                    <input type="text" id="productSKU" name="sku" readonly class="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 cursor-not-allowed">
+                    <div class="text-xs text-gray-500 mt-1">SKU is auto-generated and cannot be modified</div>
                     <div id="skuError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
@@ -286,6 +287,8 @@ function setupEventListeners() {
     document.getElementById('addComponentBtn').addEventListener('click', function() {
         addSetComponent();
     });
+
+
 }
 
 async function loadCategories() {
@@ -610,6 +613,8 @@ function updateMeasurementLabels() {
     document.getElementById('heightUnit').textContent = unitLabel;
 }
 
+
+
 window.removeComponent = function(idx) {
     setComponents.splice(idx, 1);
     renderSetComponents();
@@ -696,8 +701,10 @@ function createProductRow(product) {
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.color || '-')}</td>
             <td class="px-6 py-4 text-right">
+                @if(auth()->user()->role !== 'staff')
                 <button onclick="editProduct(${product.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
                 <button onclick="deleteProduct(${product.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                @endif
             </td>
         </tr>
     `;
@@ -716,6 +723,9 @@ function openAddModal() {
     productModal.classList.remove('hidden');
     document.getElementById('productBaseUnit').value = 'per pc'; // Default to per pc for new products
     handleBaseUnitChange();
+    
+    // Hide SKU section in add mode
+    document.getElementById('skuSection').classList.add('hidden');
 }
 
 function openEditModal(product) {
@@ -738,6 +748,9 @@ function openEditModal(product) {
     document.getElementById('productDescription').value = product.description || '';
     
     console.log('Form fields populated');
+    
+    // Show SKU section in edit mode
+    document.getElementById('skuSection').classList.remove('hidden');
     
     // Handle base unit change and measurement fields
     handleBaseUnitChange();
@@ -784,6 +797,11 @@ async function handleFormSubmit(e) {
     clearFormErrors();
     data.base_unit = document.getElementById('productBaseUnit').value;
     data.measurement_unit = document.getElementById('productMeasurementUnit').value;
+    
+    // Remove SKU field for new products (will be auto-generated)
+    if (!isEditMode) {
+        delete data.sku;
+    }
     
     // Handle components for 'per set' products
     if (data.base_unit === 'per set') {

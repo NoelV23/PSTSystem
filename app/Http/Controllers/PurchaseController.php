@@ -184,6 +184,11 @@ class PurchaseController extends Controller
     // API: Delete purchase order
     public function destroy($id)
     {
+        // Staff users cannot delete purchases
+        if (auth()->user()->role === 'staff') {
+            return response()->json(['error' => 'Staff users cannot delete purchase orders'], 403);
+        }
+        
         $purchaseOrder = PurchaseOrder::findOrFail($id);
         
         DB::beginTransaction();
