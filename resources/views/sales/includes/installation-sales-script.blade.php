@@ -7,10 +7,6 @@ let selectedUsedProduct = null;
 // --- Installation Sales DOM Elements ---
 const tabInstallationSales = document.getElementById('tabInstallationSales');
 const installationSalesTab = document.getElementById('installationSalesTab');
-const installationSalesTableBody = document.getElementById('installationSalesTableBody');
-const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
-const addInstallationSaleModal = document.getElementById('addInstallationSaleModal');
-const closeAddInstallationSaleModal = document.getElementById('closeAddInstallationSaleModal');
 const addInstallationSaleForm = document.getElementById('addInstallationSaleForm');
 const installationDate = document.getElementById('installationDate');
 const installationPaymentMethod = document.getElementById('installationPaymentMethod');
@@ -32,48 +28,19 @@ const cancelRecordUsedProductsBtn = document.getElementById('cancelRecordUsedPro
 const saveUsedProductsBtn = document.getElementById('saveUsedProductsBtn');
 
 // --- Installation Sales Functions ---
-async function loadInstallationSales() {
-    if (!currentBranchId) return;
-    
-    try {
-        const response = await fetch(`/api/sales?branch_id=${currentBranchId}&is_installation=true`);
-        if (!response.ok) throw new Error('Failed to load installation sales');
-        
-        const data = await response.json();
-        installationSales = data.sales || [];
-        renderInstallationSalesTable();
-    } catch (error) {
-        console.error('Error loading installation sales:', error);
-        showToast('Failed to load installation sales', 'error');
-    }
-}
-
-function renderInstallationSalesTable() {
-    if (!installationSales.length) {
-        installationSalesTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No installation sales found</td></tr>';
-        return;
+function initializeInstallationSaleForm() {
+    // Set default date to now
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    if (installationDate) {
+        installationDate.value = localDateTime;
     }
     
-    installationSalesTableBody.innerHTML = installationSales.map(sale => {
-        const statusBadge = sale.status === 'completed' 
-            ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>'
-            : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>';
-        
-        const actionButtons = sale.status === 'pending'
-            ? `<button onclick="recordUsedProducts('${sale.id}')" class="text-green-600 hover:text-green-900">Record Products</button>`
-            : `<button onclick="viewInstallationSaleDetails('${sale.id}')" class="text-blue-600 hover:text-blue-900">View Details</button>`;
-        
-        return `
-            <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">${sale.created_at ? sale.created_at.slice(0, 16).replace('T', ' ') : ''}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">${sale.installation_address || '-'}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">${sale.description || '-'}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-                <td class="px-4 py-2 text-sm">${statusBadge}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">${actionButtons}</td>
-            </tr>
-        `;
-    }).join('');
+    // Reset form
+    if (installationPaymentMethod) installationPaymentMethod.value = '';
+    if (installationAddress) installationAddress.value = '';
+    if (installationDescription) installationDescription.value = '';
+    if (installationTotalAmount) installationTotalAmount.value = '';
 }
 
 function openAddInstallationSaleModal() {
@@ -114,7 +81,7 @@ async function submitInstallationSale(e) {
     };
     
     try {
-        const response = await fetch('/api/sales', {
+        const response = await fetch('/api/installation-sales', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -131,8 +98,15 @@ async function submitInstallationSale(e) {
         
         const result = await response.json();
         showToast('Installation sale created successfully!', 'success');
-        closeInstallationSaleModal();
-        loadInstallationSales();
+        
+        // Reset form
+        installationPaymentMethod.value = '';
+        installationAddress.value = '';
+        installationDescription.value = '';
+        installationTotalAmount.value = '';
+        
+        // Switch back to Sales Today tab
+        switchTab('today');
     } catch (error) {
         console.error('Error creating installation sale:', error);
         showToast(error.message || 'Failed to create installation sale', 'error');
@@ -321,16 +295,36 @@ if (tabInstallationSales) {
     });
 }
 
-if (addInstallationSaleBtn) {
-    addInstallationSaleBtn.addEventListener('click', openAddInstallationSaleModal);
+// Initialize installation date when tab is activated
+if (installationDate) {
+    // Set default date to now when installation tab is accessed
+    const now = new Date();
+    const localDateTime = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    installationDate.value = localDateTime;
 }
 
-if (closeAddInstallationSaleModal) {
-    closeAddInstallationSaleModal.addEventListener('click', closeInstallationSaleModalFunc);
+// Add event listener for the new "Add New Inst. Sale" button
+const addInstallationSaleBtnMain = document.getElementById('addInstallationSaleBtn');
+if (addInstallationSaleBtnMain) {
+    addInstallationSaleBtnMain.addEventListener('click', () => {
+        if (!currentBranchId) {
+            showToast('Please select a branch first', 'error');
+            return;
+        }
+        switchTab('installation');
+    });
 }
 
 if (addInstallationSaleForm) {
     addInstallationSaleForm.addEventListener('submit', submitInstallationSale);
+}
+
+// Add event listener for cancel button
+const cancelInstallationSaleBtn = document.getElementById('cancelInstallationSaleBtn');
+if (cancelInstallationSaleBtn) {
+    cancelInstallationSaleBtn.addEventListener('click', () => {
+        switchTab('today');
+    });
 }
 
 

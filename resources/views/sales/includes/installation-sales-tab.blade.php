@@ -1,32 +1,47 @@
 <!-- Installation Sales Tab -->
 <div id="installationSalesTab" class="hidden">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-xl font-semibold text-gray-900">Installation Sales</h2>
-        <button id="addInstallationSaleBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">
-            Add Installation Sale
-        </button>
-    </div>
-    
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-medium text-gray-900">Installation Sales</h3>
-        </div>
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installation Address</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="installationSalesTableBody" class="bg-white divide-y divide-gray-200">
-                    <!-- Installation sales will be loaded here -->
-                </tbody>
-            </table>
-        </div>
+    <div class="bg-white rounded-lg shadow p-6">
+        <h2 class="text-xl font-bold text-gray-900 mb-6">Add Installation Sale</h2>
+        
+        <form id="addInstallationSaleForm" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="installationDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                    <input type="datetime-local" id="installationDate" name="date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                </div>
+                
+                <div>
+                    <label for="installationPaymentMethod" class="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+                    <select id="installationPaymentMethod" name="payment_method" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <option value="">Select Payment Method</option>
+                        <option value="cash">Cash</option>
+                        <option value="card">Card</option>
+                        <option value="bank_transfer">Bank Transfer</option>
+                        <option value="gcash">GCash</option>
+                        <option value="maya">Maya</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label for="installationAddress" class="block text-sm font-medium text-gray-700 mb-1">Installation Address</label>
+                <textarea id="installationAddress" name="installation_address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter installation address"></textarea>
+            </div>
+            
+            <div>
+                <label for="installationDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea id="installationDescription" name="description" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="e.g., Window installation, Door installation"></textarea>
+            </div>
+            
+            <div>
+                <label for="installationTotalAmount" class="block text-sm font-medium text-gray-700 mb-1">Total Amount</label>
+                <input type="number" id="installationTotalAmount" name="total_amount" min="0" step="0.01" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4">
+                <button type="button" id="cancelInstallationSaleBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Installation Sale</button>
+            </div>
+        </form>
     </div>
 </div> 

@@ -218,7 +218,7 @@
                     </div>
                     <div id="priceSection">
                         <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Retail Price (Default)</label>
-                        <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"> 
                         <div id="priceError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="wholesalePriceSection">

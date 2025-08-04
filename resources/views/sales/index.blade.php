@@ -11,7 +11,10 @@
                 <!-- Branch options will be loaded here -->
             </select>
         </div>
-        <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
+                <div class="flex gap-2">
+            <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
+            <x-primary-button id="addInstallationSaleBtn" class="hidden md:inline-flex bg-orange-500 hover:bg-orange-600">Add New Inst. Sale</x-primary-button>
+        </div>
     </div>
 
     <!-- Tabs -->
@@ -23,14 +26,7 @@
         </nav>
     </div>
 
-    <!-- Delivery Filter -->
-    <div class="mb-4">
-        <select id="deliveryFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-            <option value="">All Sales</option>
-            <option value="delivered">Delivered</option>
-            <option value="not_delivered">Not Delivered</option>
-        </select>
-    </div>
+
 
     @include('sales.includes.sales-today-tab')
 
@@ -348,6 +344,8 @@ branchSelector.addEventListener('change', function() {
 // --- Tabs ---
 function switchTab(tab) {
     if (tab === 'today') {
+        const salesTodayTab = document.getElementById('salesTodayTab');
+        if (salesTodayTab) salesTodayTab.classList.remove('hidden');
         addSaleTab.classList.add('hidden');
         const installationSalesTab = document.getElementById('installationSalesTab');
         if (installationSalesTab) installationSalesTab.classList.add('hidden');
@@ -359,6 +357,11 @@ function switchTab(tab) {
         if (tabInstallationSales1) {
             tabInstallationSales1.classList.remove('text-gray-600', 'border-red-500');
             tabInstallationSales1.classList.add('text-gray-500', 'border-transparent');
+        }
+        
+        // Load sales when tab is activated
+        if (typeof loadSales === 'function') {
+            loadSales();
         }
     } else if (tab === 'add') {
         const salesTodayTab = document.getElementById('salesTodayTab');
@@ -391,9 +394,9 @@ function switchTab(tab) {
         tabAddSale.classList.remove('text-gray-600', 'border-red-500');
         tabAddSale.classList.add('text-gray-500', 'border-transparent');
         
-        // Load installation sales when tab is activated
-        if (typeof loadInstallationSales === 'function') {
-            loadInstallationSales();
+        // Initialize installation sale form when tab is activated
+        if (typeof initializeInstallationSaleForm === 'function') {
+            initializeInstallationSaleForm();
         }
     }
 }
@@ -425,6 +428,18 @@ addSaleBtn.addEventListener('click', () => {
     }
     switchTab('add');
 });
+
+// Add Installation Sale button event listener
+const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
+if (addInstallationSaleBtn) {
+    addInstallationSaleBtn.addEventListener('click', () => {
+        if (!currentBranchId) {
+            showToast('Please select a branch first', 'error');
+            return;
+        }
+        switchTab('installation');
+    });
+}
 
 
 
