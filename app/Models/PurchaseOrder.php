@@ -22,6 +22,16 @@ class PurchaseOrder extends Model
         'total_cost' => 'decimal:2',
     ];
 
+    protected static function boot()
+    {
+        parent::boot();
+        
+        // Default scope to sort by order_date descending
+        static::addGlobalScope('orderByDate', function ($query) {
+            $query->orderBy('order_date', 'desc');
+        });
+    }
+
     public function branch()
     {
         return $this->belongsTo(Branch::class);

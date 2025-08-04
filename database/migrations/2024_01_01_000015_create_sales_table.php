@@ -22,6 +22,8 @@ return new class extends Migration
 
             $table->foreign('branch_id')->references('id')->on('branches')->cascadeOnDelete();
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
+            
+            $table->timestamps();
         });
     }
 

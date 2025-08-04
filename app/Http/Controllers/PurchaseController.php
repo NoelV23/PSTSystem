@@ -229,10 +229,10 @@ class PurchaseController extends Controller
             ];
 
             // Set initial values based on product type
-            if ($product->base_unit === 'per pc') {
+            if ($product->base_unit === 'per pc'||$product->base_unit === 'per length') {
                 $inventoryData['available_stock'] = $quantity;
             } elseif ($product->base_unit === 'per ft') {
-                $inventoryData['available_length'] = $quantity;
+                $inventoryData['available_stock'] = $quantity; // Count as pieces, not length
             } elseif ($product->base_unit === 'per sq ft') {
                 $inventoryData['available_area'] = $quantity;
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
@@ -242,10 +242,10 @@ class PurchaseController extends Controller
             Inventory::create($inventoryData);
         } else {
             // Update existing inventory
-            if ($product->base_unit === 'per pc') {
+            if ($product->base_unit === 'per pc'||$product->base_unit === 'per length') {
                 $inventory->increment('available_stock', $quantity);
             } elseif ($product->base_unit === 'per ft') {
-                $inventory->increment('available_length', $quantity);
+                $inventory->increment('available_stock', $quantity); // Count as pieces, not length
             } elseif ($product->base_unit === 'per sq ft') {
                 $inventory->increment('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
@@ -268,10 +268,10 @@ class PurchaseController extends Controller
             ->first();
 
         if ($inventory) {
-            if ($product->base_unit === 'per pc') {
+            if ($product->base_unit === 'per pc'||$product->base_unit === 'per length') {
                 $inventory->decrement('available_stock', $quantity);
             } elseif ($product->base_unit === 'per ft') {
-                $inventory->decrement('available_length', $quantity);
+                $inventory->decrement('available_stock', $quantity); // Count as pieces, not length
             } elseif ($product->base_unit === 'per sq ft') {
                 $inventory->decrement('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
