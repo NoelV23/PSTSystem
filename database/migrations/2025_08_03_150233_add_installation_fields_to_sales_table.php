@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('sales', function (Blueprint $table) {
-            //
-        });
+        // This migration was replaced by 2025_08_04_070722_add_installation_fields_to_sales_table.php
+        // No changes needed here
     }
 
     /**
@@ -21,8 +20,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('sales', function (Blueprint $table) {
-            //
-        });
+        // This migration was replaced by 2025_08_04_070722_add_installation_fields_to_sales_table.php
+        // No changes needed here
     }
 };

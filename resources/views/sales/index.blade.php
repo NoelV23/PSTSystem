@@ -453,14 +453,36 @@ async function loadInventory() {
         remainders = [];
         return;
     }
+    console.log('Loading inventory for branch:', currentBranchId);
+    
     const res = await fetch(`/api/inventory/branch/${currentBranchId}?per_page=1000`);
     const data = await res.json();
-    inventory = data.data || [];
+    console.log('Raw inventory API response:', data);
+    
+    // Handle both paginated and non-paginated responses
+    if (data.data) {
+        inventory = data.data;
+    } else if (Array.isArray(data)) {
+        inventory = data;
+    } else {
+        inventory = [];
+    }
+    console.log('Processed inventory:', inventory);
     
     // Also load remainders
     const remaindersRes = await fetch(`/api/inventory/branch/${currentBranchId}/remainders?per_page=1000`);
     const remaindersData = await remaindersRes.json();
-    remainders = remaindersData.data || [];
+    console.log('Raw remainders API response:', remaindersData);
+    
+    // Handle both paginated and non-paginated responses
+    if (remaindersData.data) {
+        remainders = remaindersData.data;
+    } else if (Array.isArray(remaindersData)) {
+        remainders = remaindersData;
+    } else {
+        remainders = [];
+    }
+    console.log('Processed remainders:', remainders);
 }
 
 // Function to reload inventory and remainders data
@@ -578,7 +600,7 @@ productSearch.addEventListener('input', function() {
             '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-2">[Remainder]</span>' : '';
         
         return `
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', '${item.id}')">
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', '${item.id}')" data-item-id="${item.id}" data-item-type="${item.type}">
                 <div class="font-medium">
                     ${remainderIndicator}${displayName} (${item.product.sku || 'No SKU'})
                 </div>
@@ -592,9 +614,25 @@ productSearch.addEventListener('input', function() {
     productDropdown.classList.remove('hidden');
 });
 window.selectProduct = function(type, id) {
+    console.log('selectProduct called with:', { type, id });
+    console.log('Current inventory:', inventory);
+    console.log('Current remainders:', remainders);
+    
     let item;
     if (type === 'inventory') {
-        item = inventory.find(i => i.id === id);
+        // Convert id to number for comparison
+        const numericId = parseInt(id);
+        console.log('Searching for inventory item with ID:', numericId, 'Type:', typeof numericId);
+        item = inventory.find(i => {
+            console.log('Checking item:', i.id, 'Type:', typeof i.id, 'Match:', i.id === numericId);
+            return i.id === numericId;
+        });
+        if (!item) {
+            console.error('Inventory item not found:', id, 'Type:', typeof id);
+            console.log('Available inventory IDs:', inventory.map(i => i.id));
+            console.log('Looking for numeric ID:', numericId);
+            return;
+        }
         item.type = 'inventory';
         item.inventoryId = item.id; // Set inventoryId for inventory items
         
@@ -603,7 +641,15 @@ window.selectProduct = function(type, id) {
             item.available_stock = item.calculated_stock || 0;
         }
     } else if (type === 'remainder') {
-        item = remainders.find(r => r.id === id);
+        // Convert id to number for comparison
+        const numericId = parseInt(id);
+        item = remainders.find(r => r.id === numericId);
+        if (!item) {
+            console.error('Remainder item not found:', id, 'Type:', typeof id);
+            console.log('Available remainder IDs:', remainders.map(r => r.id));
+            console.log('Looking for numeric ID:', numericId);
+            return;
+        }
         item.type = 'remainder';
         item.inventoryId = item.id; // For remainders, use the remainder ID as inventoryId
     }

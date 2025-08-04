@@ -250,6 +250,10 @@ window.selectProduct = function(type, id) {
     let item;
     if (type === 'inventory') {
         item = inventory.find(i => i.id === id);
+        if (!item) {
+            console.error('Inventory item not found:', id);
+            return;
+        }
         item.type = 'inventory';
         item.inventoryId = item.id;
         
@@ -258,6 +262,10 @@ window.selectProduct = function(type, id) {
         }
     } else if (type === 'remainder') {
         item = remainders.find(r => r.id === id);
+        if (!item) {
+            console.error('Remainder item not found:', id);
+            return;
+        }
         item.type = 'remainder';
         item.inventoryId = item.id;
     }

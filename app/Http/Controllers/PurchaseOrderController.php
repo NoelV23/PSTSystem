@@ -9,7 +9,7 @@ class PurchaseOrderController extends Controller
 {
     public function index()
     {
-        return PurchaseOrder::all();
+        return PurchaseOrder::orderBy('order_date', 'desc')->get();
     }
 
     public function show($id)
