@@ -30,6 +30,7 @@ class PurchaseController extends Controller
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('supplier_name', 'like', "%{$search}%")
+                  ->orWhere('purchase_receipt_no', 'like', "%{$search}%")
                   ->orWhere('note', 'like', "%{$search}%");
             });
         }
@@ -63,6 +64,7 @@ class PurchaseController extends Controller
             'supplier_name' => 'required|string|max:255',
             'branch_id' => 'required|exists:branches,id',
             'order_date' => 'required|date',
+            'purchase_receipt_no' => 'required|string|max:255',
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -77,6 +79,7 @@ class PurchaseController extends Controller
                 'supplier_name' => $validated['supplier_name'],
                 'branch_id' => $validated['branch_id'],
                 'order_date' => $validated['order_date'],
+                'purchase_receipt_no' => $validated['purchase_receipt_no'],
                 'note' => $validated['note'],
                 'total_cost' => 0, // Will be calculated
             ]);
@@ -130,6 +133,7 @@ class PurchaseController extends Controller
         $validated = $request->validate([
             'supplier_name' => 'required|string|max:255',
             'order_date' => 'required|date',
+            'purchase_receipt_no' => 'required|string|max:255',
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',
@@ -143,6 +147,7 @@ class PurchaseController extends Controller
             $purchaseOrder->update([
                 'supplier_name' => $validated['supplier_name'],
                 'order_date' => $validated['order_date'],
+                'purchase_receipt_no' => $validated['purchase_receipt_no'],
                 'note' => $validated['note'],
             ]);
 

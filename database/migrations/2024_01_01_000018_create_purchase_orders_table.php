@@ -11,6 +11,7 @@ return new class extends Migration
         Schema::create('purchase_orders', function (Blueprint $table) {
             $table->id();
             $table->string('supplier_name');
+            $table->string('purchase_receipt_no');
             $table->unsignedBigInteger('branch_id');
             $table->date('order_date');
             $table->string('note')->nullable();

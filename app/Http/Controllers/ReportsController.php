@@ -166,62 +166,83 @@ class ReportsController extends Controller
         
         $branchId = $request->get('branch_id');
         $categoryId = $request->get('category_id');
-        $lowStockOnly = $request->get('low_stock_only', false);
+        $lowStockOnly = $request->get('low_stock_only');
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
         $branches = Branch::where('status', 'active')->get();
+        $categories = \App\Models\Category::all();
 
         $query = Inventory::with(['product.category', 'branch'])
-            ->join('products', 'inventories.product_id', '=', 'products.id');
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
 
         if ($branchId) {
-            $query->where('inventories.branch_id', $branchId);
+            $query->where('branch_id', $branchId);
         }
 
         if ($categoryId) {
-            $query->where('products.category_id', $categoryId);
+            $query->whereHas('product', function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId);
+            });
         }
 
         if ($lowStockOnly) {
-            $query->whereRaw('inventories.available_stock <= inventories.reorder_level');
+            $query->where('available_stock', '<=', DB::raw('reorder_level'));
         }
 
-        $inventories = $query->select('inventories.*')
-            ->orderBy('products.name')
-            ->get();
+        $inventories = $query->orderBy('created_at', 'desc')->get();
 
-        // Calculate additional stats for each inventory
-        foreach ($inventories as $inventory) {
+        // Calculate totals and add installation used data
+        $inventories->each(function ($inventory) {
             // Calculate total purchased
-            $totalPurchased = PurchaseItem::where('product_id', $inventory->product_id)
-                ->whereHas('purchaseOrder', function ($query) use ($inventory) {
-                    $query->where('branch_id', $inventory->branch_id);
+            $totalPurchased = \App\Models\PurchaseItem::where('product_id', $inventory->product_id)
+                ->whereHas('purchaseOrder', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
                 })
                 ->sum('quantity');
+            $inventory->total_purchased = $totalPurchased;
 
             // Calculate total sold
-            $totalSold = SaleItem::where('product_id', $inventory->product_id)
-                ->whereHas('sale', function ($query) use ($inventory) {
-                    $query->where('branch_id', $inventory->branch_id);
+            $totalSold = \App\Models\SaleItem::where('product_id', $inventory->product_id)
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id)
+                      ->where('is_installation', false);
                 })
                 ->sum('quantity');
-
-            // Calculate remainders
-            $totalRemainders = CutRemainder::where('product_id', $inventory->product_id)
-                ->where('branch_id', $inventory->branch_id)
-                ->where('status', 'available')
-                ->count();
-
-            $inventory->total_purchased = $totalPurchased;
             $inventory->total_sold = $totalSold;
+
+            // Calculate total installation used
+            $totalInstallationUsed = \App\Models\InstallationProductUsage::where('product_id', $inventory->product_id)
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
+                })
+                ->sum('quantity_used');
+            $inventory->total_installation_used = $totalInstallationUsed;
+
+            // Calculate total remainders
+            $totalRemainders = \App\Models\CutRemainder::where('product_id', $inventory->product_id)
+                ->where('branch_id', $inventory->branch_id)
+                ->sum('area_remaining');
             $inventory->total_remainders = $totalRemainders;
+        });
 
-            // For set products, calculate set stock
-            if ($inventory->product->base_unit === 'per set') {
-                $inventory->calculated_stock = $inventory->calculateSetStock();
-            }
-        }
+        // Calculate totals
+        $totalProducts = $inventories->count();
+        $totalStock = $inventories->sum('available_stock');
+        $totalValue = $inventories->sum(function ($item) {
+            return $item->available_stock * $item->cost;
+        });
 
-        // Get categories for filter
-        $categories = \App\Models\Category::orderBy('name')->get();
+        // Group by category
+        $categoryStats = $inventories->groupBy('product.category.name')
+            ->map(function ($group) {
+                return [
+                    'count' => $group->count(),
+                    'total_stock' => $group->sum('available_stock'),
+                    'total_value' => $group->sum(function ($item) {
+                        return $item->available_stock * $item->cost;
+                    })
+                ];
+            });
 
         return view('reports.inventory', compact(
             'inventories',
@@ -229,7 +250,13 @@ class ReportsController extends Controller
             'categories',
             'branchId',
             'categoryId',
-            'lowStockOnly'
+            'lowStockOnly',
+            'dateFrom',
+            'dateTo',
+            'totalProducts',
+            'totalStock',
+            'totalValue',
+            'categoryStats'
         ));
     }
 
@@ -241,9 +268,8 @@ class ReportsController extends Controller
         }
         
         $branchId = $request->get('branch_id');
-        $dateFrom = $request->get('date_from', Carbon::today()->subDays(30)->format('Y-m-d'));
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
-        $status = $request->get('status', '');
         $branches = Branch::where('status', 'active')->get();
 
         $query = Sale::with(['user', 'branch', 'saleItems.product'])
@@ -254,46 +280,22 @@ class ReportsController extends Controller
             $query->where('branch_id', $branchId);
         }
 
-        if ($status) {
-            $query->where('status', $status);
-        }
-
         $installationSales = $query->orderBy('created_at', 'desc')->get();
 
         // Calculate totals
-        $totalAmount = $installationSales->sum('total_amount');
         $totalInstallations = $installationSales->count();
+        $totalRevenue = $installationSales->sum('total_amount');
         $pendingInstallations = $installationSales->where('status', 'pending')->count();
         $completedInstallations = $installationSales->where('status', 'completed')->count();
-        
-        // Calculate total cost from completed installations
-        $totalCost = 0;
-        foreach ($installationSales as $sale) {
-            if ($sale->status === 'completed') {
-                $saleCost = $sale->saleItems->sum(function($item) {
-                    return $item->quantity * $item->unit_price;
-                });
-                $totalCost += $saleCost;
-            }
-        }
 
         // Group by status
         $statusStats = $installationSales->groupBy('status')
             ->map(function ($group) {
                 return [
                     'count' => $group->count(),
-                    'total' => $group->sum('total_amount')
+                    'total_amount' => $group->sum('total_amount')
                 ];
             });
-
-        // Group by description (installation types)
-        $installationTypeStats = $installationSales->groupBy('description')
-            ->map(function ($group) {
-                return [
-                    'count' => $group->count(),
-                    'total' => $group->sum('total_amount')
-                ];
-            })->sortByDesc('total')->take(10);
 
         return view('reports.installation-sales', compact(
             'installationSales',
@@ -301,14 +303,11 @@ class ReportsController extends Controller
             'branchId',
             'dateFrom',
             'dateTo',
-            'status',
-            'totalAmount',
-            'totalCost',
             'totalInstallations',
+            'totalRevenue',
             'pendingInstallations',
             'completedInstallations',
-            'statusStats',
-            'installationTypeStats'
+            'statusStats'
         ));
     }
 
@@ -420,58 +419,71 @@ class ReportsController extends Controller
 
     public function exportInventory(Request $request)
     {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+        
         $branchId = $request->get('branch_id');
         $categoryId = $request->get('category_id');
-        $lowStockOnly = $request->get('low_stock_only', false);
+        $lowStockOnly = $request->get('low_stock_only');
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
 
         $query = Inventory::with(['product.category', 'branch'])
-            ->join('products', 'inventories.product_id', '=', 'products.id');
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
 
         if ($branchId) {
-            $query->where('inventories.branch_id', $branchId);
+            $query->where('branch_id', $branchId);
         }
 
         if ($categoryId) {
-            $query->where('products.category_id', $categoryId);
+            $query->whereHas('product', function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId);
+            });
         }
 
         if ($lowStockOnly) {
-            $query->whereRaw('inventories.available_stock <= inventories.reorder_level');
+            $query->where('available_stock', '<=', DB::raw('reorder_level'));
         }
 
-        $inventories = $query->select('inventories.*')
-            ->orderBy('products.name')
-            ->get();
+        $inventories = $query->orderBy('created_at', 'desc')->get();
 
         // Calculate additional stats for each inventory
         foreach ($inventories as $inventory) {
+            // Calculate total purchased
             $totalPurchased = PurchaseItem::where('product_id', $inventory->product_id)
-                ->whereHas('purchaseOrder', function ($query) use ($inventory) {
-                    $query->where('branch_id', $inventory->branch_id);
+                ->whereHas('purchaseOrder', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
                 })
                 ->sum('quantity');
+            $inventory->total_purchased = $totalPurchased;
 
+            // Calculate total sold (excluding installations)
             $totalSold = SaleItem::where('product_id', $inventory->product_id)
-                ->whereHas('sale', function ($query) use ($inventory) {
-                    $query->where('branch_id', $inventory->branch_id);
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id)
+                      ->where('is_installation', false);
                 })
                 ->sum('quantity');
+            $inventory->total_sold = $totalSold;
 
+            // Calculate total installation used
+            $totalInstallationUsed = InstallationProductUsage::where('product_id', $inventory->product_id)
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
+                })
+                ->sum('quantity_used');
+            $inventory->total_installation_used = $totalInstallationUsed;
+
+            // Calculate total remainders
             $totalRemainders = CutRemainder::where('product_id', $inventory->product_id)
                 ->where('branch_id', $inventory->branch_id)
-                ->where('status', 'available')
-                ->count();
-
-            $inventory->total_purchased = $totalPurchased;
-            $inventory->total_sold = $totalSold;
+                ->sum('area_remaining');
             $inventory->total_remainders = $totalRemainders;
-
-            if ($inventory->product->base_unit === 'per set') {
-                $inventory->calculated_stock = $inventory->calculateSetStock();
-            }
         }
 
-        $filename = 'inventory-report-' . date('Y-m-d') . '.csv';
+        $filename = 'inventory-report-' . $dateFrom . '-to-' . $dateTo . '.csv';
         
         $headers = [
             'Content-Type' => 'text/csv',
@@ -486,8 +498,8 @@ class ReportsController extends Controller
             
             // Headers
             fputcsv($file, [
-                'Product', 'SKU', 'Category', 'Branch', 'Current Stock', 
-                'Purchased', 'Sold', 'Remainders', 'Reorder Level', 'Status'
+                'Product', 'SKU', 'Category', 'Branch', 'Available Stock', 
+                'Purchased', 'Sold', 'Installation Used', 'Remainders', 'Reorder Level', 'Status'
             ]);
 
             foreach ($inventories as $inventory) {
@@ -508,6 +520,9 @@ class ReportsController extends Controller
                 if ($inventory->product->measurement_unit) {
                     $productName .= ' (' . $inventory->product->measurement_unit . ')';
                 }
+                if ($inventory->product->base_unit === 'per set') {
+                    $productName .= ' [Set]';
+                }
                 
                 fputcsv($file, [
                     $productName,
@@ -515,9 +530,10 @@ class ReportsController extends Controller
                     $inventory->product->category->name ?? 'N/A',
                     $inventory->branch->name ?? 'N/A',
                     $stock,
-                    $inventory->total_purchased,
-                    $inventory->total_sold,
-                    $inventory->total_remainders,
+                    $inventory->total_purchased ?? 0,
+                    $inventory->total_sold ?? 0,
+                    $inventory->total_installation_used ?? 0,
+                    $inventory->total_remainders ?? 0,
                     $reorderLevel,
                     $status
                 ]);
@@ -527,64 +543,5 @@ class ReportsController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
-    }
-
-    public function exportInstallationSales(Request $request)
-    {
-        // Staff users cannot access reports
-        if (auth()->user()->role === 'staff') {
-            abort(403, 'Staff users cannot access reports');
-        }
-        
-        $branchId = $request->get('branch_id');
-        $dateFrom = $request->get('date_from', Carbon::today()->subDays(30)->format('Y-m-d'));
-        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
-        $status = $request->get('status', '');
-
-        $query = Sale::with(['user', 'branch', 'saleItems.product'])
-            ->where('is_installation', true)
-            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
-
-        if ($branchId) {
-            $query->where('branch_id', $branchId);
-        }
-
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        $installationSales = $query->orderBy('created_at', 'desc')->get();
-
-        // Create CSV content
-        $csvData = [];
-        $csvData[] = ['Date', 'Branch', 'User', 'Installation Address', 'Description', 'Total Amount', 'Status', 'Payment Method'];
-
-        foreach ($installationSales as $sale) {
-            $csvData[] = [
-                $sale->created_at ? $sale->created_at->format('Y-m-d H:i:s') : '',
-                $sale->branch ? $sale->branch->name : '',
-                $sale->user ? $sale->user->name : '',
-                $sale->installation_address ?? '',
-                $sale->description ?? '',
-                number_format($sale->total_amount, 2),
-                $sale->status ?? '',
-                $sale->payment_method ?? ''
-            ];
-        }
-
-        // Convert to CSV string
-        $csvContent = '';
-        foreach ($csvData as $row) {
-            $csvContent .= implode(',', array_map(function($field) {
-                return '"' . str_replace('"', '""', $field) . '"';
-            }, $row)) . "\n";
-        }
-
-        // Create response with BOM for Excel compatibility
-        $response = new Response("\xEF\xBB\xBF" . $csvContent);
-        $response->header('Content-Type', 'text/csv; charset=UTF-8');
-        $response->header('Content-Disposition', 'attachment; filename="installation-sales-' . $dateFrom . '-to-' . $dateTo . '.csv"');
-
-        return $response;
     }
 } 

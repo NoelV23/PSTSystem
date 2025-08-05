@@ -11,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('installation_product_usages', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('cut_remainders', function (Blueprint $table) {
+            $table->decimal('area_remaining', 10, 2)->nullable()->after('width_remaining');
         });
     }
 
@@ -22,6 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('installation_product_usages');
+        Schema::table('cut_remainders', function (Blueprint $table) {
+            $table->dropColumn('area_remaining');
+        });
     }
 };

@@ -71,6 +71,7 @@
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Order Date</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Receipt No.</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Total Cost</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Note</th>
@@ -133,6 +134,14 @@
                         <input type="date" id="orderDate" name="order_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="order_dateError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
+                    <div>
+                        <label for="purchaseReceiptNo" class="block text-sm font-medium text-gray-700 mb-1">Purchase Receipt No. *</label>
+                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter receipt number">
+                        <div id="purchase_receipt_noError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     @if(auth()->user()->role === 'admin')
                     <div>
                         <label for="selectedBranch" class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
@@ -389,6 +398,7 @@ function createPurchaseRow(purchase) {
         <tr class="bg-white border-b hover:bg-gray-50">
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${escapeHtml(purchase.supplier_name)}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${formattedDate}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(purchase.purchase_receipt_no || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${itemCount} items</td>
             <td class="px-6 py-4 text-sm font-medium text-gray-900">${formattedCost}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(purchase.note || '-')}</td>
@@ -493,6 +503,7 @@ async function handleFormSubmit(e) {
         supplier_name: formData.get('supplier_name'),
         branch_id: document.getElementById('selectedBranchId').value,
         order_date: formData.get('order_date'),
+        purchase_receipt_no: formData.get('purchase_receipt_no'),
         note: formData.get('note'),
         items: purchaseItems.map(item => ({
             product_id: item.product_id,
@@ -684,6 +695,10 @@ async function viewPurchase(id) {
                             <span class="ml-2 text-gray-600">${formattedDate}</span>
                         </div>
                         <div>
+                            <span class="font-medium text-gray-700">Receipt No.:</span>
+                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.purchase_receipt_no || '-')}</span>
+                        </div>
+                        <div>
                             <span class="font-medium text-gray-700">Total Cost:</span>
                             <span class="ml-2 text-gray-600 font-bold text-red-600">${formattedCost}</span>
                         </div>
@@ -736,6 +751,7 @@ async function editPurchase(id) {
         // Fill form fields
         document.getElementById('supplierName').value = purchase.supplier_name;
         document.getElementById('orderDate').value = purchase.order_date;
+        document.getElementById('purchaseReceiptNo').value = purchase.purchase_receipt_no || '';
         document.getElementById('purchaseNote').value = purchase.note || '';
         document.getElementById('selectedBranch').value = purchase.branch_id;
         document.getElementById('selectedBranchId').value = purchase.branch_id;

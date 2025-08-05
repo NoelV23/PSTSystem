@@ -51,14 +51,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory');
     Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales');
     
+    // Installation Sales - Record Products
+    Route::get('/api/installation-sales/{id}', [\App\Http\Controllers\InstallationSaleController::class, 'getInstallationSale'])->name('api.installation-sales.show');
+    Route::get('/api/installation-sales/{id}/inventory', [\App\Http\Controllers\InstallationSaleController::class, 'getAvailableInventory'])->name('api.installation-sales.inventory');
+    Route::post('/api/installation-sales/{id}/record-products', [\App\Http\Controllers\InstallationSaleController::class, 'saveRecordedProducts'])->name('api.installation-sales.save-recorded-products');
+    
     // Export routes
     Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export');
     Route::get('/reports/purchases/export', [\App\Http\Controllers\ReportsController::class, 'exportPurchases'])->name('reports.purchases.export');
     Route::get('/reports/inventory/export', [\App\Http\Controllers\ReportsController::class, 'exportInventory'])->name('reports.inventory.export');
-    Route::get('/reports/installation-sales/export', [\App\Http\Controllers\ReportsController::class, 'exportInstallationSales'])->name('reports.installation-sales.export');
-Route::get('/reports/installation-sales-report', function() {
-    return view('reports.installation-sales');
-})->name('reports.installation-sales-report');
     
     // Stock Adjustment routes
     Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\StockAdjustmentController::class, 'adjust'])->name('inventory.adjust');
@@ -115,12 +116,10 @@ Route::get('/reports/installation-sales-report', function() {
     // Sales API routes
     Route::get('/api/sales', [SaleController::class, 'getBranchSales'])->name('api.sales.branch');
     Route::post('/api/sales', [SaleController::class, 'storeWithItems'])->name('api.sales.store');
-Route::post('/api/installation-sales', [SaleController::class, 'storeInstallationSale'])->name('api.installation-sales.store');
     Route::get('/api/sales/{id}', [SaleController::class, 'showDetails'])->name('api.sales.show');
     Route::get('/sales/{id}/edit', [SaleController::class, 'edit'])->name('sales.edit');
     Route::post('/api/sales/{id}/add-items', [SaleController::class, 'addItems'])->name('api.sales.addItems');
     Route::get('/sales/{id}/delivery-receipt', [SaleController::class, 'deliveryReceipt'])->name('sales.delivery-receipt');
-    Route::post('/api/installation-sales/{id}/record-products', [SaleController::class, 'recordUsedProducts'])->name('api.installation-sales.record-products');
 
     // Cut Remainder API routes
     Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');
