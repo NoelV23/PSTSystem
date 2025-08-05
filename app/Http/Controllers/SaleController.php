@@ -49,27 +49,11 @@ class SaleController extends Controller
         
         $perPage = $request->get('per_page', 10);
         $deliveryStatus = $request->get('delivery_status');
-        $isInstallation = $request->get('is_installation');
         $today = now()->toDateString();
         
         $query = \App\Models\Sale::with(['user', 'saleItems', 'branch'])
-            ->where('branch_id', $branchId);
-        
-        $isInstallationBool = false;
-        // Filter by installation sales or regular sales
-        if ($isInstallation !== null) {
-            // Convert string to boolean for proper filtering
-            $isInstallationBool = filter_var($isInstallation, FILTER_VALIDATE_BOOLEAN);
-            $query->where('is_installation', $isInstallationBool);
-        } else {
-            // Default to regular sales (not installation)
-            $query->where('is_installation', false);
-        }
-        
-        // Apply date filter only for regular sales
-        if (!$isInstallationBool) {
-            $query->whereDate('created_at', $today);
-        }
+            ->where('branch_id', $branchId)
+            ->whereDate('created_at', $today);
         
         // Apply delivery status filter
         if ($deliveryStatus === 'delivered') {
@@ -79,19 +63,6 @@ class SaleController extends Controller
         }
         
         $sales = $query->orderBy('created_at', 'desc')->paginate($perPage);
-        
-        // Debug logging for installation sales
-        if ($isInstallation !== null) {
-            \Log::info('Installation sales query', [
-                'branch_id' => $branchId,
-                'is_installation' => $isInstallation,
-                'is_installation_bool' => $isInstallationBool,
-                'count' => $sales->total(),
-                'sql' => $query->toSql(),
-                'bindings' => $query->getBindings()
-            ]);
-        }
-        
         return response()->json($sales);
     }
 
@@ -110,11 +81,16 @@ class SaleController extends Controller
             'user_id' => 'required|exists:users,id',
             'total_amount' => 'required|numeric|min:0',
             'payment_method' => 'required|string',
-            'items' => 'required|array|min:1',
-            'items.*.quantity' => 'required|numeric|min:1',
-            'items.*.unit_price' => 'required|numeric|min:0',
-            'items.*.total_price' => 'required|numeric|min:0',
-            'items.*.item_type' => 'required|in:inventory,remainder',
+            'reference_number' => 'nullable|string|max:255',
+            'is_installation' => 'nullable|boolean',
+            'installation_address' => 'nullable|string',
+            'description' => 'nullable|string',
+            'status' => 'nullable|string',
+            'items' => 'nullable|array',
+            'items.*.quantity' => 'nullable|numeric|min:1',
+            'items.*.unit_price' => 'nullable|numeric|min:0',
+            'items.*.total_price' => 'nullable|numeric|min:0',
+            'items.*.item_type' => 'nullable|in:inventory,remainder',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
@@ -124,13 +100,10 @@ class SaleController extends Controller
             'delivery_date' => 'nullable|date',
             'delivery_note' => 'nullable|string',
             'delivery_address' => 'nullable|string',
-            'is_installation' => 'nullable|boolean',
-            'installation_address' => 'nullable|string',
-            'description' => 'nullable|string',
-            'status' => 'nullable|string|in:pending,completed',
         ]);
         
         // Custom validation for inventory_id based on item_type
+        if (!$request->input('is_installation') && $request->input('items')) {
         foreach ($request->input('items', []) as $index => $item) {
             if ($item['item_type'] === 'inventory') {
                 if (!isset($item['inventory_id']) || !\App\Models\Inventory::find($item['inventory_id'])) {
@@ -143,6 +116,7 @@ class SaleController extends Controller
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         "items.{$index}.remainder_id" => ['The remainder_id field is required and must exist for remainder items.']
                     ]);
+                    }
                 }
             }
         }
@@ -154,17 +128,20 @@ class SaleController extends Controller
                 'user_id' => $validated['user_id'],
                 'total_amount' => $validated['total_amount'],
                 'payment_method' => $validated['payment_method'],
+                'reference_number' => $validated['reference_number'] ?? null,
+                'is_installation' => $validated['is_installation'] ?? false,
+                'installation_address' => $validated['installation_address'] ?? null,
+                'description' => $validated['description'] ?? null,
+                'status' => $validated['status'] ?? 'completed',
                 'is_delivered' => $validated['is_delivered'] ?? false,
                 'delivered_to' => $validated['delivered_to'] ?? null,
                 'delivery_date' => $validated['delivery_date'] ?? null,
                 'delivery_note' => $validated['delivery_note'] ?? null,
                 'delivery_address' => $validated['delivery_address'] ?? null,
-                'is_installation' => $validated['is_installation'] ?? false,
-                'installation_address' => $validated['installation_address'] ?? null,
-                'description' => $validated['description'] ?? null,
-                'status' => $validated['status'] ?? 'pending',
             ]);
             
+            // Only process items if this is not an installation sale or if items are provided
+            if (!$validated['is_installation'] && $request->input('items')) {
             foreach ($request->input('items') as $item) {
                 // Get product_id based on item type
                 $productId = null;
@@ -247,6 +224,7 @@ class SaleController extends Controller
                 if ($isCut) {
                     $this->createNewRemainderIfNeeded($product, $inventory->branch_id, $item);
                     }
+                }
                 }
             }
             
@@ -633,166 +611,6 @@ class SaleController extends Controller
                 'success' => false,
                 'message' => 'Failed to add items: ' . $e->getMessage()
             ], 500);
-        }
-
-    }
-
-    public function storeInstallationSale(Request $request)
-    {
-        $currentUser = auth()->user();
-        
-        // Manager can only create sales for their branch
-        if ($currentUser->role === 'manager') {
-            $request->merge(['branch_id' => $currentUser->branch_id]);
-        }
-        
-        $validated = $request->validate([
-            'branch_id' => 'required|exists:branches,id',
-            'total_amount' => 'required|numeric|min:0',
-            'payment_method' => 'required|string',
-            'installation_address' => 'required|string',
-            'description' => 'required|string',
-            'is_installation' => 'required|boolean',
-        ]);
-        
-        \DB::beginTransaction();
-        try {
-            $sale = \App\Models\Sale::create([
-                'branch_id' => $validated['branch_id'],
-                'user_id' => $currentUser->id,
-                'total_amount' => $validated['total_amount'],
-                'payment_method' => $validated['payment_method'],
-                'is_installation' => true,
-                'installation_address' => $validated['installation_address'],
-                'description' => $validated['description'],
-                'status' => 'pending',
-            ]);
-            
-            \DB::commit();
-            
-            return response()->json([
-                'message' => 'Installation sale created successfully',
-                'sale' => $sale
-            ]);
-            
-        } catch (\Exception $e) {
-            \DB::rollback();
-            return response()->json(['error' => 'Failed to create installation sale: ' . $e->getMessage()], 500);
-        }
-    }
-
-    public function recordUsedProducts(Request $request, $id)
-    {
-        \Log::info('recordUsedProducts called', [
-            'user_id' => auth()->id(),
-            'user_role' => auth()->user()->role,
-            'sale_id' => $id,
-            'request_data' => $request->all()
-        ]);
-        
-        // Staff users cannot record used products
-        if (auth()->user()->role === 'staff') {
-            \Log::warning('Staff user attempted to record used products', ['user_id' => auth()->id()]);
-            return response()->json(['error' => 'Staff users cannot record used products'], 403);
-        }
-        
-        $sale = Sale::findOrFail($id);
-        
-        \Log::info('Found sale', [
-            'sale_id' => $sale->id,
-            'is_installation' => $sale->is_installation,
-            'status' => $sale->status
-        ]);
-        
-        // Check if this is an installation sale
-        if (!$sale->is_installation) {
-            \Log::warning('Attempted to record products for non-installation sale', ['sale_id' => $sale->id]);
-            return response()->json(['error' => 'This is not an installation sale'], 400);
-        }
-        
-        // Check if already completed
-        if ($sale->status === 'completed') {
-            \Log::warning('Attempted to record products for completed installation', ['sale_id' => $sale->id]);
-            return response()->json(['error' => 'This installation sale is already completed'], 400);
-        }
-        
-        $validated = $request->validate([
-            'used_products' => 'required|array|min:1',
-            'used_products.*.quantity' => 'required|numeric|min:1',
-            'used_products.*.cost' => 'required|numeric|min:0',
-            'used_products.*.inventory_id' => 'required|exists:inventories,id',
-        ]);
-        
-        \Log::info('Validation passed', ['validated_data' => $validated]);
-        
-        \DB::beginTransaction();
-        try {
-            $totalCost = 0;
-            
-            foreach ($request->input('used_products') as $usedProduct) {
-                $inventory = \App\Models\Inventory::find($usedProduct['inventory_id']);
-                
-                \Log::info('Processing inventory item', [
-                    'inventory_id' => $inventory->id,
-                    'product_name' => $inventory->product->name,
-                    'requested_quantity' => $usedProduct['quantity'],
-                    'available_stock' => $inventory->available_stock
-                ]);
-                
-                // Check available stock
-                $availableStock = $inventory->available_stock ?? 0;
-                if ($inventory->product->base_unit === 'per set') {
-                    $availableStock = $inventory->calculateSetStock() ?? 0;
-                }
-                
-                if ($usedProduct['quantity'] > $availableStock) {
-                    throw new \Exception("Insufficient stock for product: {$inventory->product->name}");
-                }
-                
-                // Deduct inventory
-                if ($inventory->product->base_unit === 'per set') {
-                    $this->deductSetComponents($inventory->product, $sale->branch_id, $usedProduct['quantity']);
-                } else {
-                    $inventory->decrement('available_stock', $usedProduct['quantity']);
-                }
-                
-                // Create sale item for tracking
-                $sale->saleItems()->create([
-                    'product_id' => $inventory->product_id,
-                    'quantity' => $usedProduct['quantity'],
-                    'unit_price' => $usedProduct['cost'],
-                    'total_price' => $usedProduct['quantity'] * $usedProduct['cost'],
-                ]);
-                
-                $totalCost += $usedProduct['quantity'] * $usedProduct['cost'];
-            }
-            
-            // Mark installation as completed
-            $sale->update([
-                'status' => 'completed'
-            ]);
-            
-            \DB::commit();
-            
-            \Log::info('Successfully recorded used products', [
-                'sale_id' => $sale->id,
-                'total_cost' => $totalCost
-            ]);
-            
-            return response()->json([
-                'message' => 'Used products recorded successfully',
-                'total_cost' => $totalCost,
-                'sale' => $sale->fresh()
-            ]);
-            
-        } catch (\Exception $e) {
-            \DB::rollback();
-            \Log::error('Failed to record used products', [
-                'sale_id' => $sale->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Failed to record used products: ' . $e->getMessage()], 500);
         }
     }
 } 

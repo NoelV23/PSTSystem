@@ -12,24 +12,19 @@ class Sale extends Model
     protected $fillable = [
         'branch_id',
         'user_id',
+        'reference_number',
         'total_amount',
         'payment_method',
+        'is_delivered',
+        'delivered_to',
         'delivery_address',
+        'delivery_date',
+        'delivery_note',
         'is_installation',
         'installation_address',
         'description',
         'status',
-        'created_at',
-        'is_delivered',
-        'delivered_to',
-        'delivery_date',
-        'delivery_note',
-    ];
-
-    protected $casts = [
-        'is_installation' => 'boolean',
-        'total_amount' => 'decimal:2',
-        'is_delivered' => 'boolean',
+        'customer_name',
     ];
 
     public function branch()
@@ -45,5 +40,10 @@ class Sale extends Model
     public function saleItems()
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function installationProductUsages()
+    {
+        return $this->hasMany(InstallationProductUsage::class);
     }
 } 

@@ -11,10 +11,8 @@
                 <!-- Branch options will be loaded here -->
             </select>
         </div>
-                <div class="flex gap-2">
-            <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
-            <x-primary-button id="addInstallationSaleBtn" class="hidden md:inline-flex bg-orange-500 hover:bg-orange-600">Add New Inst. Sale</x-primary-button>
-        </div>
+        <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
+        <x-primary-button id="addInstallationSaleBtn" class="hidden md:inline-flex ml-2">Add New Sale Inst.</x-primary-button>
     </div>
 
     <!-- Tabs -->
@@ -22,13 +20,50 @@
         <nav class="-mb-px flex space-x-8" aria-label="Tabs">
             <button id="tabSalesToday" class="nav-tab text-gray-600 py-4 px-1 border-b-2 font-medium text-sm border-red-500" data-tab="today">Sales Today</button>
             <button id="tabAddSale" class="nav-tab text-gray-500 py-4 px-1 border-b-2 font-medium text-sm border-transparent" data-tab="add">Add New Sale</button>
-            <button id="tabInstallationSales" class="nav-tab text-gray-500 py-4 px-1 border-b-2 font-medium text-sm border-transparent" data-tab="installation">Installation Sales</button>
+            <button id="tabInstallationSale" class="nav-tab text-gray-500 py-4 px-1 border-b-2 font-medium text-sm border-transparent" data-tab="installation">Add Installation Sale</button>
         </nav>
     </div>
 
+    <!-- Delivery Filter -->
+    <div class="mb-4">
+        <select id="deliveryFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <option value="">All Sales</option>
+            <option value="delivered">Delivered</option>
+            <option value="not_delivered">Not Delivered</option>
+        </select>
+    </div>
 
-
-    @include('sales.includes.sales-today-tab')
+    <!-- Tab Content -->
+    <div id="salesTodayTab" class="tab-content">
+        <!-- Loader -->
+        <div id="salesLoader" class="hidden">
+            <x-loader />
+        </div>
+        <!-- Error -->
+        <div id="salesError" class="hidden text-red-600 mb-4">Failed to load sales. Please try again.</div>
+        <!-- Sales Table -->
+        <div class="overflow-x-auto bg-white rounded-lg shadow">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference No.</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody id="salesTableBody" class="bg-white divide-y divide-gray-200">
+                    <!-- Sales rows will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+        <!-- Pagination -->
+        <div id="salesPagination" class="mt-4"></div>
+    </div>
 
     <div id="addSaleTab" class="tab-content hidden">
         <div class="bg-white rounded-lg shadow p-6">
@@ -53,6 +88,13 @@
                         <input id="saleUser" name="user" type="text" class="w-full px-3 py-2 border rounded" readonly value="{{ Auth::user()->name ?? '' }}" />
                         <input type="hidden" id="saleUserId" value="{{ Auth::id() }}" />
                     </div>
+                </div>
+                
+                <!-- Reference Number Field (Only for non-delivered sales) -->
+                <div id="referenceNumberSection" class="mb-4">
+                    <x-input-label for="referenceNumber" value="Reference Number (Manual Receipt)" />
+                    <input id="referenceNumber" name="reference_number" type="text" class="w-full px-3 py-2 border rounded" placeholder="Enter reference number or receipt number" />
+                    <div class="text-xs text-gray-500 mt-1">Required only for non-delivered sales</div>
                 </div>
                 <!-- Product Selector -->
                 <div class="mb-4">
@@ -116,6 +158,11 @@
                 </div>
             </form>
         </div>
+    </div>
+
+    <!-- Installation Sales Tab -->
+    <div id="installationSalesTab" class="tab-content hidden">
+        @include('sales.includes.installation-sales-tab')
     </div>
 
     <!-- Toast Notification -->
@@ -189,17 +236,14 @@
             </form>
         </div>
     </div>
-
-    @include('sales.includes.installation-sales-tab')
-
-    @include('sales.includes.installation-sales-modal')
 </div>
 
 <script>
 // --- State ---
 let branches = [];
 let currentBranchId = '';
-
+let sales = [];
+let salesPagination = {};
 let inventory = [];
 let remainders = [];
 let saleItems = [];
@@ -212,14 +256,6 @@ let pendingDeliveryData = null;
 // Check if current user is a manager or staff
 const currentUserRole = '{{ Auth::user()->role }}';
 const currentUserBranchId = '{{ Auth::user()->branch_id }}';
-
-// Initialize currentBranchId for manager/staff users
-if (currentUserRole === 'manager' || currentUserRole === 'staff') {
-    currentBranchId = currentUserBranchId;
-}
-
-@include('sales.includes.installation-sales-script')
-@include('sales.includes.sales-today-script')
 
 // Hide branch selector for managers and staff
 if (currentUserRole === 'manager' || currentUserRole === 'staff') {
@@ -237,8 +273,16 @@ if (currentUserRole === 'manager' || currentUserRole === 'staff') {
 const branchSelector = document.getElementById('branchSelector');
 const tabSalesToday = document.getElementById('tabSalesToday');
 const tabAddSale = document.getElementById('tabAddSale');
+const tabInstallationSale = document.getElementById('tabInstallationSale');
+const salesTodayTab = document.getElementById('salesTodayTab');
 const addSaleTab = document.getElementById('addSaleTab');
+const installationSalesTab = document.getElementById('installationSalesTab');
+const salesLoader = document.getElementById('salesLoader');
+const salesError = document.getElementById('salesError');
+const salesTableBody = document.getElementById('salesTableBody');
+const salesPaginationDiv = document.getElementById('salesPagination');
 const addSaleBtn = document.getElementById('addSaleBtn');
+const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
 const addSaleForm = document.getElementById('addSaleForm');
 const productSearch = document.getElementById('productSearch');
 const productDropdown = document.getElementById('productDropdown');
@@ -278,6 +322,9 @@ const deliveryAddress = document.getElementById('deliveryAddress');
 const deliveryNote = document.getElementById('deliveryNote');
 const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
 const saveDeliveryBtn = document.getElementById('saveDeliveryBtn');
+const deliveryFilter = document.getElementById('deliveryFilter');
+const referenceNumberSection = document.getElementById('referenceNumberSection');
+const referenceNumberInput = document.getElementById('referenceNumber');
 
 // --- Utility ---
 function showToast(message, type = 'success') {
@@ -313,6 +360,13 @@ function resetSaleForm() {
     saleDate.value = new Date().toISOString().slice(0, 10);
     // Reset delivery checkbox
     isDelivered.checked = false;
+    // Hide reference number field for delivered sales
+    if (isDelivered.checked) {
+        referenceNumberSection.classList.add('hidden');
+        referenceNumberInput.value = '';
+    } else {
+        referenceNumberSection.classList.remove('hidden');
+    }
 }
 
 // --- Branch Selector ---
@@ -328,12 +382,17 @@ branchSelector.addEventListener('change', function() {
     
     // Enable/disable Add New Sale button based on branch selection
     const addSaleBtn = document.getElementById('addSaleBtn');
+    const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
     if (currentBranchId) {
         addSaleBtn.disabled = false;
         addSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        addInstallationSaleBtn.disabled = false;
+        addInstallationSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
     } else {
         addSaleBtn.disabled = true;
         addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        addInstallationSaleBtn.disabled = true;
+        addInstallationSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
     }
     
     loadSales();
@@ -344,60 +403,35 @@ branchSelector.addEventListener('change', function() {
 // --- Tabs ---
 function switchTab(tab) {
     if (tab === 'today') {
-        const salesTodayTab = document.getElementById('salesTodayTab');
-        if (salesTodayTab) salesTodayTab.classList.remove('hidden');
+        salesTodayTab.classList.remove('hidden');
         addSaleTab.classList.add('hidden');
-        const installationSalesTab = document.getElementById('installationSalesTab');
-        if (installationSalesTab) installationSalesTab.classList.add('hidden');
+        installationSalesTab.classList.add('hidden');
         tabSalesToday.classList.add('text-gray-600', 'border-red-500');
         tabSalesToday.classList.remove('text-gray-500', 'border-transparent');
         tabAddSale.classList.remove('text-gray-600', 'border-red-500');
         tabAddSale.classList.add('text-gray-500', 'border-transparent');
-        const tabInstallationSales1 = document.getElementById('tabInstallationSales');
-        if (tabInstallationSales1) {
-            tabInstallationSales1.classList.remove('text-gray-600', 'border-red-500');
-            tabInstallationSales1.classList.add('text-gray-500', 'border-transparent');
-        }
-        
-        // Load sales when tab is activated
-        if (typeof loadSales === 'function') {
-            loadSales();
-        }
+        tabInstallationSale.classList.remove('text-gray-600', 'border-red-500');
+        tabInstallationSale.classList.add('text-gray-500', 'border-transparent');
     } else if (tab === 'add') {
-        const salesTodayTab = document.getElementById('salesTodayTab');
-        if (salesTodayTab) salesTodayTab.classList.add('hidden');
+        salesTodayTab.classList.add('hidden');
         addSaleTab.classList.remove('hidden');
-        const installationSalesTab = document.getElementById('installationSalesTab');
-        if (installationSalesTab) installationSalesTab.classList.add('hidden');
+        installationSalesTab.classList.add('hidden');
         tabAddSale.classList.add('text-gray-600', 'border-red-500');
         tabAddSale.classList.remove('text-gray-500', 'border-transparent');
         tabSalesToday.classList.remove('text-gray-600', 'border-red-500');
         tabSalesToday.classList.add('text-gray-500', 'border-transparent');
-        const tabInstallationSales2 = document.getElementById('tabInstallationSales');
-        if (tabInstallationSales2) {
-            tabInstallationSales2.classList.remove('text-gray-600', 'border-red-500');
-            tabInstallationSales2.classList.add('text-gray-500', 'border-transparent');
-        }
+        tabInstallationSale.classList.remove('text-gray-600', 'border-red-500');
+        tabInstallationSale.classList.add('text-gray-500', 'border-transparent');
     } else if (tab === 'installation') {
-        const salesTodayTab = document.getElementById('salesTodayTab');
-        if (salesTodayTab) salesTodayTab.classList.add('hidden');
+        salesTodayTab.classList.add('hidden');
         addSaleTab.classList.add('hidden');
-        const installationSalesTab = document.getElementById('installationSalesTab');
-        if (installationSalesTab) installationSalesTab.classList.remove('hidden');
-        const tabInstallationSales3 = document.getElementById('tabInstallationSales');
-        if (tabInstallationSales3) {
-            tabInstallationSales3.classList.add('text-gray-600', 'border-red-500');
-            tabInstallationSales3.classList.remove('text-gray-500', 'border-transparent');
-        }
+        installationSalesTab.classList.remove('hidden');
+        tabInstallationSale.classList.add('text-gray-600', 'border-red-500');
+        tabInstallationSale.classList.remove('text-gray-500', 'border-transparent');
         tabSalesToday.classList.remove('text-gray-600', 'border-red-500');
         tabSalesToday.classList.add('text-gray-500', 'border-transparent');
         tabAddSale.classList.remove('text-gray-600', 'border-red-500');
         tabAddSale.classList.add('text-gray-500', 'border-transparent');
-        
-        // Initialize installation sale form when tab is activated
-        if (typeof initializeInstallationSaleForm === 'function') {
-            initializeInstallationSaleForm();
-        }
     }
 }
 tabSalesToday.addEventListener('click', () => switchTab('today'));
@@ -408,19 +442,6 @@ tabAddSale.addEventListener('click', () => {
     }
     switchTab('add');
 });
-
-// Installation Sales tab event listener
-const installationSalesTabBtn = document.getElementById('tabInstallationSales');
-if (installationSalesTabBtn) {
-    installationSalesTabBtn.addEventListener('click', () => {
-        if (!currentBranchId) {
-            showToast('Please select a branch first', 'error');
-            return;
-        }
-        switchTab('installation');
-    });
-}
-
 addSaleBtn.addEventListener('click', () => {
     if (!currentBranchId) {
         showToast('Please select a branch first', 'error');
@@ -428,23 +449,96 @@ addSaleBtn.addEventListener('click', () => {
     }
     switchTab('add');
 });
+addInstallationSaleBtn.addEventListener('click', () => {
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    switchTab('installation');
+});
+tabInstallationSale.addEventListener('click', () => {
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    switchTab('installation');
+});
 
-// Add Installation Sale button event listener
-const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
-if (addInstallationSaleBtn) {
-    addInstallationSaleBtn.addEventListener('click', () => {
-        if (!currentBranchId) {
-            showToast('Please select a branch first', 'error');
-            return;
+// --- Sales Today ---
+async function loadSales(page = 1) {
+    if (!currentBranchId) {
+        salesTableBody.innerHTML = '<tr><td colspan="7" class="text-center text-gray-400 py-8">Please select a branch to view sales.</td></tr>';
+        return;
+    }
+    salesLoader.classList.remove('hidden');
+    salesError.classList.add('hidden');
+    salesTableBody.innerHTML = '';
+    try {
+        const deliveryFilterValue = deliveryFilter.value;
+        const params = new URLSearchParams({
+            branch_id: currentBranchId,
+            page: page
+        });
+        if (deliveryFilterValue) {
+            params.append('delivery_status', deliveryFilterValue);
         }
-        switchTab('installation');
-    });
+        
+        const res = await fetch(`/api/sales?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to load sales');
+        const data = await res.json();
+        sales = data.data || [];
+        salesPagination = data;
+        renderSalesTable();
+        renderSalesPagination();
+    } catch (e) {
+        salesError.classList.remove('hidden');
+    } finally {
+        salesLoader.classList.add('hidden');
+    }
 }
-
-
-
-
-
+function renderSalesTable() {
+    if (!sales.length) {
+        salesTableBody.innerHTML = '<tr><td colspan="8" class="text-center text-gray-400 py-8">No sales found for today.</td></tr>';
+        return;
+    }
+    salesTableBody.innerHTML = sales.map(sale => {
+        const deliveryStatus = sale.is_delivered ? 
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Delivered</span>` :
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Not Delivered</span>`;
+        
+        // Check if this is an installation sale
+        const isInstallation = sale.is_installation;
+        const rowClass = isInstallation ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50';
+        const saleType = isInstallation ? 
+            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">Installation</span>` : '';
+        
+        // For installation sales, only show view action
+        const actions = isInstallation ? 
+            `<button class="text-blue-600 hover:underline" onclick="viewSaleDetails(${sale.id})">View</button>` :
+            `<button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
+             <a href="/sales/${sale.id}/edit" class="text-green-600 hover:underline">Edit</a>
+             ${sale.is_delivered ? `<button class="text-purple-600 hover:underline ml-2" onclick="printDeliveryReceipt(${sale.id})">Delivery Receipt</button>` : ''}`;
+        
+        return `
+            <tr class="${rowClass}">
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.created_at ? sale.created_at.slice(0, 16).replace('T', ' ') : ''}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.branch?.name || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.user?.name || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.reference_number || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${sale.payment_method || '-'}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${saleType}${deliveryStatus}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                    ${actions}
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+function renderSalesPagination() {
+    // TODO: Implement pagination controls if needed
+    salesPaginationDiv.innerHTML = '';
+}
 
 // --- Inventory/Product Search ---
 async function loadInventory() {
@@ -453,36 +547,14 @@ async function loadInventory() {
         remainders = [];
         return;
     }
-    console.log('Loading inventory for branch:', currentBranchId);
-    
     const res = await fetch(`/api/inventory/branch/${currentBranchId}?per_page=1000`);
     const data = await res.json();
-    console.log('Raw inventory API response:', data);
-    
-    // Handle both paginated and non-paginated responses
-    if (data.data) {
-        inventory = data.data;
-    } else if (Array.isArray(data)) {
-        inventory = data;
-    } else {
-        inventory = [];
-    }
-    console.log('Processed inventory:', inventory);
+    inventory = data.data || [];
     
     // Also load remainders
     const remaindersRes = await fetch(`/api/inventory/branch/${currentBranchId}/remainders?per_page=1000`);
     const remaindersData = await remaindersRes.json();
-    console.log('Raw remainders API response:', remaindersData);
-    
-    // Handle both paginated and non-paginated responses
-    if (remaindersData.data) {
-        remainders = remaindersData.data;
-    } else if (Array.isArray(remaindersData)) {
-        remainders = remaindersData;
-    } else {
-        remainders = [];
-    }
-    console.log('Processed remainders:', remainders);
+    remainders = remaindersData.data || [];
 }
 
 // Function to reload inventory and remainders data
@@ -600,7 +672,7 @@ productSearch.addEventListener('input', function() {
             '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-2">[Remainder]</span>' : '';
         
         return `
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', '${item.id}')" data-item-id="${item.id}" data-item-type="${item.type}">
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
                 <div class="font-medium">
                     ${remainderIndicator}${displayName} (${item.product.sku || 'No SKU'})
                 </div>
@@ -614,25 +686,9 @@ productSearch.addEventListener('input', function() {
     productDropdown.classList.remove('hidden');
 });
 window.selectProduct = function(type, id) {
-    console.log('selectProduct called with:', { type, id });
-    console.log('Current inventory:', inventory);
-    console.log('Current remainders:', remainders);
-    
     let item;
     if (type === 'inventory') {
-        // Convert id to number for comparison
-        const numericId = parseInt(id);
-        console.log('Searching for inventory item with ID:', numericId, 'Type:', typeof numericId);
-        item = inventory.find(i => {
-            console.log('Checking item:', i.id, 'Type:', typeof i.id, 'Match:', i.id === numericId);
-            return i.id === numericId;
-        });
-        if (!item) {
-            console.error('Inventory item not found:', id, 'Type:', typeof id);
-            console.log('Available inventory IDs:', inventory.map(i => i.id));
-            console.log('Looking for numeric ID:', numericId);
-            return;
-        }
+        item = inventory.find(i => i.id === id);
         item.type = 'inventory';
         item.inventoryId = item.id; // Set inventoryId for inventory items
         
@@ -641,15 +697,7 @@ window.selectProduct = function(type, id) {
             item.available_stock = item.calculated_stock || 0;
         }
     } else if (type === 'remainder') {
-        // Convert id to number for comparison
-        const numericId = parseInt(id);
-        item = remainders.find(r => r.id === numericId);
-        if (!item) {
-            console.error('Remainder item not found:', id, 'Type:', typeof id);
-            console.log('Available remainder IDs:', remainders.map(r => r.id));
-            console.log('Looking for numeric ID:', numericId);
-            return;
-        }
+        item = remainders.find(r => r.id === id);
         item.type = 'remainder';
         item.inventoryId = item.id; // For remainders, use the remainder ID as inventoryId
     }
@@ -805,55 +853,6 @@ window.selectProduct = function(type, id) {
     }
 };
 
-// --- Sale Items Management ---
-function renderSaleItems() {
-    if (!saleItems.length) {
-        saleItemsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No items added yet</td></tr>';
-        saleTotalAmount.textContent = '0.00';
-        return;
-    }
-    
-    saleItemsTableBody.innerHTML = saleItems.map((item, index) => {
-        // Build cut size display
-        let cutSizeDisplay = '-';
-        if (item.cutLength || item.cutWidth || item.cutHeight) {
-            const cuts = [];
-            if (item.cutLength) cuts.push(`L: ${item.cutLength}`);
-            if (item.cutWidth) cuts.push(`W: ${item.cutWidth}`);
-            if (item.cutHeight) cuts.push(`H: ${item.cutHeight}`);
-            cutSizeDisplay = cuts.join(', ');
-        }
-        
-        const totalPrice = item.quantity * item.price;
-        
-        return `
-            <tr>
-                <td class="px-4 py-2 text-sm text-gray-900">
-                    ${item.product.name} (${item.product.sku || 'No SKU'})
-                    ${item.type === 'remainder' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 ml-2">[Remainder]</span>' : ''}
-                    ${item.product.base_unit === 'per set' ? '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 ml-2">[Set]</span>' : ''}
-                </td>
-                <td class="px-4 py-2 text-sm text-gray-900">${item.quantity}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">${cutSizeDisplay}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">₱${Number(item.price).toFixed(2)}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">₱${Number(totalPrice).toFixed(2)}</td>
-                <td class="px-4 py-2 text-sm text-gray-900">
-                    <button onclick="removeSaleItem(${index})" class="text-red-600 hover:text-red-900">Remove</button>
-                </td>
-            </tr>
-        `;
-    }).join('');
-    
-    // Update total amount
-    const totalAmount = saleItems.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    saleTotalAmount.textContent = Number(totalAmount).toFixed(2);
-}
-
-function removeSaleItem(index) {
-    saleItems.splice(index, 1);
-    renderSaleItems();
-}
-
 // --- Add Sale Item ---
 addSaleItemBtn.addEventListener('click', function(e) {
     e.preventDefault();
@@ -877,35 +876,557 @@ addSaleItemBtn.addEventListener('click', function(e) {
         }
         
         if (qty > availableStock) {
-            return showToast(`Quantity exceeds available stock (${availableStock})`, 'error');
+            return showToast(`Quantity cannot exceed available stock (${availableStock})`, 'error');
         }
     }
     
-    // Add to sale items
-    const saleItem = {
-        product: selectedProduct.product,
-        quantity: qty,
-        price: Number(productPrice.value) || 0,
-        type: selectedProduct.type,
-        inventoryId: selectedProduct.inventoryId,
-        cutLength: cutLength ? Number(cutLength.value) : null,
-        cutWidth: cutWidth ? Number(cutWidth.value) : null,
-        cutHeight: cutHeight ? Number(cutHeight.value) : null
-    };
+    const unitPrice = Number(productPrice.value);
+    if (!unitPrice || unitPrice <= 0) return showToast('Enter a valid unit price', 'error');
     
-    saleItems.push(saleItem);
+    let cutSize = '';
+    const cutLengthInput = document.getElementById('cutLength');
+    const cutWidthInput = document.getElementById('cutWidth');
+    const cutHeightInput = document.getElementById('cutHeight');
+    const l = cutLengthInput ? Number(cutLengthInput.value) : 0;
+    const w = cutWidthInput ? Number(cutWidthInput.value) : 0;
+    const h = cutHeightInput ? Number(cutHeightInput.value) : 0;
+    
+    // Validate cut input(s) based on item type
+    if (selectedProduct.type === 'remainder') {
+        // For remainder items, validate against available remainder dimensions
+        if (cutLengthInput && l > 0) {
+            const maxLength = selectedProduct.length_remaining || 0;
+            if (l > maxLength) {
+                return showToast(`Cut length cannot exceed available remainder length (${maxLength})`, 'error');
+            }
+        }
+        if (cutWidthInput && w > 0) {
+            const maxWidth = selectedProduct.width_remaining || 0;
+            if (w > maxWidth) {
+                return showToast(`Cut width cannot exceed available remainder width (${maxWidth})`, 'error');
+            }
+        }
+        if (cutHeightInput && h > 0) {
+            const maxHeight = selectedProduct.height_remaining || 0;
+            if (h > maxHeight) {
+                return showToast(`Cut height cannot exceed available remainder height (${maxHeight})`, 'error');
+            }
+        }
+    } else {
+        // For inventory items, validate against product default dimensions
+    const def = selectedProduct.product;
+    if (cutLengthInput && l >= Number(def.default_length)) return showToast('Cut length must be less than product length', 'error');
+    if (cutWidthInput && w >= Number(def.default_width)) return showToast('Cut width must be less than product width', 'error');
+    if (cutHeightInput && h >= Number(def.default_height)) return showToast('Cut height must be less than product height', 'error');
+    }
+    
+    if (cutFields && !cutFields.classList.contains('hidden')) {
+        if ((cutLengthInput && l <= 0) && (cutWidthInput && w <= 0) && (cutHeightInput && h <= 0)) return showToast('Enter cut size', 'error');
+        cutSize = [l, w, h].filter(v => v > 0).join(' x ');
+    }
+    
+    // Prevent duplicate product (unless cut size is different)
+    if (saleItems.some(item => 
+        item.inventoryId === selectedProduct.id && 
+        item.type === selectedProduct.type && 
+        item.cutSize === cutSize
+    )) {
+        return showToast('Product already in list', 'error');
+    }
+    
+    const totalPrice = unitPrice * qty;
+    saleItems.push({
+        inventoryId: selectedProduct.id,
+        type: selectedProduct.type,
+        productName: selectedProduct.product.name,
+        sku: selectedProduct.product.sku,
+        qty,
+        cutSize,
+        unitPrice,
+        totalPrice,
+        remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null,
+        isSet: selectedProduct.product.base_unit === 'per set'
+    });
+    
     renderSaleItems();
     resetProductFields();
 });
+function renderSaleItems() {
+    if (!saleItems.length) {
+        saleItemsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-400 py-4">No items added.</td></tr>';
+        saleTotalAmount.textContent = '0.00';
+        return;
+    }
+    saleItemsTableBody.innerHTML = saleItems.map((item, idx) => `
+        <tr>
+            <td class="px-4 py-2 text-sm">
+                ${item.productName} (${item.sku || 'No SKU'})
+                ${item.type === 'remainder' ? '<span class="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded">Remainder</span>' : ''}
+                ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
+            </td>
+            <td class="px-4 py-2 text-sm">${item.qty}</td>
+            <td class="px-4 py-2 text-sm">${item.cutSize || '-'}</td>
+            <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
+            <td class="px-4 py-2 text-sm">₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
+            <td class="px-4 py-2 text-sm"><button type="button" class="text-red-500 hover:underline" onclick="removeSaleItem(${idx})">Remove</button></td>
+        </tr>
+    `).join('');
+    saleTotalAmount.textContent = saleItems.reduce((sum, i) => sum + i.totalPrice, 0).toLocaleString('en-PH', {minimumFractionDigits:2});
+}
+window.removeSaleItem = function(idx) {
+    saleItems.splice(idx, 1);
+    renderSaleItems();
+};
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    loadBranches();
-    if (currentUserRole === 'manager' || currentUserRole === 'staff') {
-        // Sales will be loaded by the include file
+// --- Add Sale Form Submit ---
+addSaleForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    if (!saleItems.length) return showToast('Add at least one item', 'error');
+    if (!paymentMethod.value) return showToast('Select payment method', 'error');
+    const userId = document.getElementById('saleUserId')?.value;
+    if (!userId) return showToast('User not found', 'error');
+    
+    // Validate reference number for non-delivered sales
+    if (!isDelivered.checked && !referenceNumberInput.value.trim()) {
+        showToast('Reference number is required for non-delivered sales', 'error');
+        return;
+    }
+    
+    // Check if delivery is selected
+    if (isDelivered.checked) {
+        // Set default delivery date to today
+        deliveryDate.value = new Date().toISOString().slice(0, 10);
+        deliveryDetailsModal.classList.remove('hidden');
+        return;
+    }
+    
+    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    // Check if any item is a cut
+    const cutItemIdx = saleItems.findIndex(item =>
+        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
+    );
+    if (cutItemIdx !== -1) {
+        // Show cut remainder modal
+        pendingCutRemainder = cutItemIdx;
+        document.getElementById('cutRemainderModal').classList.remove('hidden');
+        return;
+    }
+    await submitSale({ location_note: null });
+});
+
+async function submitSale({ location_note, status, discard_reason, delivery_data = null }) {
+    const userId = document.getElementById('saleUserId')?.value;
+    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    
+    // Attach location_note to the cut item if present
+    let items = saleItems.map((item, idx) => {
+        let obj = {
+            quantity: item.qty,
+            unit_price: item.unitPrice,
+            total_price: item.totalPrice,
+            item_type: item.type, // Add type to distinguish between inventory and remainder
+        };
+        
+        // Add the appropriate ID based on item type
+        if (item.type === 'inventory') {
+            obj.inventory_id = item.inventoryId;
+        } else if (item.type === 'remainder') {
+            obj.remainder_id = item.remainderData.id;
+        }
+        
+        if (item.cutSize && item.cutSize !== '' && item.cutSize !== '-') {
+            // Parse cut fields if available
+            const cutParts = item.cutSize.split(' x ').map(Number);
+            if (cutParts.length === 1) obj.cut_length = cutParts[0];
+            if (cutParts.length === 2) {
+                obj.cut_width = cutParts[0];
+                obj.cut_height = cutParts[1];
+            }
+            if (cutParts.length === 3) {
+                obj.cut_length = cutParts[0];
+                obj.cut_width = cutParts[1];
+                obj.cut_height = cutParts[2];
+            }
+            if (idx === pendingCutRemainder) {
+                if (location_note) obj.location_note = location_note;
+                if (status) obj.status = status;
+                if (discard_reason) obj.discard_reason = discard_reason;
+            }
+        }
+        return obj;
+    });
+    
+    try {
+        const requestData = {
+            branch_id: currentBranchId,
+            user_id: userId,
+            total_amount: totalAmount,
+            payment_method: paymentMethod.value,
+            reference_number: referenceNumberInput.value.trim(),
+            items,
+            ...(delivery_data && {
+                is_delivered: true,
+                delivered_to: delivery_data.delivered_to,
+                delivery_date: delivery_data.delivery_date,
+                delivery_note: delivery_data.delivery_note,
+                delivery_address: delivery_data.delivery_address
+            })
+        };
+        
+        const res = await fetch('/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(requestData)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.error || 'Failed to create sale');
+        }
+        
+        const result = await res.json();
+        showToast('Sale created! Inventory data has been refreshed.', 'success');
+        
+        // If delivery was selected, show delivery receipt option
+        if (delivery_data) {
+            if (confirm('Sale created successfully! Would you like to print the delivery receipt?')) {
+                printDeliveryReceipt(result.id);
+            }
+        }
+        
+        resetSaleForm();
+        switchTab('today');
+        loadSales();
+        
+        // Reload inventory and remainders data to reflect updated stock levels
+        if (currentBranchId) {
+            await loadInventoryAndRemainders();
+            // Small delay to ensure UI updates are visible
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    } catch (err) {
+        showToast(err.message || 'Failed to create sale', 'error');
+    } finally {
+        document.getElementById('cutRemainderModal').classList.add('hidden');
+        pendingCutRemainder = null;
+        pendingDeliveryData = null;
+    }
+}
+
+document.getElementById('saveCutRemainderBtn').addEventListener('click', async function() {
+    cutRemainderDiscardMode = false;
+    const note = document.getElementById('cutRemainderNote').value;
+    await submitSale({ location_note: note, status: 'available', discard_reason: null, delivery_data: pendingDeliveryData });
+});
+document.getElementById('discardCutRemainderBtn').addEventListener('click', function() {
+    cutRemainderDiscardMode = true;
+    document.getElementById('discardCutReasonInput').value = '';
+    document.getElementById('discardCutReasonModal').classList.remove('hidden');
+});
+document.getElementById('closeDiscardCutReasonModal').addEventListener('click', function() {
+    document.getElementById('discardCutReasonModal').classList.add('hidden');
+    cutRemainderDiscardMode = false;
+});
+document.getElementById('cancelDiscardCutBtn').addEventListener('click', function() {
+    document.getElementById('discardCutReasonModal').classList.add('hidden');
+    cutRemainderDiscardMode = false;
+});
+document.getElementById('confirmDiscardCutBtn').addEventListener('click', async function() {
+    const reason = document.getElementById('discardCutReasonInput').value.trim();
+    if (!reason) {
+        alert('Please provide a reason for discarding.');
+        return;
+    }
+    document.getElementById('discardCutReasonModal').classList.add('hidden');
+    await submitSale({ location_note: null, status: 'discarded', discard_reason: reason, delivery_data: pendingDeliveryData });
+});
+
+// --- Sale Details Modal ---
+closeSaleDetailsModal.addEventListener('click', function() {
+    saleDetailsModal.classList.add('hidden');
+});
+
+// View Sale Details Function
+window.viewSaleDetails = async function(saleId) {
+    try {
+        const response = await fetch(`/api/sales/${saleId}`, {
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to load sale details');
+        }
+        
+        const sale = await response.json();
+        
+        // Format the sale details
+        const saleDetailsHtml = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg mb-3">Sale Information</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="font-medium">Sale ID:</span>
+                                <span>#${sale.id}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Date:</span>
+                                <span>${sale.created_at ? new Date(sale.created_at).toLocaleString() : '-'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">User:</span>
+                                <span>${sale.user?.name || '-'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Payment Method:</span>
+                                <span>${sale.payment_method || '-'}</span>
+                            </div>
+                            ${sale.delivery_address ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Delivery Address:</span>
+                                <span class="text-right max-w-xs">${sale.delivery_address}</span>
+                            </div>
+                            ` : ''}
+                            <div class="flex justify-between">
+                                <span class="font-medium">Total Amount:</span>
+                                <span class="font-bold text-lg">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="space-y-4">
+                    <div class="bg-gray-50 p-4 rounded-lg">
+                        <h3 class="font-semibold text-lg mb-3">Sale Items</h3>
+                        ${sale.sale_items && sale.sale_items.length > 0 ? `
+                            <div class="space-y-3">
+                                ${sale.sale_items.map(item => `
+                                    <div class="border-b border-gray-200 pb-3 last:border-b-0">
+                                        <div class="flex justify-between items-start mb-2">
+                                            <div class="flex-1">
+                                                <div class="font-medium">${item.product?.name || 'Unknown Product'}</div>
+                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
+                                                ${item.cut_length || item.cut_width || item.cut_height ? `
+                                                    <div class="text-sm text-gray-600">
+                                                        Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}
+                                                    </div>
+                                                ` : ''}
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="font-medium">₱${Number(item.unit_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</div>
+                                                <div class="text-sm text-gray-600">Qty: ${item.quantity}</div>
+                                            </div>
+                                        </div>
+                                        <div class="flex justify-between text-sm">
+                                            <span>Unit Price × Quantity</span>
+                                            <span class="font-medium">₱${Number(item.total_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : '<p class="text-gray-500">No items found</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        saleDetailsContent.innerHTML = saleDetailsHtml;
+        saleDetailsModal.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('Error loading sale details:', error);
+        showToast('Failed to load sale details', 'error');
+    }
+};
+
+
+
+// --- Delivery Modal Handlers ---
+closeDeliveryDetailsModal.addEventListener('click', function() {
+    deliveryDetailsModal.classList.add('hidden');
+    isDelivered.checked = false;
+    pendingDeliveryData = null;
+});
+
+cancelDeliveryBtn.addEventListener('click', function() {
+    deliveryDetailsModal.classList.add('hidden');
+    isDelivered.checked = false;
+    pendingDeliveryData = null;
+});
+
+deliveryDetailsForm.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const deliveryData = {
+        delivery_date: deliveryDate.value,
+        delivered_to: deliveredTo.value,
+        delivery_address: deliveryAddress.value,
+        delivery_note: deliveryNote.value
+    };
+    
+    // Validate required fields
+    if (!deliveryData.delivery_date || !deliveryData.delivered_to) {
+        showToast('Please fill in all required delivery fields', 'error');
+        return;
+    }
+    
+    deliveryDetailsModal.classList.add('hidden');
+    
+    // Store delivery data for potential remainder modal
+    pendingDeliveryData = deliveryData;
+    
+    const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    // Check if any item is a cut
+    const cutItemIdx = saleItems.findIndex(item =>
+        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
+    );
+    if (cutItemIdx !== -1) {
+        // Show cut remainder modal
+        pendingCutRemainder = cutItemIdx;
+        document.getElementById('cutRemainderModal').classList.remove('hidden');
+        return;
+    }
+    
+    await submitSale({ location_note: null, delivery_data: deliveryData });
+});
+
+// --- Delivery Filter ---
+deliveryFilter.addEventListener('change', function() {
+    loadSales();
+});
+
+// --- Delivery Checkbox ---
+isDelivered.addEventListener('change', function() {
+    if (this.checked) {
+        // Hide reference number field for delivered sales
+        referenceNumberSection.classList.add('hidden');
+        referenceNumberInput.value = '';
+    } else {
+        // Show reference number field for non-delivered sales
+        referenceNumberSection.classList.remove('hidden');
     }
 });
 
+// --- Installation Sale Form ---
+document.getElementById('addInstallationSaleForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    if (!currentBranchId) {
+        showToast('Please select a branch first', 'error');
+        return;
+    }
+    
+    const formData = new FormData(e.target);
+    const installationData = {
+        branch_id: currentBranchId,
+        user_id: document.getElementById('saleUserId').value,
+        total_amount: parseFloat(formData.get('total_amount')),
+        payment_method: formData.get('payment_method'),
+        reference_number: formData.get('reference_number'),
+        installation_address: formData.get('installation_address'),
+        description: formData.get('description'),
+        is_installation: true,
+        is_delivered: false, // Installation sales are not delivered initially
+        status: 'pending' // Installation sales start as pending
+    };
+    
+    try {
+        const response = await fetch('/api/sales', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json',
+            },
+            body: JSON.stringify(installationData)
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create installation sale');
+        }
+        
+        const result = await response.json();
+        showToast('Installation sale created successfully!', 'success');
+        e.target.reset();
+        switchTab('today'); // Switch back to sales today tab
+        loadSales(); // Refresh the sales list
+        
+    } catch (error) {
+        console.error('Error creating installation sale:', error);
+        showToast(error.message, 'error');
+    }
+});
 
+// Cancel installation sale button
+document.getElementById('cancelInstallationSaleBtn').addEventListener('click', function() {
+    document.getElementById('addInstallationSaleForm').reset();
+    switchTab('today');
+});
+
+// --- Quantity Validation ---
+saleQuantity.addEventListener('input', function() {
+    const qty = Number(this.value);
+    if (!selectedProduct || selectedProduct.type !== 'inventory') return;
+    
+    let availableStock = 0;
+    if (selectedProduct.product.base_unit === 'per set') {
+        availableStock = Number(selectedProduct?.calculated_stock ?? 0);
+    } else {
+        availableStock = Number(selectedProduct?.available_stock ?? 0);
+    }
+    
+    if (qty > availableStock) {
+        this.classList.add('border-red-500');
+        this.title = `Maximum quantity: ${availableStock}`;
+    } else {
+        this.classList.remove('border-red-500');
+        this.title = '';
+    }
+});
+
+// --- Print Delivery Receipt ---
+window.printDeliveryReceipt = function(saleId) {
+    const printWindow = window.open(`/sales/${saleId}/delivery-receipt`, '_blank');
+    if (!printWindow) {
+        showToast('Please allow popups to print delivery receipts', 'error');
+    }
+};
+
+// --- On Page Load ---
+document.addEventListener('DOMContentLoaded', function() {
+    loadBranches();
+    switchTab('today');
+    resetSaleForm();
+    
+    // Initialize Add New Sale button as disabled
+    const addSaleBtn = document.getElementById('addSaleBtn');
+    const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
+    addSaleBtn.disabled = true;
+    addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    addInstallationSaleBtn.disabled = true;
+    addInstallationSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    // Enable Add New Sale button for managers and staff since they have a branch set
+    if (currentUserRole === 'manager' || currentUserRole === 'staff') {
+        addSaleBtn.disabled = false;
+        addSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        addInstallationSaleBtn.disabled = false;
+        addInstallationSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        // Load sales for the user's branch
+        loadSales();
+    }
+});
 </script>
 @endsection

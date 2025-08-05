@@ -20,46 +20,63 @@
 
     <!-- Filters -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <form method="GET" action="{{ route('reports.inventory') }}" class="grid grid-cols-1 md:grid-cols-{{ auth()->user()->role === 'admin' ? '5' : '4' }} gap-4">
-            @if(auth()->user()->role === 'admin')
-            <div>
-                <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-                <select name="branch_id" id="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-                    <option value="">All Branches</option>
-                    @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" {{ $branchId == $branch->id ? 'selected' : '' }}>
-                            {{ $branch->name }}
-                        </option>
-                    @endforeach
-                </select>
+        <form method="GET" action="{{ route('reports.inventory') }}" class="space-y-4">
+            <!-- First Row: Branch, Category, Date Range -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                @if(auth()->user()->role === 'admin')
+                <div>
+                    <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
+                    <select name="branch_id" id="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <option value="">All Branches</option>
+                        @foreach($branches as $branch)
+                            <option value="{{ $branch->id }}" {{ $branchId == $branch->id ? 'selected' : '' }}>
+                                {{ $branch->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @else
+                <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
+                @endif
+                
+                <div>
+                    <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                    <select name="category_id" id="category_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                        <option value="">All Categories</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category->id }}" {{ $categoryId == $category->id ? 'selected' : '' }}>
+                                {{ $category->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                    <input type="date" name="date_from" id="date_from" value="{{ $dateFrom }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                </div>
+                
+                <div>
+                    <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                    <input type="date" name="date_to" id="date_to" value="{{ $dateTo }}" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                </div>
+                
+                <div class="flex items-end">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="low_stock_only" value="1" {{ $lowStockOnly ? 'checked' : '' }} 
+                               class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                        <span class="ml-2 text-sm text-gray-700">Low Stock Only</span>
+                    </label>
+                </div>
             </div>
-            @else
-            <input type="hidden" name="branch_id" value="{{ auth()->user()->branch_id }}">
-            @endif
-            <div>
-                <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select name="category_id" id="category_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-                    <option value="">All Categories</option>
-                    @foreach($categories as $category)
-                        <option value="{{ $category->id }}" {{ $categoryId == $category->id ? 'selected' : '' }}>
-                            {{ $category->name }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <div class="flex items-end">
-                <label class="flex items-center">
-                    <input type="checkbox" name="low_stock_only" value="1" {{ $lowStockOnly ? 'checked' : '' }} 
-                           class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
-                    <span class="ml-2 text-sm text-gray-700">Low Stock Only</span>
-                </label>
-            </div>
-            <div class="flex items-end">
+            
+            <!-- Second Row: Action Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button type="submit" class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition duration-200">
                     Apply Filters
                 </button>
-            </div>
-            <div class="flex items-end">
                 <button type="button" onclick="exportToExcel()" class="w-full px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition duration-200">
                     Export to Excel
                 </button>
@@ -159,9 +176,10 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Current Stock</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchased</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sold</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installation Used</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -169,7 +187,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($inventories as $inventory)
-                    <tr class="hover:bg-gray-50">
+                    <tr class="hover:bg-gray-50" data-inventory-id="{{ $inventory->id }}" data-product-id="{{ $inventory->product_id }}" data-branch-id="{{ $inventory->branch_id }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ $inventory->product->name }}
                             @if($inventory->product->measurement_unit)
@@ -196,13 +214,19 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_purchased) }}
+                            {{ number_format($inventory->total_purchased ?? 0) }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_sold) }}
+                            {{ number_format($inventory->total_sold ?? 0) }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_remainders) }}
+                            {{ number_format($inventory->total_installation_used ?? 0) }}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {{ number_format($inventory->total_remainders ?? 0) }}
+                            @if($inventory->total_remainders > 0)
+                                <button onclick="viewRemainders({{ $inventory->id }})" class="ml-2 text-blue-600 hover:underline text-xs">view</button>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {{ $inventory->reorder_level ?? 0 }}
@@ -231,7 +255,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="10" class="px-6 py-4 text-center text-gray-500">
+                        <td colspan="11" class="px-6 py-4 text-center text-gray-500">
                             No inventory found for the selected criteria.
                         </td>
                     </tr>
@@ -242,10 +266,20 @@
     </div>
 </div>
 
+<!-- Remainders Modal -->
+<div id="remaindersModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl mx-4 p-6 relative">
+        <button id="closeRemaindersModal" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl">&times;</button>
+        <div id="remaindersContent" class="space-y-4">
+            <!-- Remainders content will be loaded here -->
+        </div>
+    </div>
+</div>
+
 <script>
 function exportToExcel() {
-    // Get current URL with parameters
-    const currentUrl = new URL(window.location.href);
+    // Get current URL parameters
+    const currentUrl = new URL(window.location);
     const params = new URLSearchParams(currentUrl.search);
     
     // Create export URL
@@ -259,5 +293,75 @@ function exportToExcel() {
     link.click();
     document.body.removeChild(link);
 }
+
+function viewRemainders(inventoryId) {
+    const modal = document.getElementById('remaindersModal');
+    const content = document.getElementById('remaindersContent');
+    
+    modal.classList.remove('hidden');
+    content.innerHTML = '<div class="text-center">Loading...</div>';
+    
+    // Get the product ID and branch ID from the inventory data
+    const inventoryRow = document.querySelector(`tr[data-inventory-id="${inventoryId}"]`);
+    const productId = inventoryRow ? inventoryRow.getAttribute('data-product-id') : null;
+    const branchId = inventoryRow ? inventoryRow.getAttribute('data-branch-id') : null;
+    
+    if (!productId || !branchId) {
+        content.innerHTML = '<div class="text-center text-red-500">Error: Could not find product or branch information</div>';
+        return;
+    }
+    
+    fetch(`/api/cut-remainders?product_id=${productId}&branch_id=${branchId}`)
+        .then(response => response.json())
+        .then(remainders => {
+            if (remainders && remainders.length > 0) {
+                content.innerHTML = `
+                    <h2 class="text-xl font-bold mb-4">Remainders</h2>
+                    <div class="space-y-3">
+                        ${remainders.map(remainder => `
+                            <div class="border rounded-lg p-3">
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                                    <div><span class="font-medium">Length:</span> ${remainder.length_remaining ?? '-'}</div>
+                                    <div><span class="font-medium">Width:</span> ${remainder.width_remaining ?? '-'}</div>
+                                    <div><span class="font-medium">Height:</span> ${remainder.height_remaining ?? '-'}</div>
+                                    <div><span class="font-medium">Area:</span> ${remainder.area_remaining ?? '-'}</div>
+                                </div>
+                                <div class="mt-2 text-sm">
+                                    <span class="font-medium">Location:</span> ${remainder.location_note ?? '-'}
+                                </div>
+                                <div class="mt-2 text-sm">
+                                    <span class="font-medium">Status:</span> 
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${remainder.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
+                                        ${remainder.status}
+                                    </span>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else {
+                content.innerHTML = `
+                    <h2 class="text-xl font-bold mb-4">Remainders</h2>
+                    <p class="text-center text-gray-500">No remainders found for this inventory item.</p>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading remainders:', error);
+            content.innerHTML = '<div class="text-center text-red-500">Error loading remainders</div>';
+        });
+}
+
+// Close modal functionality
+document.getElementById('closeRemaindersModal').addEventListener('click', function() {
+    document.getElementById('remaindersModal').classList.add('hidden');
+});
+
+// Close modal when clicking outside
+document.getElementById('remaindersModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        this.classList.add('hidden');
+    }
+});
 </script>
 @endsection 

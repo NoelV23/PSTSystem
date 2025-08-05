@@ -101,17 +101,17 @@
                 </div>
                 <div class="ml-4">
                     <h3 class="text-lg font-semibold text-gray-900">Installation Sales</h3>
-                    <p class="text-sm text-gray-600">Track installation projects and costs</p>
+                    <p class="text-sm text-gray-600">Track installation services and completion</p>
                 </div>
             </div>
             <ul class="text-sm text-gray-600 space-y-1 mb-4">
-                <li>• Installation project tracking</li>
-                <li>• Pending vs completed status</li>
-                <li>• Product usage recording</li>
-                <li>• Cost analysis</li>
+                <li>• Installation sales tracking</li>
+                <li>• Completion status</li>
+                <li>• Products used in installations</li>
+                <li>• Installation revenue</li>
             </ul>
-            <a href="{{ route('reports.installation-sales-report') }}" class="inline-flex items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition duration-200">
-                View Installation Sales Report
+            <a href="{{ route('reports.installation-sales') }}" class="inline-flex items-center px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition duration-200">
+                View Installation Report
                 <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>
