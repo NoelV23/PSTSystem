@@ -24,12 +24,14 @@
         </nav>
     </div>
 
-    <!-- Delivery Filter -->
+    <!-- Transaction Status Filter -->
     <div class="mb-4">
-        <select id="deliveryFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+        <select id="transactionStatusFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
             <option value="">All Sales</option>
+            <option value="invoice">Invoice</option>
+            <option value="no_invoice">No Invoice</option>
             <option value="delivered">Delivered</option>
-            <option value="not_delivered">Not Delivered</option>
+            <option value="sale_installation">Sale Installation</option>
         </select>
     </div>
 
@@ -52,7 +54,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference No.</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                     </tr>
                 </thead>
@@ -90,11 +92,23 @@
                     </div>
                 </div>
                 
-                <!-- Reference Number Field (Only for non-delivered sales) -->
+                <!-- No Invoice and Delivered Checkboxes -->
+                <div class="flex items-center gap-6 mb-4">
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="noInvoice" name="no_invoice" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                        <label for="noInvoice" class="text-sm font-medium text-gray-700">No Invoice</label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input type="checkbox" id="isDelivered" name="is_delivered" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                        <label for="isDelivered" class="text-sm font-medium text-gray-700">Delivered</label>
+                    </div>
+                </div>
+                
+                <!-- Reference Number Field -->
                 <div id="referenceNumberSection" class="mb-4">
                     <x-input-label for="referenceNumber" value="Reference Number (Manual Receipt)" />
                     <input id="referenceNumber" name="reference_number" type="text" class="w-full px-3 py-2 border rounded" placeholder="Enter reference number or receipt number" />
-                    <div class="text-xs text-gray-500 mt-1">Required only for non-delivered sales</div>
+                    <div class="text-xs text-gray-500 mt-1">Required unless "No Invoice" is checked</div>
                 </div>
                 <!-- Product Selector -->
                 <div class="mb-4">
@@ -145,11 +159,7 @@
                         </tbody>
                     </table>
                 </div>
-                <!-- Delivery Checkbox -->
-                <div class="flex items-center gap-2 mb-4">
-                    <input type="checkbox" id="isDelivered" name="is_delivered" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
-                    <label for="isDelivered" class="text-sm font-medium text-gray-700">Delivered</label>
-                </div>
+
                 
                 <!-- Total Amount & Submit -->
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -312,7 +322,7 @@ const confirmDiscardCutBtn = document.getElementById('confirmDiscardCutBtn');
 const saleDetailsModal = document.getElementById('saleDetailsModal');
 const closeSaleDetailsModal = document.getElementById('closeSaleDetailsModal');
 const saleDetailsContent = document.getElementById('saleDetailsContent');
-const isDelivered = document.getElementById('isDelivered');
+
 const deliveryDetailsModal = document.getElementById('deliveryDetailsModal');
 const closeDeliveryDetailsModal = document.getElementById('closeDeliveryDetailsModal');
 const deliveryDetailsForm = document.getElementById('deliveryDetailsForm');
@@ -322,9 +332,11 @@ const deliveryAddress = document.getElementById('deliveryAddress');
 const deliveryNote = document.getElementById('deliveryNote');
 const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
 const saveDeliveryBtn = document.getElementById('saveDeliveryBtn');
-const deliveryFilter = document.getElementById('deliveryFilter');
+const transactionStatusFilter = document.getElementById('transactionStatusFilter');
 const referenceNumberSection = document.getElementById('referenceNumberSection');
 const referenceNumberInput = document.getElementById('referenceNumber');
+const noInvoiceCheckbox = document.getElementById('noInvoice');
+const isDeliveredCheckbox = document.getElementById('isDelivered');
 
 // --- Utility ---
 function showToast(message, type = 'success') {
@@ -358,15 +370,11 @@ function resetSaleForm() {
     addSaleForm.reset();
     // Set date to today
     saleDate.value = new Date().toISOString().slice(0, 10);
-    // Reset delivery checkbox
-    isDelivered.checked = false;
-    // Hide reference number field for delivered sales
-    if (isDelivered.checked) {
-        referenceNumberSection.classList.add('hidden');
-        referenceNumberInput.value = '';
-    } else {
-        referenceNumberSection.classList.remove('hidden');
-    }
+    // Reset checkboxes
+    noInvoiceCheckbox.checked = false;
+    isDeliveredCheckbox.checked = false;
+    // Show reference number field by default
+    referenceNumberSection.classList.remove('hidden');
 }
 
 // --- Branch Selector ---
@@ -474,13 +482,13 @@ async function loadSales(page = 1) {
     salesError.classList.add('hidden');
     salesTableBody.innerHTML = '';
     try {
-        const deliveryFilterValue = deliveryFilter.value;
+        const transactionStatusFilterValue = transactionStatusFilter.value;
         const params = new URLSearchParams({
             branch_id: currentBranchId,
             page: page
         });
-        if (deliveryFilterValue) {
-            params.append('delivery_status', deliveryFilterValue);
+        if (transactionStatusFilterValue) {
+            params.append('transaction_status', transactionStatusFilterValue);
         }
         
         const res = await fetch(`/api/sales?${params.toString()}`);
@@ -502,15 +510,28 @@ function renderSalesTable() {
         return;
     }
     salesTableBody.innerHTML = sales.map(sale => {
-        const deliveryStatus = sale.is_delivered ? 
-            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Delivered</span>` :
-            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Not Delivered</span>`;
-        
-        // Check if this is an installation sale
+        // Determine transaction status based on the new logic
+        let transactionStatus = '';
+        const hasReference = sale.reference_number && sale.reference_number.trim() !== '';
         const isInstallation = sale.is_installation;
+        const isDelivered = sale.is_delivered;
+        
+        if (hasReference && isInstallation) {
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Sale Installation</span>`;
+        } else if (hasReference && !isInstallation) {
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Invoice</span>`;
+        } else if (!hasReference && isInstallation && isDelivered) {
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Delivered</span>`;
+        } else if (!hasReference && !isInstallation && isDelivered) {
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">Delivered</span>`;
+        } else if (!hasReference && !isInstallation && !isDelivered) {
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">No Invoice</span>`;
+        } else {
+            // Fallback for other combinations
+            transactionStatus = `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>`;
+        }
+        
         const rowClass = isInstallation ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50';
-        const saleType = isInstallation ? 
-            `<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-2">Installation</span>` : '';
         
         // For installation sales, only show view action
         const actions = isInstallation ? 
@@ -527,7 +548,7 @@ function renderSalesTable() {
                 <td class="px-6 py-4 text-sm text-gray-700">${sale.reference_number || '-'}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">${sale.payment_method || '-'}</td>
-                <td class="px-6 py-4 text-sm text-gray-700">${saleType}${deliveryStatus}</td>
+                <td class="px-6 py-4 text-sm text-gray-700">${transactionStatus}</td>
                 <td class="px-6 py-4 text-sm text-gray-700">
                     ${actions}
                 </td>
@@ -990,14 +1011,8 @@ addSaleForm.addEventListener('submit', async function(e) {
     const userId = document.getElementById('saleUserId')?.value;
     if (!userId) return showToast('User not found', 'error');
     
-    // Validate reference number for non-delivered sales
-    if (!isDelivered.checked && !referenceNumberInput.value.trim()) {
-        showToast('Reference number is required for non-delivered sales', 'error');
-        return;
-    }
-    
     // Check if delivery is selected
-    if (isDelivered.checked) {
+    if (isDeliveredCheckbox.checked) {
         // Set default delivery date to today
         deliveryDate.value = new Date().toISOString().slice(0, 10);
         deliveryDetailsModal.classList.remove('hidden');
@@ -1021,6 +1036,16 @@ addSaleForm.addEventListener('submit', async function(e) {
 async function submitSale({ location_note, status, discard_reason, delivery_data = null }) {
     const userId = document.getElementById('saleUserId')?.value;
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
+    
+    // Validate reference number based on "No Invoice" and "Delivered" checkboxes
+    const isNoInvoice = noInvoiceCheckbox.checked;
+    const isDelivered = isDeliveredCheckbox.checked;
+    const referenceNumber = referenceNumberInput.value.trim();
+    
+    if (!isNoInvoice && !isDelivered && !referenceNumber) {
+        showToast('Reference number is required unless "No Invoice" or "Delivered" is checked', 'error');
+        return;
+    }
     
     // Attach location_note to the cut item if present
     let items = saleItems.map((item, idx) => {
@@ -1066,7 +1091,9 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
             user_id: userId,
             total_amount: totalAmount,
             payment_method: paymentMethod.value,
-            reference_number: referenceNumberInput.value.trim(),
+            reference_number: (isNoInvoice || isDelivered) ? null : referenceNumber,
+            is_installation: false, // Regular sales are not installation sales
+            is_delivered: isDeliveredCheckbox.checked,
             items,
             ...(delivery_data && {
                 is_delivered: true,
@@ -1255,13 +1282,13 @@ window.viewSaleDetails = async function(saleId) {
 // --- Delivery Modal Handlers ---
 closeDeliveryDetailsModal.addEventListener('click', function() {
     deliveryDetailsModal.classList.add('hidden');
-    isDelivered.checked = false;
+    isDeliveredCheckbox.checked = false;
     pendingDeliveryData = null;
 });
 
 cancelDeliveryBtn.addEventListener('click', function() {
     deliveryDetailsModal.classList.add('hidden');
-    isDelivered.checked = false;
+    isDeliveredCheckbox.checked = false;
     pendingDeliveryData = null;
 });
 
@@ -1301,20 +1328,36 @@ deliveryDetailsForm.addEventListener('submit', async function(e) {
     await submitSale({ location_note: null, delivery_data: deliveryData });
 });
 
-// --- Delivery Filter ---
-deliveryFilter.addEventListener('change', function() {
+// --- Transaction Status Filter ---
+transactionStatusFilter.addEventListener('change', function() {
     loadSales();
 });
 
-// --- Delivery Checkbox ---
-isDelivered.addEventListener('change', function() {
+// --- No Invoice Checkbox ---
+noInvoiceCheckbox.addEventListener('change', function() {
     if (this.checked) {
-        // Hide reference number field for delivered sales
+        // Hide reference number field when "No Invoice" is checked
         referenceNumberSection.classList.add('hidden');
         referenceNumberInput.value = '';
     } else {
-        // Show reference number field for non-delivered sales
-        referenceNumberSection.classList.remove('hidden');
+        // Show reference number field when "No Invoice" is unchecked (unless "Delivered" is checked)
+        if (!isDeliveredCheckbox.checked) {
+            referenceNumberSection.classList.remove('hidden');
+        }
+    }
+});
+
+// --- Delivered Checkbox ---
+isDeliveredCheckbox.addEventListener('change', function() {
+    if (this.checked) {
+        // Hide reference number field when "Delivered" is checked
+        referenceNumberSection.classList.add('hidden');
+        referenceNumberInput.value = '';
+    } else {
+        // Show reference number field when "Delivered" is unchecked (unless "No Invoice" is checked)
+        if (!noInvoiceCheckbox.checked) {
+            referenceNumberSection.classList.remove('hidden');
+        }
     }
 });
 

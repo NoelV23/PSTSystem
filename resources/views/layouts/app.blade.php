@@ -14,19 +14,21 @@
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans antialiased bg-gray-50 min-h-screen flex flex-col">
+    <body class="font-sans antialiased bg-gray-50 min-h-screen">
         <x-navbar />
-        <div x-data="{ sidebarOpen: false }" class="flex flex-1 min-h-0">
+        <div x-data="{ sidebarOpen: false }" class="flex min-h-screen">
             <!-- Sidebar -->
             <div>
                 <x-sidebar x-model="sidebarOpen" />
             </div>
             <!-- Main Content -->
-            <main :class="sidebarOpen ? 'ml-64' : 'ml-16'" class="flex-1 p-2 transition-all duration-200">
-                @yield('content')
+            <main :class="sidebarOpen ? 'ml-64' : 'ml-16'" class="flex-1 p-2 transition-all duration-200 flex flex-col">
+                <div class="flex-1">
+                    @yield('content')
+                </div>
+                <x-footer />
             </main>
         </div>
-        <x-footer />
         <script>
             // Listen for sidebar toggle events and update sidebarOpen
             document.addEventListener('alpine:init', () => {

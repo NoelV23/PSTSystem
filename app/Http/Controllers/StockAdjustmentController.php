@@ -29,8 +29,24 @@ class StockAdjustmentController extends Controller
 
         $inventory = Inventory::findOrFail($inventoryId);
 
-        // Check if user has permission to adjust stock
-        if (!Auth::user()->is_admin) {
+        // Check if user has permission to adjust stock for this inventory
+        $currentUser = Auth::user();
+        
+        // Admin can adjust any inventory
+        if ($currentUser->role === 'admin') {
+            // Admin has full access
+        } 
+        // Manager can only adjust inventory in their branch
+        elseif ($currentUser->role === 'manager') {
+            if ($inventory->branch_id !== $currentUser->branch_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can only adjust stock for your assigned branch.'
+                ], 403);
+            }
+        } 
+        // Staff cannot adjust stock (already checked above)
+        else {
             return response()->json([
                 'success' => false,
                 'message' => 'You do not have permission to adjust stock.'
@@ -99,11 +115,26 @@ class StockAdjustmentController extends Controller
             ], 403);
         }
         
-        $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user'])
-            ->when($request->branch_id, function ($query, $branchId) {
-                return $query->whereHas('inventory', function ($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
-                });
+        $currentUser = Auth::user();
+        
+        $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user']);
+        
+        // Manager can only see adjustments for their branch
+        if ($currentUser->role === 'manager') {
+            $adjustments = $adjustments->whereHas('inventory', function ($query) use ($currentUser) {
+                $query->where('branch_id', $currentUser->branch_id);
+            });
+        }
+        
+        $adjustments = $adjustments
+            ->when($request->branch_id, function ($query, $branchId) use ($currentUser) {
+                // Admin can filter by any branch, manager can only see their branch
+                if ($currentUser->role === 'admin') {
+                    return $query->whereHas('inventory', function ($q) use ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    });
+                }
+                return $query;
             })
             ->when($request->date_from, function ($query, $dateFrom) {
                 return $query->whereDate('created_at', '>=', $dateFrom);
@@ -127,13 +158,33 @@ class StockAdjustmentController extends Controller
             abort(403, 'Staff users cannot access stock adjustment history');
         }
         
-        $branches = \App\Models\Branch::all();
+        $currentUser = Auth::user();
         
-        $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user'])
-            ->when($request->branch_id, function ($query, $branchId) {
-                return $query->whereHas('inventory', function ($q) use ($branchId) {
-                    $q->where('branch_id', $branchId);
-                });
+        // Admin can see all branches, manager can only see their branch
+        if ($currentUser->role === 'admin') {
+            $branches = \App\Models\Branch::all();
+        } else {
+            $branches = \App\Models\Branch::where('id', $currentUser->branch_id)->get();
+        }
+        
+        $adjustments = StockAdjustment::with(['inventory.product', 'inventory.branch', 'user']);
+        
+        // Manager can only see adjustments for their branch
+        if ($currentUser->role === 'manager') {
+            $adjustments = $adjustments->whereHas('inventory', function ($query) use ($currentUser) {
+                $query->where('branch_id', $currentUser->branch_id);
+            });
+        }
+        
+        $adjustments = $adjustments
+            ->when($request->branch_id, function ($query, $branchId) use ($currentUser) {
+                // Admin can filter by any branch, manager can only see their branch
+                if ($currentUser->role === 'admin') {
+                    return $query->whereHas('inventory', function ($q) use ($branchId) {
+                        $q->where('branch_id', $branchId);
+                    });
+                }
+                return $query;
             })
             ->when($request->date_from, function ($query, $dateFrom) {
                 return $query->whereDate('created_at', '>=', $dateFrom);
