@@ -140,11 +140,12 @@
                     <select id="productBaseUnit" name="base_unit" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <option value="per pc">Per pc</option>
                         <option value="per length">Per length</option>
+                        <option value="per sheet">Per sheet</option>
                         <option value="per ft">Per ft</option>
                         <option value="per sq ft">Per sq ft</option>
-                        <option value="per set">Per set</option>
                         <option value="per kg">Per kg</option>
-                        <option value="per liter">Per liter</option>
+                        <option value="per roll">Per roll</option>
+                        <option value="per set">Per set</option>
                     </select>
                     <div id="base_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
@@ -152,10 +153,12 @@
                 <div id="measurementUnitSection" class="hidden">
                     <label for="productMeasurementUnit" class="block text-sm font-medium text-gray-700 mb-1">Measurement Unit</label>
                     <select id="productMeasurementUnit" name="measurement_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <option value="">None</option>
                         <option value="ft">Feet (ft)</option>
+                        <option value="sq ft">Square Feet (sq ft)</option>
+                        <option value="kg">Kilograms (kg)</option>
                         <option value="m">Meters (m)</option>
                         <option value="inch">Inches (in)</option>
-                        <option value="sq ft">Square Feet (sq ft)</option>
                     </select>
                     <div id="measurement_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
@@ -168,11 +171,11 @@
                 <!-- Measurement Section -->
                 <div id="measurementSection" class="hidden">
                     <div class="mb-2">
-                        <p class="text-sm text-gray-600 italic">If product is sold per piece and cuttable, enter its measurement (e.g., length in ft, or weight in kg). Leave blank if not applicable.</p>
+                        <p class="text-sm text-gray-600 italic">If product is cuttable, enter its measurement (e.g., length in ft, or weight in kg). Leave blank if not applicable.</p>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
-                            <label for="productLength" class="block text-sm font-medium text-gray-700 mb-1">Length <span id="lengthUnit">(ft)</span></label>
+                            <label for="productLength" class="block text-sm font-medium text-gray-700 mb-1">Value <span id="lengthUnit">(ft)</span></label>
                             <input type="number" id="productLength" name="default_length" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                             <div id="default_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
                         </div>
@@ -551,13 +554,9 @@ function handleBaseUnitChange() {
     measurementUnitSection.classList.add('hidden');
     setComponentsSection.classList.add('hidden');
     
-    if (baseUnit === 'per pc' || baseUnit === 'per length') {
+    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet') {
         // Show measurement section for per pc and per length products
         measurementSection.classList.remove('hidden');
-        measurementUnitSection.classList.remove('hidden');
-        updateMeasurementLabels();
-    } else if (baseUnit === 'per kg' || baseUnit === 'per liter') {
-        // Show measurement unit section for weight/volume products
         measurementUnitSection.classList.remove('hidden');
         updateMeasurementLabels();
     } else if (baseUnit === 'per set') {
