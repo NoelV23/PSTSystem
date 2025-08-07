@@ -8,15 +8,31 @@
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 0;
             background: white;
         }
+        .page-wrapper {
+            display: flex;
+            flex-direction: row;
+            width: 100%;
+            height: 100%;
+        }
+        .left-half {
+            width: 50%;
+            padding: 10mm;
+            box-sizing: border-box;
+        }
+        .right-half {
+            width: 50%;
+            padding: 20mm;
+            box-sizing: border-box;
+        }
         .receipt {
-            max-width: 800px;
-            margin: 0 auto;
+            width: 100%;
             background: white;
-            padding: 20px;
             border: 1px solid #ccc;
+            padding: 10px;
+            box-sizing: border-box;
         }
         .header {
             display: flex;
@@ -27,23 +43,23 @@
             flex: 1;
         }
         .company-name {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: bold;
             margin-bottom: 5px;
         }
         .company-address {
-            font-size: 12px;
+            font-size: 11px;
             color: #666;
         }
         .ref-number {
-            font-size: 14px;
+            font-size: 12px;
             color: #333;
         }
         .title {
             text-align: center;
-            font-size: 24px;
+            font-size: 18px;
             font-weight: bold;
-            margin: 20px 0;
+            margin: 12px 0;
             text-transform: uppercase;
         }
         .delivery-info {
@@ -51,23 +67,26 @@
         }
         .delivery-row {
             display: flex;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
         .delivery-label {
             font-weight: bold;
-            width: 120px;
+            width: 100px;
+            font-size: 12px;
         }
         .delivery-value {
             flex: 1;
+            font-size: 12px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
+            font-size: 11px;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 6px;
             text-align: left;
         }
         th {
@@ -79,7 +98,7 @@
             text-align: right;
         }
         .signatures {
-            margin-top: 40px;
+            margin-top: 20px;
             display: flex;
             justify-content: space-between;
         }
@@ -89,189 +108,126 @@
         }
         .signature-line {
             border-top: 1px solid #000;
-            margin-top: 30px;
+            margin-top: 20px;
             padding-top: 5px;
+            font-size: 11px;
         }
+
         @media print {
+            @page {
+                size: A4 landscape;
+                margin: 0;
+            }
             body {
+                margin: 0;
                 padding: 0;
+            }
+            .page-wrapper {
+                width: 100%;
+                height: 100%;
+            }
+            .left-half {
+                width: 50%;
+                padding: 10mm;
+            }
+            .right-half {
+                width: 50%;
             }
             .receipt {
                 border: none;
-                max-width: none;
+                width: 100%;
+                padding: 0;
             }
         }
     </style>
 </head>
 <body>
-    <div class="receipt">
-        <div class="header">
-            <div class="company-info">
-                <div class="company-name">{{ $sale->branch->name ?? 'RVJ GLASS AND ALUMINUM SUPPLY' }}</div>
-                <div class="company-address">{{ $sale->branch->location ?? 'National Highway Mabua, Tandag City' }}</div>
-                <div class="company-address">TEL.No. {{ $sale->branch->phone ?? '09399277927' }}</div>
-            </div>
-            <div class="ref-number">
-                REF: {{ str_pad($sale->id, 7, '0', STR_PAD_LEFT) }}
-            </div>
-        </div>
-
-        <div class="title">DELIVERY RECEIPT</div>
-
-        <div class="delivery-info">
-            <div class="delivery-row">
-                <div class="delivery-label">DELIVERED TO:</div>
-                <div class="delivery-value">{{ $sale->delivered_to ?? 'N/A' }}</div>
-            </div>
-            <div class="delivery-row">
-                <div class="delivery-label">ADDRESS:</div>
-                <div class="delivery-value">
-                    @if($sale->delivery_address)
-                        {{ $sale->delivery_address }}
-                    @else
-                        N/A
-                    @endif
+    <div class="page-wrapper">
+        <div class="left-half"></div>
+        <div class="right-half">
+            <div class="receipt">
+                <div class="header">
+                    <div class="company-info">
+                        <div class="company-name">{{ $sale->branch->name ?? 'RV Glass & Aluminum Supply' }}</div>
+                        <div class="company-address">{{ $sale->branch->location ?? 'National Highway Mabua, Tandag City' }}</div>
+                        <div class="company-address">TEL.No. {{ $sale->branch->phone ?? '09399277927' }}</div>
+                    </div>
+                    <div class="ref-number">
+                        REF: {{ str_pad($sale->id, 7, '0', STR_PAD_LEFT) }}
+                    </div>
                 </div>
-            </div>
-            <div class="delivery-row">
-                <div class="delivery-label">DATE:</div>
-                <div class="delivery-value">
-                    {{ date('F j, Y', strtotime($sale->delivery_date)) }}
+
+                <div class="title">DELIVERY RECEIPT</div>
+
+                <div class="delivery-info">
+                    <div class="delivery-row">
+                        <div class="delivery-label">DELIVERED TO:</div>
+                        <div class="delivery-value">{{ $sale->delivered_to ?? 'N/A' }}</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="delivery-label">ADDRESS:</div>
+                        <div class="delivery-value">{{ $sale->delivery_address ?? 'N/A' }}</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="delivery-label">DATE:</div>
+                        <div class="delivery-value">{{ date('F j, Y', strtotime($sale->delivery_date)) }}</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="delivery-label">SALE DATE:</div>
+                        <div class="delivery-value">{{ date('F j, Y', strtotime($sale->created_at)) }}</div>
+                    </div>
+                    <div class="delivery-row">
+                        <div class="delivery-label">SOLD BY:</div>
+                        <div class="delivery-value">{{ $sale->user->name ?? 'N/A' }}</div>
+                    </div>
                 </div>
-            </div>
-            @if($sale->delivery_note)
-            <div class="delivery-row">
-                <div class="delivery-label">NOTES:</div>
-                <div class="delivery-value">{{ $sale->delivery_note }}</div>
-            </div>
-            @endif
-            <div class="delivery-row">
-                <div class="delivery-label">SALE DATE:</div>
-                <div class="delivery-value">{{ date('F j, Y', strtotime($sale->created_at)) }}</div>
-            </div>
-            <div class="delivery-row">
-                <div class="delivery-label">SOLD BY:</div>
-                <div class="delivery-value">{{ $sale->user->name ?? 'N/A' }}</div>
-            </div>
-        </div>
 
-        <table>
-            <thead>
-                <tr>
-                    <th>QTY</th>
-                    <th>UNIT</th>
-                    <th>DESCRIPTION</th>
-                    <th>UNIT PRICE</th>
-                    <th>PRICE</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($sale->saleItems as $item)
-                    @php
-                        // Determine if item is cut
-                        $isCut = $item->cut_length || $item->cut_width || $item->cut_height;
-                        
-                        // Determine unit based on product base_unit and cut status
-                        if ($isCut) {
-                            $unit = 'PC'; // Cut items always use PC (piece)
-                        } else {
-                            // For non-cut items, use the product's base_unit
-                            if ($item->product->base_unit === 'per kg') {
-                                $unit = 'KG';
-                            } elseif ($item->product->base_unit === 'per liter') {
-                                $unit = 'ltr';
-                            } elseif ($item->product->base_unit === 'per sq ft') {
-                                $unit = 'sq ft';
-                            } elseif ($item->product->base_unit === 'per set') {
-                                $unit = 'SET';
-                            } elseif ($item->product->base_unit === 'per length') {
-                                $unit = 'L';
-                            } elseif ($item->product->base_unit === 'per feet') {
-                                $unit = 'FT';
-                            } elseif ($item->product->base_unit === 'per pc') {
-                                $unit = 'PC';
-                            } else {
-                                $unit = 'PC'; // Default fallback
-                            }
-                        }
-                        
-                        // Build product description
-                        $description = $item->product->name;
-                        
-                        // Add color if available
-                        if ($item->product->color) {
-                            $description .= ' ' . $item->product->color;
-                        }
-                        
-                        // Add original dimensions for non-cut items
-                        if (!$isCut) {
-                            if ($item->product->base_unit === 'per sq ft' && $item->product->default_width && $item->product->default_height) {
-                                $description .= ' ' . $item->product->default_width . ' x ' . $item->product->default_height;
-                            } elseif ($item->product->base_unit === 'per length' && $item->product->default_length) {
-                                $description .= ' ' . $item->product->default_length . 'ft';
-                            }
-                        }
-                        
-                        // Add cut information with improved formatting
-                        if ($isCut) {
-                            $cutDimensions = [];
-                            
-                            // Handle length cuts (most common for per length products)
-                            if ($item->cut_length) {
-                                $cutDimensions[] = $item->cut_length . 'ft';
-                            }
-                            
-                            // Handle width and height cuts (for sheet products)
-                            if ($item->cut_width) {
-                                $cutDimensions[] = $item->cut_width . 'w';
-                            }
-                            if ($item->cut_height) {
-                                $cutDimensions[] = $item->cut_height . 'h';
-                            }
-                            
-                            if (!empty($cutDimensions)) {
-                                $description .= ' CUT ' . implode(' x ', $cutDimensions);
-                            }
-                        }
-                        
-                        // Add SKU if available
-                        if ($item->product->sku) {
-                            $description .= ' (SKU: ' . $item->product->sku . ')';
-                        }
-                    @endphp
-                    <tr>
-                        <td>{{ $item->quantity }}</td>
-                        <td>{{ $unit }}</td>
-                        <td>{{ $description }}</td>
-                        <td>₱{{ number_format($item->unit_price, 2) }}</td>
-                        <td>₱{{ number_format($item->total_price, 2) }}</td>
-                    </tr>
-                @endforeach
-                <tr class="total-row">
-                    <td colspan="4">TOTAL</td>
-                    <td>₱{{ number_format($sale->total_amount, 2) }}</td>
-                </tr>
-            </tbody>
-        </table>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>QTY</th>
+                            <th>UNIT</th>
+                            <th>DESCRIPTION</th>
+                            <th>UNIT PRICE</th>
+                            <th>PRICE</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($sale->saleItems as $item)
+                            <tr>
+                                <td>{{ $item->quantity }}</td>
+                                <td>{{ $item->product->base_unit }}</td>
+                                <td>{{ $item->product->name }}</td>
+                                <td>₱{{ number_format($item->unit_price, 2) }}</td>
+                                <td>₱{{ number_format($item->total_price, 2) }}</td>
+                            </tr>
+                        @endforeach
+                        <tr class="total-row">
+                            <td colspan="4">TOTAL</td>
+                            <td>₱{{ number_format($sale->total_amount, 2) }}</td>
+                        </tr>
+                    </tbody>
+                </table>
 
-        <div class="signatures">
-            <div class="signature-box">
-                <div class="signature-line">Proposed by</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">Approved by</div>
-            </div>
-            <div class="signature-box">
-                <div class="signature-line">Checked by</div>
+                <div class="signatures">
+                    <div class="signature-box">
+                        <div class="signature-line">Prepared by</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">Approved by</div>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line">Checked by</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Auto-print when page loads
         window.onload = function() {
             window.print();
         };
     </script>
 </body>
-</html> 
+</html>

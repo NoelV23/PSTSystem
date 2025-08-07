@@ -200,7 +200,7 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Method</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Transaction Status</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
@@ -231,13 +231,35 @@
                             ₱{{ number_format($sale->total_amount, 2) }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($sale->is_delivered)
+                            @php
+                                $hasReference = $sale->reference_number && trim($sale->reference_number) !== '';
+                                $isInstallation = $sale->is_installation;
+                                $isDelivered = $sale->is_delivered;
+                            @endphp
+                            
+                            @if($hasReference && $isInstallation)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    Sale Installation
+                                </span>
+                            @elseif($hasReference && !$isInstallation)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Invoice
+                                </span>
+                            @elseif(!$hasReference && $isInstallation && $isDelivered)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
                                     Delivered
                                 </span>
+                            @elseif(!$hasReference && !$isInstallation && $isDelivered)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                    Delivered
+                                </span>
+                            @elseif(!$hasReference && !$isInstallation && !$isDelivered)
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                    No Invoice
+                                </span>
                             @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    Not Delivered
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                    Pending
                                 </span>
                             @endif
                         </td>

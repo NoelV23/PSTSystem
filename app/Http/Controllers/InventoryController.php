@@ -318,4 +318,14 @@ class InventoryController extends Controller
         $product = Product::with('category')->findOrFail($productId);
         return response()->json($product);
     }
+
+    // API: Get all product IDs in inventory for a branch (for filtering dropdown)
+    public function getAllProductIds($branchId)
+    {
+        $productIds = Inventory::where('branch_id', $branchId)
+            ->pluck('product_id')
+            ->toArray();
+        
+        return response()->json($productIds);
+    }
 } 

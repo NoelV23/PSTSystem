@@ -99,6 +99,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/inventory/branch/{branchId}', [InventoryController::class, 'getBranchInventory'])->name('api.inventory.branch');
     Route::get('/api/inventory/branch/{branchId}/summary', [InventoryController::class, 'getBranchInventorySummary'])->name('api.inventory.branch.summary');
     Route::get('/api/inventory/branch/{branchId}/remainders', [InventoryController::class, 'getBranchRemainders'])->name('api.inventory.branch.remainders');
+    Route::get('/api/inventory/branch/{branchId}/all-product-ids', [InventoryController::class, 'getAllProductIds'])->name('api.inventory.branch.all-product-ids');
     Route::get('/api/inventory/product/{productId}', [InventoryController::class, 'getProductDetails'])->name('api.inventory.product.details');
     Route::post('/api/inventory', [InventoryController::class, 'store'])->name('api.inventory.store');
     Route::put('/api/inventory/{id}', [InventoryController::class, 'update'])->name('api.inventory.update');

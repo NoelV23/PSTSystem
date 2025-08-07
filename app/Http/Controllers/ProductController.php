@@ -91,8 +91,8 @@ class ProductController extends Controller
                 $skuPrefix = '';
                 
                 if (count($words) === 1) {
-                    // Single word: take first letter
-                    $skuPrefix = strtoupper(substr($words[0], 0, 1));
+                    // Single word: take first 3 letters
+                    $skuPrefix = strtoupper(substr($words[0], 0, 3));
                 } else {
                     // Multiple words: take first letter of each word
                     $skuPrefix = implode('', array_map(function($word) {

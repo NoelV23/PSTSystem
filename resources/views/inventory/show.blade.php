@@ -84,6 +84,13 @@
                 <option value="out">Out of Stock</option>
                 <option value="normal">Normal Stock</option>
             </select>
+            <select id="perPageFilter" class="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                <option value="10">10 per page</option>
+                <option value="25">25 per page</option>
+                <option value="50">50 per page</option>
+                <option value="100">100 per page</option>
+                <option value="1000">All</option>
+            </select>
         </div>
 
         <!-- Loading State -->
@@ -199,6 +206,10 @@
                             <span class="font-medium text-gray-700">Measurement:</span>
                             <span id="productMeasurementUnit" class="ml-2 text-gray-600"></span>
                         </div>
+                        <div id="productColor" class="hidden">
+                            <span class="font-medium text-gray-700">Color:</span>
+                            <span id="productColorValue" class="ml-2 text-gray-600"></span>
+                        </div>
                     </div>
                 </div>
                 
@@ -230,7 +241,7 @@
                 
                 <div>
                     <label for="reorderLevel" class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
-                    <input type="number" id="reorderLevel" name="reorder_level" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="number" id="reorderLevel" name="reorder_level" value="10" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                     <div id="reorder_levelError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
@@ -359,6 +370,7 @@
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 const branchId = {{ $branch->id }};
+const userRole = '{{ auth()->user()->role }}';
 let inventory = [];
 let products = [];
 let categories = [];
@@ -382,8 +394,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
-    document.getElementById('addInventoryBtn').addEventListener('click', openAddModal);
-    document.getElementById('addFirstInventoryBtn').addEventListener('click', openAddModal);
+    document.getElementById('addInventoryBtn').addEventListener('click', () => openAddModal());
+    document.getElementById('addFirstInventoryBtn').addEventListener('click', () => openAddModal());
     document.getElementById('closeModal').addEventListener('click', closeModal);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
     document.getElementById('inventoryForm').addEventListener('submit', handleFormSubmit);
@@ -401,6 +413,11 @@ function setupEventListeners() {
         document.getElementById('inventoryTable').dataset.currentPage = 1;
         renderInventory();
     });
+    document.getElementById('perPageFilter').addEventListener('change', function() {
+        document.getElementById('inventoryTable').dataset.currentPage = 1;
+        renderInventory();
+    });
+    document.getElementById('productSearch').addEventListener('input', () => handleProductSearch());
     document.getElementById('branchSwitcher').addEventListener('change', function() {
         const selectedBranchId = this.value;
         if (selectedBranchId != branchId) {
@@ -409,7 +426,6 @@ function setupEventListeners() {
     });
     
     // Product search and selection handlers
-    document.getElementById('productSearch').addEventListener('input', handleProductSearch);
     document.getElementById('productSearch').addEventListener('focus', showProductDropdown);
     document.getElementById('productSearch').addEventListener('blur', function() {
         // Delay hiding dropdown to allow for clicks
@@ -441,7 +457,7 @@ async function loadProducts() {
         products.sort((a, b) => a.name.localeCompare(b.name));
         
         // Filter out products already in inventory
-        const availableProducts = filterAvailableProducts(products);
+        const availableProducts = await filterAvailableProducts(products);
         
         // Populate initial dropdown
         populateProductDropdown(availableProducts);
@@ -468,7 +484,7 @@ async function loadInventory() {
     showLoading();
     try {
         const page = document.getElementById('inventoryTable').dataset.currentPage || 1;
-        const perPage = document.getElementById('perPageFilter')?.value || 10;
+        const perPage = document.getElementById('perPageFilter').value || 10;
         const searchTerm = document.getElementById('searchInput').value;
         const categoryFilter = document.getElementById('categoryFilter').value;
         const stockFilter = document.getElementById('stockFilter').value;
@@ -507,10 +523,7 @@ async function loadInventory() {
         loadRemaindersForInventory(); // Load remainders after inventory is loaded
         
         // Refresh product dropdown after inventory is loaded
-        if (products && products.length > 0) {
-            const availableProducts = filterAvailableProducts(products);
-            populateProductDropdown(availableProducts);
-        }
+        await refreshProductDropdown();
     } catch (error) {
         console.error('Error loading inventory:', error);
         showError();
@@ -535,6 +548,12 @@ async function loadSummary() {
 
 function renderInventory() {
     // This function now just triggers a reload of inventory with current filters
+    loadInventory();
+}
+
+// Function to handle pagination changes
+function goToInventoryPage(page) {
+    document.getElementById('inventoryTable').dataset.currentPage = page;
     loadInventory();
 }
 
@@ -577,11 +596,6 @@ function renderInventoryPagination(totalPages, currentPage) {
     
     paginationHtml += '</div></div>';
     paginationDiv.innerHTML = paginationHtml;
-}
-
-function goToInventoryPage(page) {
-    document.getElementById('inventoryTable').dataset.currentPage = page;
-    loadInventory();
 }
 
 function createInventoryRow(item) {
@@ -655,7 +669,7 @@ function createInventoryRow(item) {
             <td class="px-6 py-4 text-sm text-gray-500">
                 <div class="flex items-center space-x-2">
                     <span>${availableStock}</span>
-                    ${item.product.base_unit !== 'per set' ? `
+                    ${item.product.base_unit !== 'per set' && (userRole === 'admin' || userRole === 'manager') ? `
                         <div class="flex space-x-1">
                             <button onclick="adjustStock(${item.id}, 'increase')" class="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50" title="Increase Stock">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -679,9 +693,7 @@ function createInventoryRow(item) {
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
                 <button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                @if(auth()->user()->role !== 'staff')
-                <button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>
-                @endif
+                ${userRole !== 'staff' ? `<button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>` : ''}
             </td>
         </tr>
     `;
@@ -705,19 +717,35 @@ function getStockStatus(item) {
 }
 
 function filterAvailableProducts(productsToShow) {
-    // Get current inventory product IDs - handle case where inventory is not yet loaded
+    // Get ALL inventory product IDs from the server, not just the currently displayed ones
+    // We need to fetch all inventory product IDs to properly filter the dropdown
+    return new Promise((resolve) => {
+        fetch(`/api/inventory/branch/${branchId}/all-product-ids`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' }
+        })
+        .then(response => response.json())
+        .then(allInventoryProductIds => {
+            // Filter out products that are already in inventory
+            const availableProducts = productsToShow.filter(product => !allInventoryProductIds.includes(product.id));
+            console.log(`Filtered ${productsToShow.length} products to ${availableProducts.length} available products`);
+            resolve(availableProducts);
+        })
+        .catch(error => {
+            console.error('Error fetching all inventory product IDs:', error);
+            // Fallback to current inventory if API fails
     const inventoryProductIds = (inventory || []).map(item => item.product_id);
-    
-    // If inventory is not loaded yet, show all products
-    if (!inventory || inventory.length === 0) {
-        console.log('Inventory not loaded yet, showing all products');
-        return productsToShow;
+            const availableProducts = productsToShow.filter(product => !inventoryProductIds.includes(product.id));
+            resolve(availableProducts);
+        });
+    });
+}
+
+// Function to refresh product dropdown after inventory changes
+async function refreshProductDropdown() {
+    if (products && products.length > 0) {
+        const availableProducts = await filterAvailableProducts(products);
+        populateProductDropdown(availableProducts);
     }
-    
-    // Filter out products that are already in inventory
-    const availableProducts = productsToShow.filter(product => !inventoryProductIds.includes(product.id));
-    console.log(`Filtered ${productsToShow.length} products to ${availableProducts.length} available products`);
-    return availableProducts;
 }
 
 function populateProductDropdown(productsToShow) {
@@ -731,7 +759,19 @@ function populateProductDropdown(productsToShow) {
     productsToShow.sort((a, b) => a.name.localeCompare(b.name));
     
     dropdown.innerHTML = productsToShow.map(product => {
-        // Build measurement info
+            // Build measurement display for the main product name
+            let measurementDisplay = '';
+            if (product.base_unit === 'per sq ft' && product.default_width && product.default_height) {
+                measurementDisplay = ` ${product.default_width}×${product.default_height} SQ FT`;
+            } else if (product.base_unit === 'per length' && product.default_length) {
+                measurementDisplay = ` ${product.default_length}FT`;
+            } else if (product.base_unit === 'per feet' && product.default_length) {
+                measurementDisplay = ` ${product.default_length}FT`;
+            } else if (product.base_unit === 'per pc' && product.default_length) {
+                measurementDisplay = ` ${product.default_length}FT`;
+            }
+            
+            // Build additional measurement info for dropdown details
         let measurementInfo = [];
         if (product.measurement_unit) {
             measurementInfo.push(`Unit: ${product.measurement_unit}`);
@@ -749,15 +789,30 @@ function populateProductDropdown(productsToShow) {
         
         // Build color info
         const colorText = product.color ? `Color: ${product.color}` : '';
+            
+            // Build measurement values for display
+            let measurementValues = '';
+            let measurementUnit = product.measurement_unit || product.base_unit.replace('per ', '');
+            
+            if (product.default_length && product.default_width && product.default_height) {
+                measurementValues = ` ${product.default_length},${product.default_width},${product.default_height} ${measurementUnit}`;
+            } else if (product.default_width && product.default_height) {
+                measurementValues = ` ${product.default_width} x ${product.default_height} ${measurementUnit}`;
+            } else if (product.default_length && product.default_width) {
+                measurementValues = ` ${product.default_length},${product.default_width} ${measurementUnit}`;
+            } else if (product.default_length) {
+                measurementValues = ` ${product.default_length} ${measurementUnit}`;
+            }
         
         return `
             <div class="product-option px-3 py-2 hover:bg-gray-100 cursor-pointer border-b border-gray-100 last:border-b-0" 
                  data-product-id="${product.id}" 
                  data-product-name="${escapeHtml(product.name)}" 
-                 data-product-sku="${escapeHtml(product.sku || '')}">
-                <div class="font-medium">${escapeHtml(product.name)}</div>
-                <div class="text-sm text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
-                ${measurementText ? `<div class="text-xs text-gray-500 mt-1">${escapeHtml(measurementText)}</div>` : ''}
+                     data-product-sku="${escapeHtml(product.sku || '')}"
+                     data-product-measurement="${escapeHtml(measurementDisplay)}"
+                     data-product-measurement-values="${escapeHtml(measurementValues)}">
+                    <div class="font-medium">${escapeHtml(product.name)}${measurementValues} (${escapeHtml(product.sku || 'No SKU')})</div>
+                    <div class="text-sm text-gray-600">${escapeHtml(product.category?.name || 'No Category')}</div>
                 ${colorText ? `<div class="text-xs text-gray-500">${escapeHtml(colorText)}</div>` : ''}
             </div>
         `;
@@ -769,9 +824,11 @@ function populateProductDropdown(productsToShow) {
             const productId = this.dataset.productId;
             const productName = this.dataset.productName;
             const productSku = this.dataset.productSku;
+            const productMeasurement = this.dataset.productMeasurement;
+            const productMeasurementValues = this.dataset.productMeasurementValues;
             
             document.getElementById('productSelect').value = productId;
-            document.getElementById('productSearch').value = `${productName} (${productSku})`;
+            document.getElementById('productSearch').value = `${productName}${productMeasurementValues} (${productSku})`;
             hideProductDropdown();
             
             // Trigger product selection
@@ -780,7 +837,7 @@ function populateProductDropdown(productsToShow) {
     });
 }
 
-function handleProductSearch() {
+async function handleProductSearch() {
     const searchTerm = document.getElementById('productSearch').value.toLowerCase();
     const filteredProducts = products.filter(product => 
         product.name.toLowerCase().includes(searchTerm) || 
@@ -788,7 +845,7 @@ function handleProductSearch() {
     );
     
     // Filter out products already in inventory
-    const availableProducts = filterAvailableProducts(filteredProducts);
+    const availableProducts = await filterAvailableProducts(filteredProducts);
     
     populateProductDropdown(availableProducts);
     showProductDropdown();
@@ -839,6 +896,12 @@ async function handleProductSelection() {
             document.getElementById('productMeasurement').classList.remove('hidden');
         } else {
             document.getElementById('productMeasurement').classList.add('hidden');
+        }
+        if (product.color) {
+            document.getElementById('productColorValue').textContent = product.color;
+            document.getElementById('productColor').classList.remove('hidden');
+        } else {
+            document.getElementById('productColor').classList.add('hidden');
         }
         productInfo.classList.remove('hidden');
         
@@ -991,7 +1054,7 @@ function hideAllStockSections() {
     if (document.getElementById('cost')) document.getElementById('cost').required = false;
 }
 
-function openAddModal() {
+async function openAddModal() {
     isEditMode = false;
     currentInventoryId = null;
     document.getElementById('modalTitle').textContent = 'Add Inventory Item';
@@ -1016,13 +1079,7 @@ function openAddModal() {
     document.getElementById('availableStockEditHelp').classList.add('hidden');
     
     // Refresh product dropdown with current inventory state
-    if (products && products.length > 0) {
-        const availableProducts = filterAvailableProducts(products);
-        populateProductDropdown(availableProducts);
-    }
-    
-    // Reload products to get updated available products list
-    loadProducts();
+    await refreshProductDropdown();
     
     inventoryModal.classList.remove('hidden');
 }
@@ -1033,7 +1090,42 @@ function openEditModal(inventoryItem) {
     document.getElementById('modalTitle').textContent = 'Edit Inventory Item';
     document.getElementById('submitBtn').textContent = 'Update Item';
     document.getElementById('productSelect').value = inventoryItem.product_id;
-    document.getElementById('productSearch').value = `${inventoryItem.product.name} (${inventoryItem.product.sku || 'No SKU'})`;
+    // Build measurement display for edit mode
+    let measurementDisplay = '';
+    let measurementValues = '';
+    let measurementUnit = '';
+    
+    if (inventoryItem.product.base_unit === 'per sq ft' && inventoryItem.product.default_width && inventoryItem.product.default_height) {
+        measurementDisplay = ` ${inventoryItem.product.default_width}×${inventoryItem.product.default_height} SQ FT`;
+        measurementValues = ` ${inventoryItem.product.default_width} x ${inventoryItem.product.default_height} sq ft`;
+        measurementUnit = 'sq ft';
+    } else if (inventoryItem.product.base_unit === 'per length' && inventoryItem.product.default_length) {
+        measurementDisplay = ` ${inventoryItem.product.default_length}FT`;
+        measurementValues = ` ${inventoryItem.product.default_length} ft`;
+        measurementUnit = 'ft';
+    } else if (inventoryItem.product.base_unit === 'per feet' && inventoryItem.product.default_length) {
+        measurementDisplay = ` ${inventoryItem.product.default_length}FT`;
+        measurementValues = ` ${inventoryItem.product.default_length} ft`;
+        measurementUnit = 'ft';
+    } else if (inventoryItem.product.base_unit === 'per pc' && inventoryItem.product.default_length) {
+        measurementDisplay = ` ${inventoryItem.product.default_length}FT`;
+        measurementValues = ` ${inventoryItem.product.default_length} ft`;
+        measurementUnit = 'ft';
+    } else if (inventoryItem.product.default_length && inventoryItem.product.default_width && inventoryItem.product.default_height) {
+        measurementValues = ` ${inventoryItem.product.default_length},${inventoryItem.product.default_width},${inventoryItem.product.default_height} ${inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '')}`;
+        measurementUnit = inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '');
+    } else if (inventoryItem.product.default_width && inventoryItem.product.default_height) {
+        measurementValues = ` ${inventoryItem.product.default_width} x ${inventoryItem.product.default_height} ${inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '')}`;
+        measurementUnit = inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '');
+    } else if (inventoryItem.product.default_length && inventoryItem.product.default_width) {
+        measurementValues = ` ${inventoryItem.product.default_length},${inventoryItem.product.default_width} ${inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '')}`;
+        measurementUnit = inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '');
+    } else if (inventoryItem.product.default_length) {
+        measurementValues = ` ${inventoryItem.product.default_length} ${inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '')}`;
+        measurementUnit = inventoryItem.product.measurement_unit || inventoryItem.product.base_unit.replace('per ', '');
+    }
+    
+    document.getElementById('productSearch').value = `${inventoryItem.product.name}${measurementValues} (${inventoryItem.product.sku || 'No SKU'})`;
     document.getElementById('reorderLevel').value = inventoryItem.reorder_level || '';
     document.getElementById('availableStock').value = inventoryItem.available_stock || '';
     document.getElementById('cost').value = inventoryItem.cost || '';
@@ -1145,6 +1237,7 @@ async function handleFormSubmit(e) {
         
         renderInventory();
         loadSummary();
+        await refreshProductDropdown(); // Refresh product dropdown after adding/updating
         closeModal();
     } catch (error) {
         console.error('Error saving inventory item:', error);
@@ -1157,27 +1250,29 @@ function editInventory(inventoryId) {
     if (inventoryItem) openEditModal(inventoryItem);
 }
 
-function deleteInventory(inventoryId) {
+async function deleteInventory(inventoryId) {
     if (!confirm('Are you sure you want to delete this inventory item?')) return;
     
-    fetch(`/api/inventory/${inventoryId}`, {
+    try {
+        const response = await fetch(`/api/inventory/${inventoryId}`, {
         method: 'DELETE',
         headers: {
             'X-CSRF-TOKEN': csrfToken,
             'Accept': 'application/json',
         }
-    })
-    .then(response => {
+        });
+        
         if (!response.ok) throw new Error('Failed to delete inventory item');
+        
         inventory = (inventory || []).filter(i => i.id !== inventoryId);
         renderInventory();
         loadSummary();
+        await refreshProductDropdown(); // Refresh product dropdown after deleting
         showToast('Inventory item deleted successfully!', 'success');
-    })
-    .catch(error => {
+    } catch (error) {
         console.error('Error deleting inventory item:', error);
         showToast('Failed to delete inventory item. Please try again.', 'error');
-    });
+    }
 }
 
 function displayValidationErrors(errors) {

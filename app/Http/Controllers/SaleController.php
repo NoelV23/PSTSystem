@@ -48,18 +48,50 @@ class SaleController extends Controller
         }
         
         $perPage = $request->get('per_page', 10);
-        $deliveryStatus = $request->get('delivery_status');
+        $transactionStatus = $request->get('transaction_status');
         $today = now()->toDateString();
         
         $query = \App\Models\Sale::with(['user', 'saleItems', 'branch'])
             ->where('branch_id', $branchId)
             ->whereDate('created_at', $today);
         
-        // Apply delivery status filter
-        if ($deliveryStatus === 'delivered') {
-            $query->where('is_delivered', true);
-        } elseif ($deliveryStatus === 'not_delivered') {
-            $query->where('is_delivered', false);
+        // Apply transaction status filter
+        if ($transactionStatus) {
+            switch ($transactionStatus) {
+                case 'invoice':
+                    // Has reference number and not installation
+                    $query->whereNotNull('reference_number')
+                          ->where('is_installation', false);
+                    break;
+                    
+                case 'no_invoice':
+                    // No reference number, not installation, not delivered
+                    $query->whereNull('reference_number')
+                          ->where('is_installation', false)
+                          ->where('is_delivered', false);
+                    break;
+                    
+                case 'delivered':
+                    // No reference number and delivered
+                    $query->whereNull('reference_number')
+                          ->where('is_delivered', true);
+                    break;
+                    
+                case 'sale_installation':
+                    // Has reference number and is installation
+                    $query->whereNotNull('reference_number')
+                          ->where('is_installation', true);
+                    break;
+                    
+                // Keep backward compatibility for old delivery_status parameter
+                case 'delivered_old':
+                    $query->where('is_delivered', true);
+                    break;
+                    
+                case 'not_delivered':
+                    $query->where('is_delivered', false);
+                    break;
+            }
         }
         
         $sales = $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -103,7 +135,7 @@ class SaleController extends Controller
         ]);
         
         // Custom validation for inventory_id based on item_type
-        if (!$request->input('is_installation') && $request->input('items')) {
+        if (!($request->input('is_installation') ?? false) && $request->input('items')) {
         foreach ($request->input('items', []) as $index => $item) {
             if ($item['item_type'] === 'inventory') {
                 if (!isset($item['inventory_id']) || !\App\Models\Inventory::find($item['inventory_id'])) {
@@ -141,7 +173,7 @@ class SaleController extends Controller
             ]);
             
             // Only process items if this is not an installation sale or if items are provided
-            if (!$validated['is_installation'] && $request->input('items')) {
+            if (!($validated['is_installation'] ?? false) && $request->input('items')) {
             foreach ($request->input('items') as $item) {
                 // Get product_id based on item type
                 $productId = null;
