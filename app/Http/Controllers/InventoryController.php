@@ -14,7 +14,7 @@ class InventoryController extends Controller
         $currentUser = auth()->user();
         
         // Manager should be redirected to their branch inventory
-        if ($currentUser->role === 'manager') {
+        if ($currentUser->role === 'manager'|| $currentUser->role === 'staff') {
             return redirect()->route('inventory.show', $currentUser->branch_id);
         }
         
@@ -27,7 +27,7 @@ class InventoryController extends Controller
         $currentUser = auth()->user();
         
         // Manager can only access their assigned branch
-        if ($currentUser->role === 'manager' && $currentUser->branch_id != $branchId) {
+        if ($currentUser->role === 'manager' && $currentUser->branch_id != $branchId || $currentUser->role === 'staff' && $currentUser->branch_id != $branchId) {
             return redirect()->route('inventory.show', $currentUser->branch_id);
         }
         

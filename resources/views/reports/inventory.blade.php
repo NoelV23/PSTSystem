@@ -187,7 +187,14 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     @forelse($inventories as $inventory)
-                    <tr class="hover:bg-gray-50" data-inventory-id="{{ $inventory->id }}" data-product-id="{{ $inventory->product_id }}" data-branch-id="{{ $inventory->branch_id }}">
+                    <!-- if status is out of stock column color is light red, if status is low stock column color is light yellow, if status is in stock column color is light green-->
+                    @php
+                        $stock = $inventory->product->base_unit === 'per set' ? 
+                            ($inventory->calculated_stock ?? 0) : 
+                            ($inventory->available_stock ?? 0);
+                        $reorderLevel = $inventory->reorder_level ?? 0;
+                    @endphp
+                    <tr class="hover:bg-gray-50" style="background-color: {{ $stock === 0 ? '#FEF2F2' : ($stock <= $reorderLevel ? '#FFFBEB' : '#F0FDF4') }};" data-inventory-id="{{ $inventory->id }}" data-product-id="{{ $inventory->product_id }}" data-branch-id="{{ $inventory->branch_id }}">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ $inventory->product->name }}
                             @if($inventory->product->measurement_unit)
@@ -232,12 +239,6 @@
                             {{ $inventory->reorder_level ?? 0 }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @php
-                                $stock = $inventory->product->base_unit === 'per set' ? 
-                                    ($inventory->calculated_stock ?? 0) : 
-                                    ($inventory->available_stock ?? 0);
-                                $reorderLevel = $inventory->reorder_level ?? 0;
-                            @endphp
                             @if($stock === 0)
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
                                     Out of Stock

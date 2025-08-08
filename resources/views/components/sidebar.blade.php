@@ -50,7 +50,8 @@
 
             <!-- Navigation Links -->
             <nav class="flex-1 flex flex-col gap-2 mt-3">
-                <!-- Dashboard -->
+                <!-- Dashboard, hidden if user is staff -->
+                @if(auth()->user()->role !== 'staff')
                 <a href="/dashboard" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('dashboard') ? 'bg-red-700' : '' }}" 
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
@@ -76,6 +77,7 @@
                         Dashboard
                     </div>
                 </a>
+                @endif
 
                 <!-- Sales -->
                 <a href="/sales" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('sales') ? 'bg-red-700' : '' }}"

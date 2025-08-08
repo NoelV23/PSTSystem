@@ -10,11 +10,15 @@ use App\Models\Product;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
     public function index()
     {
+        if (Auth::user()->role === 'staff') {
+            return redirect()->route('sales.index');
+        }
         return view('dashboard');
     }
 
@@ -47,15 +51,15 @@ class DashboardController extends Controller
 
     private function getSummaryData($today, $user)
     {
-        // Filter by branch if user is manager
+        // Filter by branch if user is  and staff
         $branchFilter = [];
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $branchFilter = ['branch_id' => $user->branch_id];
         }
 
         // Calculate total inventory value
         $inventoryQuery = Inventory::join('products', 'inventories.product_id', '=', 'products.id');
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $inventoryQuery->where('inventories.branch_id', $user->branch_id);
         }
         $totalInventoryValue = $inventoryQuery
@@ -67,13 +71,13 @@ class DashboardController extends Controller
 
         // Calculate today's sales
         $salesQuery = Sale::whereDate('created_at', $today);
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $salesQuery->where('branch_id', $user->branch_id);
         }
         $salesToday = $salesQuery->sum('total_amount') ?? 0;
 
         // Count active branches
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $activeBranches = 1; // Manager only sees their branch
         } else {
         $activeBranches = Branch::where('status', 'active')->count();
@@ -82,7 +86,7 @@ class DashboardController extends Controller
         // Count low stock items
         $lowStockQuery = Inventory::whereColumn('available_stock', '<=', 'reorder_level')
             ->where('available_stock', '>', 0);
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $lowStockQuery->where('branch_id', $user->branch_id);
         }
         $lowStockCount = $lowStockQuery->count();
@@ -97,7 +101,7 @@ class DashboardController extends Controller
 
     private function getBranchPerformanceData($today, $user)
     {
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             // Manager only sees their branch
             $branches = Branch::where('status', 'active')
                 ->where('id', $user->branch_id)
@@ -130,6 +134,11 @@ class DashboardController extends Controller
                 ->where('available_stock', '>', 0)
                 ->count();
 
+            // Get out of stock count for this branch
+            $outOfStock = Inventory::where('branch_id', $branch->id)
+                ->where('available_stock', 0)
+                ->count();
+
             // Get last activity (most recent sale or inventory update)
             $lastSale = Sale::where('branch_id', $branch->id)
                 ->latest('created_at')
@@ -156,6 +165,7 @@ class DashboardController extends Controller
                 'sales' => $sales,
                 'inventoryValue' => $inventoryValue,
                 'lowStock' => $lowStock,
+                'outOfStock' => $outOfStock,
                 'lastActivity' => $lastActivity,
             ];
         }
@@ -170,7 +180,7 @@ class DashboardController extends Controller
             ->whereColumn('inventories.available_stock', '<=', 'inventories.reorder_level')
             ->where('inventories.available_stock', '>', 0);
             
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $alertsQuery->where('inventories.branch_id', $user->branch_id);
         }
         
@@ -203,7 +213,7 @@ class DashboardController extends Controller
     {
         // This is a simplified activity log. In a real application, you might want to create an activity log table
         $salesQuery = Sale::with(['branch', 'user']);
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $salesQuery->where('branch_id', $user->branch_id);
         }
         $recentSales = $salesQuery
@@ -221,7 +231,7 @@ class DashboardController extends Controller
 
         $inventoryQuery = Inventory::with(['branch', 'product'])
             ->where('updated_at', '>=', Carbon::now()->subHours(24));
-        if ($user->role === 'manager') {
+        if ($user->role === 'manager' || $user->role === 'staff') {
             $inventoryQuery->where('branch_id', $user->branch_id);
         }
         $recentInventory = $inventoryQuery
