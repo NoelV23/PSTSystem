@@ -6,11 +6,15 @@ use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 class BranchController extends Controller
 {
     public function index()
     {
+        if (Auth::user()->role !== 'admin') {
+            return redirect()->route('dashboard');
+        }
         return view('branches.index');
     }
 

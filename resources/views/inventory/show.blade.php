@@ -127,12 +127,12 @@
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Measurement</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>
+                            @if(auth()->user()->role !== 'staff')<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>@endif
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Retail Price</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Wholesale Price</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            @if(auth()->user()->role !== 'staff')<th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>@endif
                         </tr>
                     </thead>
                     <tbody id="inventoryTbody" class="divide-y divide-gray-100">
@@ -652,9 +652,15 @@ function createInventoryRow(item) {
     // Create view components button for set products
     const viewComponentsButton = item.product.base_unit === 'per set' ? 
         `<button onclick="viewSetComponents(${item.product.id}, '${escapeHtml(item.product.name)}')" class="text-blue-600 hover:text-blue-900 text-sm mt-1">(View Components)</button>` : '';
-    
+    // color row based on stock status
+    let rowColor = '#F0FDF4';
+    if (stockStatus === 'Out of Stock') {
+        rowColor = '#FEF2F2';
+    } else if (stockStatus === 'Low Stock') {
+        rowColor = '#FFFBEB';
+    }
     return `
-        <tr class="bg-white border-b hover:bg-gray-50">
+        <tr class="bg-white border-b hover:bg-gray-50" style= "background-color: ${rowColor};">
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
                 <div class="flex flex-col">
                     <div class="font-semibold">${escapeHtml(item.product.name)} ${viewComponentsButton}</div>
@@ -686,14 +692,14 @@ function createInventoryRow(item) {
                 </div>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500" id="remainderCol-${item.product.id}">-</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${cost}</td>
+            ${userRole !== 'staff' ?`<td class="px-6 py-4 text-sm text-gray-500">${cost}</td>` : ''}
             <td class="px-6 py-4 text-sm text-gray-500">${price}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${wholesalePrice}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
-                <button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                ${userRole !== 'staff' ? `<button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>` : ''}
+                ${userRole !== 'staff' ? `<button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                <button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>` : ''}
             </td>
         </tr>
     `;

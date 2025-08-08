@@ -4,8 +4,8 @@
 <div class="w-full max-w-full sm:max-w-3xl md:max-w-5xl lg:max-w-7xl mx-auto py-4 px-2 sm:px-4" x-data="dashboardData()">
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 mb-8">
-        <!-- Total Inventory Value -->
-        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
+        <!-- Total Inventory Value, hidden when user role is staff-->
+        <div class="bg-blue-50 border border-blue-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0" x-show="role !== 'staff'">
             <div class="mb-2">
                 <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-blue-200 text-blue-700">
                     <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -29,8 +29,8 @@
             <div class="text-gray-700 font-medium text-sm sm:text-base">Total Sales Today</div>
             <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday ? summary.salesToday.toLocaleString() : '0'"></span></div>
         </div>
-        <!-- Active Branches Today -->
-        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
+        <!-- Active Branches Today, hidden when user role is staff and manager-->
+        <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0" x-show="role !== 'staff' && role !== 'manager'">
             <div class="mb-2">
                 <span class="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-yellow-200 text-yellow-700">
                     <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -81,8 +81,9 @@
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Branch Name</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Sales</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Inventory Value</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase" x-show="role !== 'staff'">Inventory Value</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Low Stock</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Out of Stock</th>
                         <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Last Activity</th>
                         <th class="px-4 py-2"></th>
                     </tr>
@@ -92,8 +93,9 @@
                         <tr>
                             <td class="px-4 py-2 text-gray-900 font-medium" x-text="branch.name"></td>
                             <td class="px-4 py-2 text-green-700 font-bold">₱<span x-text="branch.sales ? branch.sales.toLocaleString() : '0'"></span></td>
-                            <td class="px-4 py-2 text-blue-700 font-bold">₱<span x-text="branch.inventoryValue ? branch.inventoryValue.toLocaleString() : '0'"></span></td>
+                            <td class="px-4 py-2 text-blue-700 font-bold" x-show="role !== 'staff'">₱<span x-text="branch.inventoryValue ? branch.inventoryValue.toLocaleString() : '0'"></span></td>
                             <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.lowStock || '0'"></td>
+                            <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.outOfStock || '0'"></td>
                             <td class="px-4 py-2 text-gray-500" x-text="branch.lastActivity || 'No activity'"></td>
                             <td class="px-4 py-2 text-right">
                                 <a :href="`/inventory/${branch.id}`" class="text-blue-600 hover:underline font-semibold">View Details</a>
@@ -140,8 +142,8 @@
         </div>
     </div>
 
-    <!-- Recent Activity Log -->
-    <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8">
+    <!-- Recent Activity Log, show when user role is admin-->
+    <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-8" x-show="role === 'admin'">
         <div class="flex items-center justify-between mb-4">
             <div class="text-xl font-bold text-gray-900">Recent Activity Log</div>
         </div>
@@ -156,8 +158,8 @@
         </ul>
     </div>
 
-    <!-- Quick Actions Panel -->
-    <div class="flex flex-col sm:flex-row flex-wrap gap-4 mt-8">
+    <!-- Quick Actions Panel, hidden if role is staff and manager-->
+    <div class="flex flex-col sm:flex-row flex-wrap gap-4 mt-8" x-show="role !== 'staff' && role !== 'manager'">
         <a href="/branches" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded shadow transition text-center">Manage Branches</a>
         <a href="/users" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded shadow transition text-center">Manage Users</a>
         <a href="/inventory" class="bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 px-6 rounded shadow transition text-center">View All Inventory</a>
@@ -168,6 +170,7 @@
 <script>
 function dashboardData() {
     return {
+        role: '{{ Auth::user()->role }}',
         loading: true,
         summary: {
             inventoryValue: 0,
