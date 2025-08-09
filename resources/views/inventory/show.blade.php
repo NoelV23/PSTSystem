@@ -217,7 +217,7 @@
                 <div id="stockInputs" class="space-y-4">
                     <div id="availableStockSection">
                         <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
-                        <input type="number" id="availableStock" name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="availableStock" value="0"name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                         <div id="availableStockHelp" class="text-xs text-gray-500 mt-1">Enter initial stock level for this product</div>
                         <div id="availableStockEditHelp" class="text-xs text-gray-500 mt-1 hidden">Stock levels can only be modified through purchases or stock adjustments</div>
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -605,8 +605,8 @@ function createInventoryRow(item) {
     
     // For set products, show calculated stock
     let availableStock = '-';
-    if (item.product.base_unit === 'per set') {
-        // Use calculated stock for set products
+    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+        // Use calculated stock for set products with components
         availableStock = item.calculated_stock ? `${item.calculated_stock} sets` : '0 sets';
     } else {
         availableStock = item.available_stock ? `${item.available_stock}` : '-';
@@ -615,10 +615,10 @@ function createInventoryRow(item) {
     let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
     let price = '-';
     let wholesalePrice = '-';
-    if (item.product.base_unit === 'per set') {
-        // For set products, show calculated price
+    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+        // For set products with components, show calculated price
         price = item.calculated_price ? `₱${parseFloat(item.calculated_price).toFixed(2)}` : '-';
-        wholesalePrice = '-'; // Set products don't have wholesale price
+        wholesalePrice = '-';
     } else {
         // For regular products, show inventory price
         price = item.price ? `₱${parseFloat(item.price).toFixed(2)}` : '-';
@@ -650,7 +650,7 @@ function createInventoryRow(item) {
     const additionalInfoText = additionalInfo.length > 0 ? additionalInfo.join(' | ') : '';
     
     // Create view components button for set products
-    const viewComponentsButton = item.product.base_unit === 'per set' ? 
+    const viewComponentsButton = (item.product.base_unit === 'per set' && item.product.set_components_count > 0) ? 
         `<button onclick="viewSetComponents(${item.product.id}, '${escapeHtml(item.product.name)}')" class="text-blue-600 hover:text-blue-900 text-sm mt-1">(View Components)</button>` : '';
     // color row based on stock status
     let rowColor = '#F0FDF4';
@@ -709,8 +709,8 @@ function getStockStatus(item) {
     let currentStock = 0;
     const reorderLevel = item.reorder_level || 0;
 
-    if (item.product.base_unit === 'per set') {
-        // For set products, use calculated stock
+    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+        // For set products with components, use calculated stock
         currentStock = item.calculated_stock || 0;
     } else {
         // For regular products, use available_stock
@@ -912,7 +912,7 @@ async function handleProductSelection() {
         productInfo.classList.remove('hidden');
         
         // Handle set products differently
-        if (product.base_unit === 'per set') {
+        if (product.base_unit === 'per set' && (product.has_components === true)) {
             console.log('Product is a set product, loading components...');
             // For set products, show set components info and disable stock inputs
             hideAllStockSections();
@@ -1188,8 +1188,8 @@ async function handleFormSubmit(e) {
         };
         
         // Add appropriate stock fields based on product type
-        if (product.base_unit === 'per set') {
-            // Set products don't have direct stock - it's calculated from components
+        if (product.base_unit === 'per set' && product.has_components === true) {
+            // Set products WITH components: stock/prices are calculated
             inventoryData.available_stock = null;
             inventoryData.cost = null;
             inventoryData.price = null;
@@ -1202,17 +1202,11 @@ async function handleFormSubmit(e) {
             inventoryData.wholesale_price = data.wholesale_price || null;
         }
         
-        let url, method;
-        if (isEditMode && currentInventoryId) {
-            url = `/api/inventory/${currentInventoryId}`;
-            method = 'PUT';
-        } else {
-            url = '/api/inventory';
-            method = 'POST';
-        }
+        const url = (isEditMode && currentInventoryId) ? `/api/inventory/${currentInventoryId}` : '/api/inventory';
+        const httpMethod = (isEditMode && currentInventoryId) ? 'PUT' : 'POST';
         
         const response = await fetch(url, {
-            method: method,
+            method: httpMethod,
             headers: {
                 'X-CSRF-TOKEN': csrfToken,
                 'Content-Type': 'application/json',

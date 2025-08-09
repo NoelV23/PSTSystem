@@ -66,9 +66,9 @@ class InventoryController extends Controller
             ->select('inventories.*')
             ->paginate($perPage);
 
-        // Load set components for set products and calculate set stock
+        // Load set components for set products that actually have components and calculate set stock
         foreach ($inventory as $item) {
-            if ($item->product->base_unit === 'per set') {
+            if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                 $item->product->load(['setComponents.componentProduct']);
                 $item->calculated_stock = $item->calculateSetStock();
                 $item->calculated_price = $item->calculateSetPrice();
@@ -78,7 +78,7 @@ class InventoryController extends Controller
         // Apply stock filtering after calculating set stock
         if ($stockFilter === 'normal') {
             $filteredItems = $inventory->filter(function ($item) {
-                if ($item->product->base_unit === 'per set') {
+                if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                     return ($item->calculated_stock ?? 0) >= ($item->reorder_level ?? 0);
                 } else {
                     return ($item->available_stock ?? 0) >= ($item->reorder_level ?? 0);
@@ -86,7 +86,7 @@ class InventoryController extends Controller
             });
         } else if ($stockFilter === 'low') {
             $filteredItems = $inventory->filter(function ($item) {
-                if ($item->product->base_unit === 'per set') {
+                if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                     $stock = $item->calculated_stock ?? 0;
                     $reorderLevel = $item->reorder_level ?? 0;
                     return $stock <= $reorderLevel && $stock > 0;
@@ -98,7 +98,7 @@ class InventoryController extends Controller
             });
         } elseif ($stockFilter === 'out') {
             $filteredItems = $inventory->filter(function ($item) {
-                if ($item->product->base_unit === 'per set') {
+                if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                     return ($item->calculated_stock ?? 0) === 0;
                 } else {
                     return ($item->available_stock ?? 0) === 0;
@@ -120,6 +120,14 @@ class InventoryController extends Controller
             ]
         );
 
+        // Append set_components_count to each item's product for frontend branching
+        $filteredCollection->getCollection()->transform(function ($item) {
+            if ($item->relationLoaded('product') && $item->product) {
+                $item->product->setAttribute('set_components_count', $item->product->base_unit === 'per set' ? $item->product->setComponents()->count() : 0);
+            }
+            return $item;
+        });
+
         return response()->json($filteredCollection);
     }
 
@@ -136,8 +144,8 @@ class InventoryController extends Controller
         $totalStock = 0;
         $totalCost = 0;
         foreach ($inventory as $item) {
-            // Load set components for set products and calculate set stock
-            if ($item->product->base_unit === 'per set') {
+            // Load set components for set products that actually have components and calculate set stock
+            if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                 $item->product->load(['setComponents.componentProduct']);
                 $item->calculated_stock = $item->calculateSetStock();
                 $totalStock += $item->calculated_stock ?? 0;
@@ -146,7 +154,7 @@ class InventoryController extends Controller
             }
             
             // Calculate cost (for set products, cost might be null)
-            if ($item->product->base_unit === 'per set') {
+            if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                 $stock = $item->calculated_stock ?? 0;
             } else {
                 $stock = $item->available_stock ?? 0;
@@ -158,15 +166,15 @@ class InventoryController extends Controller
         $lowStockCount = 0;
         $outOfStockCount = 0;
         foreach ($inventory as $item) {
-            // Load set components for set products and calculate set stock
-            if ($item->product->base_unit === 'per set') {
+            // Load set components for set products that actually have components and calculate set stock
+            if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                 $item->product->load(['setComponents.componentProduct']);
                 $item->calculated_stock = $item->calculateSetStock();
             }
             
             // Determine current stock based on product type
             $currentStock = 0;
-            if ($item->product->base_unit === 'per set') {
+            if ($item->product->base_unit === 'per set' && $item->product->setComponents()->exists()) {
                 $currentStock = $item->calculated_stock ?? 0;
             } else {
                 $currentStock = $item->available_stock ?? 0;
@@ -244,8 +252,8 @@ class InventoryController extends Controller
             return response()->json(['error' => 'Inventory already exists for this product in this branch'], 422);
         }
 
-        // For set products, stock and cost are not required
-        if ($product->base_unit === 'per set') {
+        // For set products WITH components, stock and prices are derived; for set WITHOUT components, treat like regular
+        if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
             $validated['available_stock'] = null;
             $validated['cost'] = null;
             $validated['price'] = null;
@@ -263,6 +271,10 @@ class InventoryController extends Controller
 
         $inventory = Inventory::create($validated);
         $inventory->load(['product.category']);
+        // Add set_components_count for frontend consumers
+        if ($inventory->relationLoaded('product') && $inventory->product) {
+            $inventory->product->setAttribute('set_components_count', $inventory->product->base_unit === 'per set' ? $inventory->product->setComponents()->count() : 0);
+        }
         return response()->json($inventory, 201);
     }
 
@@ -280,8 +292,8 @@ class InventoryController extends Controller
         // Get the product to check if it's a set product
         $product = $inventory->product;
         
-        // For set products, stock and cost are not required
-        if ($product->base_unit === 'per set') {
+        // For set products WITH components, stock and prices are derived; for set WITHOUT components, treat like regular
+        if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
             $validated['available_stock'] = null;
             $validated['cost'] = null;
             $validated['price'] = null;
@@ -298,6 +310,9 @@ class InventoryController extends Controller
         
         $inventory->update($validated);
         $inventory->load(['product.category']);
+        if ($inventory->relationLoaded('product') && $inventory->product) {
+            $inventory->product->setAttribute('set_components_count', $inventory->product->base_unit === 'per set' ? $inventory->product->setComponents()->count() : 0);
+        }
         return response()->json($inventory);
     }
 
@@ -316,7 +331,11 @@ class InventoryController extends Controller
     public function getProductDetails($productId)
     {
         $product = Product::with('category')->findOrFail($productId);
-        return response()->json($product);
+        // Augment with has_components for frontend branching
+        $hasComponents = $product->base_unit === 'per set' && $product->setComponents()->exists();
+        $payload = $product->toArray();
+        $payload['has_components'] = $hasComponents;
+        return response()->json($payload);
     }
 
     // API: Get all product IDs in inventory for a branch (for filtering dropdown)
