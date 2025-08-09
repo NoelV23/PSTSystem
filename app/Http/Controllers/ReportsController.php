@@ -259,7 +259,7 @@ class ReportsController extends Controller
                     })
                 ];
             });
-
+            
         return view('reports.inventory', compact(
             'inventories',
             'branches',
@@ -509,6 +509,14 @@ class ReportsController extends Controller
 
         $inventories = $query->orderBy('created_at', 'desc')->get();
 
+        // Load set components and calculate set stock for set products with components
+        foreach ($inventories as $inventory) {
+            if ($inventory->product->base_unit === 'per set' && $inventory->product->setComponents()->exists()) {
+                $inventory->product->load(['setComponents.componentProduct']);
+                $inventory->calculated_stock = $inventory->calculateSetStock();
+            }
+        }
+
         // Calculate additional stats for each inventory
         foreach ($inventories as $inventory) {
             // Calculate total purchased
@@ -563,7 +571,7 @@ class ReportsController extends Controller
             ]);
 
             foreach ($inventories as $inventory) {
-                $stock = $inventory->product->base_unit === 'per set' ? 
+                $stock = ($inventory->product->base_unit === 'per set' && $inventory->product->setComponents()->exists()) ? 
                     ($inventory->calculated_stock ?? 0) : 
                     ($inventory->available_stock ?? 0);
                 $reorderLevel = $inventory->reorder_level ?? 0;

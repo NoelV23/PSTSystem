@@ -366,3 +366,5 @@ document.getElementById('remaindersModal').addEventListener('click', function(e)
 });
 </script>
 @endsection 
+
+<!-- update inventory report table to use ajax also fix where per set w/o components must be treated like regular products, also add two cards above the 4 cards(Total Products,In Stock,Low Stock,Out of Stock) which is Total Inventory Value and Potential Revenue(The total money you’d make if you sold all current stock at the price.) -->

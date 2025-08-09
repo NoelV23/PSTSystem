@@ -129,9 +129,9 @@ class Inventory extends Model
         $currentStock = 0;
         $reorderLevel = $this->reorder_level ?? 0;
 
-        if ($this->product->base_unit === 'per set') {
+        if ($this->product->base_unit === 'per set' && $this->product->setComponents()->exists()) {
             $currentStock = $this->calculateSetStock();
-        } elseif ($this->product->base_unit === 'per pc' || $this->product->base_unit === 'per length') {
+        } elseif ($this->product->base_unit === 'per pc' || $this->product->base_unit === 'per length' || $this->product->base_unit === 'per set') {
             $currentStock = $this->available_stock ?? 0;
         } else {
             $currentStock = $this->available_length ?? 0;

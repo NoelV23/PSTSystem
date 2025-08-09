@@ -64,7 +64,10 @@ class DashboardController extends Controller
         }
         $totalInventoryValue = $inventoryQuery
             ->selectRaw('SUM(CASE 
-                WHEN products.base_unit = "per set" THEN 0 
+                WHEN products.base_unit = "per set" AND EXISTS(
+                    SELECT 1 FROM bundle_components 
+                    WHERE bundle_components.bundle_product_id = products.id
+                ) THEN 0 
                 ELSE (inventories.available_stock * inventories.cost) 
                 END) as total_value')
             ->value('total_value') ?? 0;
@@ -123,7 +126,10 @@ class DashboardController extends Controller
             $inventoryValue = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
                 ->where('inventories.branch_id', $branch->id)
                 ->selectRaw('SUM(CASE 
-                    WHEN products.base_unit = "per set" THEN 0 
+                    WHEN products.base_unit = "per set" AND EXISTS(
+                        SELECT 1 FROM bundle_components 
+                        WHERE bundle_components.bundle_product_id = products.id
+                    ) THEN 0 
                     ELSE (inventories.available_stock * inventories.cost) 
                     END) as total_value')
                 ->value('total_value') ?? 0;
