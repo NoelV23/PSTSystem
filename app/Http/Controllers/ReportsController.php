@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\SaleItem;
 use App\Models\PurchaseItem;
 use App\Models\CutRemainder;
+use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -55,6 +56,18 @@ class ReportsController extends Controller
         });
         $totalSalesCount = $sales->count();
 
+        // Get expenses for the same period and branch filter
+        $expensesQuery = Expense::with(['user', 'branch'])
+            ->whereBetween('expense_date', [$dateFrom, $dateTo]);
+        if ($branchId) {
+            $expensesQuery->where('branch_id', $branchId);
+        }
+        $expenses = $expensesQuery->orderBy('expense_date', 'desc')->get();
+        $totalExpenses = $expenses->sum('amount');
+
+        // Calculate net profit (total sales - total expenses)
+        $netProfit = $totalSales - $totalExpenses;
+
         // Group by payment method
         $paymentMethodStats = $sales->groupBy('payment_method')
             ->map(function ($group) {
@@ -80,6 +93,7 @@ class ReportsController extends Controller
 
         return view('reports.sales', compact(
             'sales',
+            'expenses',
             'branches',
             'branchId',
             'dateFrom',
@@ -87,6 +101,8 @@ class ReportsController extends Controller
             'totalSales',
             'totalItemsSold',
             'totalSalesCount',
+            'totalExpenses',
+            'netProfit',
             'paymentMethodStats',
             'productStats'
         ));
@@ -318,6 +334,7 @@ class ReportsController extends Controller
         $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
         $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
 
+        // Get sales data
         $query = Sale::with(['user', 'branch', 'saleItems.product'])
             ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
 
@@ -327,20 +344,43 @@ class ReportsController extends Controller
 
         $sales = $query->orderBy('created_at', 'desc')->get();
 
-        $filename = 'sales-report-' . $dateFrom . '-to-' . $dateTo . '.csv';
+        // Get expenses data
+        $expensesQuery = Expense::with(['user', 'branch'])
+            ->whereBetween('expense_date', [$dateFrom, $dateTo]);
+        if ($branchId) {
+            $expensesQuery->where('branch_id', $branchId);
+        }
+        $expenses = $expensesQuery->orderBy('expense_date', 'desc')->get();
+
+        // Calculate totals
+        $totalSales = $sales->sum('total_amount');
+        $totalExpenses = $expenses->sum('amount');
+        $netProfit = $totalSales - $totalExpenses;
+
+        $filename = 'sales-expenses-report-' . $dateFrom . '-to-' . $dateTo . '.csv';
         
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function() use ($sales) {
+        $callback = function() use ($sales, $expenses, $totalSales, $totalExpenses, $netProfit) {
             $file = fopen('php://output', 'w');
             
             // Add BOM for Excel compatibility
             fwrite($file, "\xEF\xBB\xBF");
             
-            // Headers
+            // Summary section
+            fputcsv($file, ['SALES & EXPENSES REPORT SUMMARY']);
+            fputcsv($file, []);
+            fputcsv($file, ['Total Sales:', '₱' . number_format($totalSales, 2)]);
+            fputcsv($file, ['Total Expenses:', '₱' . number_format($totalExpenses, 2)]);
+            fputcsv($file, ['Net Profit:', '₱' . number_format($netProfit, 2)]);
+            fputcsv($file, []);
+            fputcsv($file, []);
+            
+            // Sales section
+            fputcsv($file, ['SALES DATA']);
             fputcsv($file, [
                 'Date', 'Invoice #', 'Customer', 'Branch', 'Items', 
                 'Payment Method', 'Total Amount', 'Status'
@@ -356,6 +396,26 @@ class ReportsController extends Controller
                     $sale->payment_method ?? 'N/A',
                     '₱' . number_format($sale->total_amount, 2),
                     $sale->is_delivered ? 'Delivered' : 'Not Delivered'
+                ]);
+            }
+
+            fputcsv($file, []);
+            fputcsv($file, []);
+
+            // Expenses section
+            fputcsv($file, ['EXPENSES DATA']);
+            fputcsv($file, [
+                'Date', 'Amount', 'Note', 'Branch', 'Updated By', 'Updated At'
+            ]);
+
+            foreach ($expenses as $expense) {
+                fputcsv($file, [
+                    $expense->expense_date->format('M d, Y'),
+                    '₱' . number_format($expense->amount, 2),
+                    $expense->note ?: '—',
+                    $expense->branch->name ?? 'N/A',
+                    $expense->user->name ?? 'N/A',
+                    $expense->updated_at->format('M d, Y H:i')
                 ]);
             }
 

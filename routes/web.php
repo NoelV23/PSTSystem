@@ -130,6 +130,8 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
 
     // Expenses API (admin & manager only)
     Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert');
+    Route::get('/api/expenses/check-today', [\App\Http\Controllers\ExpensesController::class, 'checkTodayExpense'])->name('api.expenses.check-today');
+    Route::get('/api/expenses/list', [\App\Http\Controllers\ExpensesController::class, 'list'])->name('api.expenses.list');
 });
 
 require __DIR__.'/auth.php';

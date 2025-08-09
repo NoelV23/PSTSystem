@@ -29,6 +29,9 @@
                 <x-footer />
             </main>
         </div>
+        
+        <!-- Include Expense Reminder Modal -->
+        @include('components.expense-reminder-modal')
         <script>
             // Listen for sidebar toggle events and update sidebarOpen
             document.addEventListener('alpine:init', () => {
@@ -46,6 +49,66 @@
                     if (main) {
                         main.classList.remove('ml-64', 'ml-16');
                         main.classList.add(e.detail ? 'ml-64' : 'ml-16');
+                    }
+                });
+            });
+
+            // Logout with expense check for managers
+            async function handleLogout() {
+                const userRole = '{{ auth()->user()->role ?? '' }}';
+                
+                if (userRole === 'manager') {
+                    try {
+                        const response = await fetch('/api/expenses/check-today');
+                        const data = await response.json();
+                        
+                        if (!data.has_expense) {
+                            // Show modal asking if they want to record expenses first
+                            document.getElementById('expenseReminderModal').classList.remove('hidden');
+                            return;
+                        }
+                    } catch (error) {
+                        console.error('Error checking expense status:', error);
+                    }
+                }
+                
+                // Proceed with logout - try different form IDs
+                const logoutForm = document.getElementById('logoutForm') || 
+                                 document.getElementById('logoutFormNav') || 
+                                 document.getElementById('logoutFormResponsive');
+                if (logoutForm) {
+                    logoutForm.submit();
+                }
+            }
+
+            // Handle modal buttons
+            document.addEventListener('DOMContentLoaded', function() {
+                const modal = document.getElementById('expenseReminderModal');
+                const recordBtn = document.getElementById('recordExpensesBtn');
+                const laterBtn = document.getElementById('maybeLaterBtn');
+
+                if (recordBtn) {
+                    recordBtn.addEventListener('click', function() {
+                        window.location.href = '/expenses';
+                    });
+                }
+
+                if (laterBtn) {
+                    laterBtn.addEventListener('click', function() {
+                        modal.classList.add('hidden');
+                        const logoutForm = document.getElementById('logoutForm') || 
+                                         document.getElementById('logoutFormNav') || 
+                                         document.getElementById('logoutFormResponsive');
+                        if (logoutForm) {
+                            logoutForm.submit();
+                        }
+                    });
+                }
+
+                // Close modal when clicking outside
+                modal?.addEventListener('click', function(e) {
+                    if (e.target === modal) {
+                        modal.classList.add('hidden');
                     }
                 });
             });
