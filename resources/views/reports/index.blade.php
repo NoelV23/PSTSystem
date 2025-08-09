@@ -10,7 +10,7 @@
 
     <!-- Report Navigation Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <!-- Sales Report Card -->
+        <!-- Sales & Expenses Report Card -->
         <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-200">
             <div class="flex items-center mb-4">
                 <div class="p-3 bg-green-100 rounded-lg">
@@ -19,7 +19,7 @@
                     </svg>
                 </div>
                 <div class="ml-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Sales Report</h3>
+                    <h3 class="text-lg font-semibold text-gray-900">Sales & ExpensesReport</h3>
                     <p class="text-sm text-gray-600">Track sales performance and revenue</p>
                 </div>
             </div>
@@ -30,7 +30,7 @@
                 <li>• Sales by date range</li>
             </ul>
             <a href="{{ route('reports.sales') }}" class="inline-flex items-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white font-medium rounded-lg transition duration-200">
-                View Sales Report
+                View Sales & Expenses Report
                 <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
                 </svg>

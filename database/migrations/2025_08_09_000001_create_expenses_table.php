@@ -9,10 +9,13 @@ return new class extends Migration {
     {
         Schema::create('expenses', function (Blueprint $table) {
             $table->id();
-            $table->date('expense_date')->unique();
+            $table->foreignId('branch_id')->constrained('branches');
+            $table->foreignId('user_id')->constrained('users');
+            $table->date('expense_date');
             $table->decimal('amount', 10, 2)->default(0);
             $table->text('note')->nullable();
             $table->timestamps();
+            $table->unique(['branch_id', 'expense_date']);
         });
     }
 

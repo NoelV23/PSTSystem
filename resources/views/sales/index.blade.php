@@ -612,8 +612,10 @@ productSearch.addEventListener('input', function() {
     // Add inventory items
     filteredInventory.forEach(item => {
         // Use calculated stock for set products, otherwise use available_stock
+        console.log(item);
         let stock = item.available_stock;
-        if (item.product.base_unit === 'per set') {
+        console.log(stock);
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
             stock = item.calculated_stock || 0;
         }
         
@@ -684,7 +686,9 @@ productSearch.addEventListener('input', function() {
         }
         
         // Add set indicator for set products
-        if (item.product.base_unit === 'per set') {
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+            displayName += ' [Set w/ components]';
+        } else if (item.product.base_unit === 'per set' && item.product.set_components_count === 0) {
             displayName += ' [Set]';
         }
         
@@ -714,7 +718,7 @@ window.selectProduct = function(type, id) {
         item.inventoryId = item.id; // Set inventoryId for inventory items
         
         // Update available_stock for set products to use calculated_stock
-        if (item.product.base_unit === 'per set') {
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
             item.available_stock = item.calculated_stock || 0;
         }
     } else if (type === 'remainder') {
@@ -760,7 +764,9 @@ window.selectProduct = function(type, id) {
     if (item.type === 'remainder') {
         displayName += ' [Remainder]';
     }
-    if (item.product.base_unit === 'per set') {
+    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+        displayName += ' [Set w/ components]';
+    }else if (item.product.base_unit === 'per set' && item.product.set_components_count === 0) {
         displayName += ' [Set]';
     }
     productSearch.value = displayName;
@@ -770,11 +776,13 @@ window.selectProduct = function(type, id) {
     // Show measurement unit in meta
     let unit = item.product.measurement_unit ? ` (${item.product.measurement_unit})` : '';
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
-    let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' ? (item.calculated_stock || 0) : item.available_stock);
+    let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' && item.product.set_components_count > 0 ? (item.calculated_stock || 0) : item.available_stock);
     
     // Add set indicator for set products
     let setIndicator = '';
-    if (item.product.base_unit === 'per set') {
+    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
+        setIndicator = ' [Set w/ components]';
+    }else if (item.product.base_unit === 'per set' && item.product.set_components_count === 0) {
         setIndicator = ' [Set]';
     }
     
@@ -801,7 +809,7 @@ window.selectProduct = function(type, id) {
     
     // Set default price from inventory if available, otherwise leave empty
     if (item.type === 'inventory') {
-        if (item.product.base_unit === 'per set') {
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
             // For set products, use calculated price
             productPrice.value = item.calculated_price || '';
         } else {
@@ -816,7 +824,7 @@ window.selectProduct = function(type, id) {
     // Set max quantity for inventory items
     if (item.type === 'inventory') {
         let availableStock = 0;
-        if (item.product.base_unit === 'per set') {
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
             availableStock = Number(item?.calculated_stock ?? 0);
         } else {
             availableStock = Number(item?.available_stock ?? 0);
@@ -890,7 +898,7 @@ addSaleItemBtn.addEventListener('click', function(e) {
     // For inventory items, check stock
     let availableStock = 0;
     if (selectedProduct.type === 'inventory') {
-        if (selectedProduct.product.base_unit === 'per set') {
+        if (selectedProduct.product.base_unit === 'per set' && selectedProduct.product.set_components_count > 0) {
             availableStock = Number(selectedProduct?.calculated_stock ?? 0);
         } else {
             availableStock = Number(selectedProduct?.available_stock ?? 0);

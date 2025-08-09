@@ -11,14 +11,27 @@ class Expense extends Model
 
     protected $fillable = [
         'expense_date',
+        'branch_id',
         'amount',
         'note',
+        'user_id',
     ];
 
     protected $casts = [
         'expense_date' => 'date',
         'amount' => 'decimal:2',
     ];
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+    
 }
 
 

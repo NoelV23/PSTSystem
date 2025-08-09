@@ -14,9 +14,9 @@
             class="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-50"
         >
             <a href="/profile" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
-            <form method="POST" action="{{ route('logout') }}">
+            <form method="POST" action="{{ route('logout') }}" id="logoutForm">
                 @csrf
-                <button type="submit" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
+                <button type="button" onclick="handleLogout()" class="w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">Logout</button>
             </form>
         </div>
     </div>
