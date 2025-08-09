@@ -190,6 +190,42 @@ class ProductController extends Controller
         DB::beginTransaction();
         try {
             $wasSetProduct = $product->base_unit === 'per set';
+
+            // If category changed, regenerate SKU with new category prefix
+            if (isset($validated['category_id']) && $validated['category_id'] != $product->category_id) {
+                $newCategory = Category::findOrFail($validated['category_id']);
+                $categoryName = $newCategory->name;
+
+                // Generate SKU prefix based on category name (match create logic)
+                $words = explode(' ', trim($categoryName));
+                $skuPrefix = '';
+                if (count($words) === 1) {
+                    // Single word: take first 3 letters
+                    $skuPrefix = strtoupper(substr($words[0], 0, 3));
+                } else {
+                    // Multiple words: take first letter of each word
+                    $skuPrefix = implode('', array_map(function($word) {
+                        return strtoupper(substr($word, 0, 1));
+                    }, $words));
+                }
+
+                // Find the highest existing SKU number for this prefix
+                $existingSKUs = Product::where('sku', 'like', $skuPrefix . '%')
+                    ->where('sku', 'regexp', '^' . $skuPrefix . '[0-9]+$')
+                    ->pluck('sku')
+                    ->toArray();
+
+                $nextNumber = 1;
+                if (!empty($existingSKUs)) {
+                    $numbers = array_map(function($sku) use ($skuPrefix) {
+                        $numberPart = substr($sku, strlen($skuPrefix));
+                        return intval($numberPart);
+                    }, $existingSKUs);
+                    $nextNumber = max($numbers) + 1;
+                }
+
+                $validated['sku'] = $skuPrefix . str_pad($nextNumber, 6, '0', STR_PAD_LEFT);
+            }
             $product->update($validated);
             
             // Handle set components
@@ -327,13 +363,12 @@ class ProductController extends Controller
         $category = Category::findOrFail($categoryId);
         $categoryName = $category->name;
         
-        // Generate SKU prefix based on category name
+        // Generate SKU prefix based on category name (match create/update rules)
         $words = explode(' ', trim($categoryName));
         $skuPrefix = '';
-        
         if (count($words) === 1) {
-            // Single word: take first letter
-            $skuPrefix = strtoupper(substr($words[0], 0, 1));
+            // Single word: take first 3 letters
+            $skuPrefix = strtoupper(substr($words[0], 0, 3));
         } else {
             // Multiple words: take first letter of each word
             $skuPrefix = implode('', array_map(function($word) {
