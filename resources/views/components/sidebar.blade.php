@@ -108,7 +108,7 @@
                         Sales
                     </div>
                 </a>
-
+                @if(auth()->user()->role !== 'staff')
                 <!-- Purchases -->
                 <a href="/purchases" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('purchases') ? 'bg-red-700' : '' }}"
                    x-data="{ showTooltip: false }"
@@ -169,6 +169,7 @@
                         Inventory
                     </div>
                 </a>
+                @endif
 
                 <!-- Reports (not accessible by staff) -->
                 @if(auth()->user()->role !== 'staff')
@@ -280,6 +281,34 @@
                          x-transition:leave-end="opacity-0 scale-95"
                          class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg z-50 whitespace-nowrap">
                         Branches
+                    </div>
+                </a>
+                @endif
+
+                <!-- Expenses (admin and manager only) -->
+                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
+                <a href="/expenses" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('expenses') ? 'bg-red-700' : '' }}"
+                   x-data="{ showTooltip: false }"
+                   @mouseenter="if (!open) showTooltip = true"
+                   @mouseleave="showTooltip = false">
+                    <span class="flex items-center gap-3">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M12 8c-2.21 0-4 .895-4 2s1.79 2 4 2 4 .895 4 2-1.79 2-4 2m0-8c2.21 0 4 .895 4 2m-4-6v2m0 12v2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <span x-show="open">Expenses</span>
+                    </span>
+                    <svg x-show="open" class="h-4 w-4 text-white opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                    <div x-show="showTooltip && !open" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 scale-95"
+                         x-transition:enter-end="opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 scale-100"
+                         x-transition:leave-end="opacity-0 scale-95"
+                         class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg z-50 whitespace-nowrap">
+                        Expenses
                     </div>
                 </a>
                 @endif

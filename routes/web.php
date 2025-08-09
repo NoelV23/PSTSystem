@@ -13,7 +13,7 @@ use App\Http\Controllers\PurchaseController;
 
 
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -64,6 +64,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\StockAdjustmentController::class, 'adjust'])->name('inventory.adjust');
     Route::get('/stock-adjustments/history', [\App\Http\Controllers\StockAdjustmentController::class, 'history'])->name('stock-adjustments.history');
     Route::get('/stock-adjustments', [\App\Http\Controllers\StockAdjustmentController::class, 'historyPage'])->name('stock-adjustments.index');
+
+    // Expenses (admin & manager only) page
+    Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index');
 
 
     // Branch API routes
@@ -124,6 +127,9 @@ Route::middleware('auth')->group(function () {
     // Cut Remainder API routes
     Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');
     Route::patch('/api/cut-remainders/{id}', [\App\Http\Controllers\CutRemainderController::class, 'update'])->name('api.cut-remainders.update');
+
+    // Expenses API (admin & manager only)
+    Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert');
 });
 
 require __DIR__.'/auth.php';
