@@ -18,6 +18,11 @@
                 </div>
 
                 <div class="flex items-center justify-end mt-6">
+                    <!-- Back to login page -->
+                    <a href="{{ route('login') }}" class="text-sm text-gray-600 hover:text-gray-900 mr-32">
+                        {{ __('Back to login') }}
+                    </a>
+                    <!-- Send Reset Link -->
                     <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-red-500">
                         {{ __('Send Reset Link') }}
                     </x-primary-button>
