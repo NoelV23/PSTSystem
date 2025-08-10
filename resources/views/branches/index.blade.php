@@ -77,7 +77,7 @@
                 </button>
             </div>
             
-            <form id="branchForm" class="space-y-4">
+            <form id="branchForm" class="space-y-4" data-custom-submit>
                 <input type="hidden" id="branchId" name="branch_id">
                 
                 <div>

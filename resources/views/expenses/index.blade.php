@@ -16,7 +16,7 @@
             <div class="bg-gray-50 border border-gray-200 rounded p-3 text-sm text-gray-500">No expense saved for today yet.</div>
           @endif
         </div>
-        <form id="expenseForm" class="space-y-4">
+        <form id="expenseForm" class="space-y-4" data-custom-submit>
           @if(auth()->user()->role === 'admin')
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Branch</label>

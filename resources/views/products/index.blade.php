@@ -115,7 +115,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="productForm" class="space-y-4">
+            <form id="productForm" class="space-y-4" data-custom-submit>
                 <input type="hidden" id="productId" name="product_id">
                 <div>
                     <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>

@@ -118,7 +118,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="purchaseForm" class="space-y-6">
+            <form id="purchaseForm" class="space-y-6" data-custom-submit>
                 <input type="hidden" id="purchaseId" name="purchase_id">
                 <input type="hidden" id="selectedBranchId" name="branch_id">
                 

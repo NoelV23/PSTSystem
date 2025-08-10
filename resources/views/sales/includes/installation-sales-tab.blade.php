@@ -1,7 +1,7 @@
 <div class="bg-white rounded-lg shadow p-6">
     <h2 class="text-xl font-bold text-gray-900 mb-6">Add Installation Sale</h2>
     
-    <form id="addInstallationSaleForm" class="space-y-4">
+    <form id="addInstallationSaleForm" class="space-y-4" data-custom-submit>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label for="installationDate" class="block text-sm font-medium text-gray-700 mb-1">Date</label>

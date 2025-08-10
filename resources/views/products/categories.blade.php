@@ -57,7 +57,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="categoryForm" class="space-y-4">
+            <form id="categoryForm" class="space-y-4" data-custom-submit>
                 <input type="hidden" id="categoryId" name="category_id">
                 <div>
                     <label for="categoryName" class="block text-sm font-medium text-gray-700 mb-1">Category Name *</label>
