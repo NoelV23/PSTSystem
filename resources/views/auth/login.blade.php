@@ -19,12 +19,12 @@
                     <!-- Email Address -->
                     <div class="mb-4">
                         <input id="email" name="email" type="email" placeholder="Email Address" required autofocus autocomplete="username" class="w-full px-4 py-2 rounded bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <x-input-error :messages="$errors->get('email')" class="mt-2" />
+                        <x-input-error :messages="$errors->get('email')" class="mt-2 text-yellow-200" />
                     </div>
                     <!-- Password -->
                     <div class="mb-4 relative">
                         <input id="password" name="password" type="password" placeholder="Password" required autocomplete="current-password" class="w-full px-4 py-2 rounded bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <x-input-error :messages="$errors->get('password')" class="mt-2" />
+                        <x-input-error :messages="$errors->get('password')" class="mt-2 text-yellow-200" />
                         <!-- Eye icon placeholder -->
                         <span class="absolute right-3 top-3 text-gray-400 cursor-pointer">
                             <!-- SVG icon here -->
