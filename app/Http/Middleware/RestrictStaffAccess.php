@@ -30,17 +30,19 @@ class RestrictStaffAccess
             return $next($request);
         }
 
-        // Allowed web paths for staff
-        $allowedPaths = [
-            'sales',
-            'products',
-        ];
+        // Allowed web path prefixes for staff (allow subpaths like sales/*, products/*)
+        $allowedPrefixes = ['sales', 'products'];
 
         // Normalize current path (without leading slash)
         $path = ltrim($request->path(), '/');
 
-        // If not exactly one of the allowed top-level pages, redirect to sales
-        $isAllowed = in_array($path, $allowedPaths, true);
+        $isAllowed = false;
+        foreach ($allowedPrefixes as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                $isAllowed = true;
+                break;
+            }
+        }
         if (!$isAllowed) {
             return redirect()->route('sales.index');
         }
