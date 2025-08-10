@@ -113,7 +113,7 @@
             </div>
 
             <!-- Add Item Form -->
-            <form id="addItemForm" class="space-y-4" data-custom-submit>
+            <form id="addItemForm" data-custom-submit="true" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label for="saleQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>

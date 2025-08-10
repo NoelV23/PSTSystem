@@ -69,7 +69,7 @@
 
     <div id="addSaleTab" class="tab-content hidden">
         <div class="bg-white rounded-lg shadow p-6">
-            <form id="addSaleForm" autocomplete="off" data-custom-submit>
+            <form id="addSaleForm" data-custom-submit="true" autocomplete="off">
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     <div>
                         <x-input-label for="saleDate" value="Date" />
@@ -222,7 +222,7 @@
         <div class="bg-white rounded-lg shadow-lg w-full max-w-md mx-4 p-6 relative">
             <button id="closeDeliveryDetailsModal" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl">&times;</button>
             <h2 class="text-xl font-bold mb-4">Delivery Details</h2>
-            <form id="deliveryDetailsForm" class="space-y-4" data-custom-submit>
+            <form id="deliveryDetailsForm" data-custom-submit="true" class="space-y-4">
                 <div>
                     <label for="deliveryDate" class="block text-sm font-medium text-gray-700 mb-1">Delivery Date *</label>
                     <input type="date" id="deliveryDate" name="delivery_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">

@@ -175,7 +175,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="inventoryForm" class="space-y-4" data-custom-submit>
+            <form id="inventoryForm" data-custom-submit="true" class="space-y-4">
                 <input type="hidden" id="inventoryId" name="inventory_id">
                 <input type="hidden" id="branchId" name="branch_id" value="{{ $branch->id }}">
                 
@@ -322,7 +322,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="stockAdjustmentForm" class="space-y-4" data-custom-submit>
+            <form id="stockAdjustmentForm" data-custom-submit="true" class="space-y-4">
                 <input type="hidden" id="adjustmentInventoryId" name="inventory_id">
                 <input type="hidden" id="adjustmentType" name="type">
                 

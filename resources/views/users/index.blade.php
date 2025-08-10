@@ -108,7 +108,7 @@
                     </svg>
                 </button>
             </div>
-            <form id="userForm" class="space-y-4" data-custom-submit>
+            <form id="userForm" data-custom-submit="true" class="space-y-4">
                 <input type="hidden" id="userId" name="user_id">
                 <div>
                     <label for="userName" class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
