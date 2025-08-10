@@ -20,6 +20,7 @@ class Sale extends Model
         'delivery_address',
         'delivery_date',
         'delivery_note',
+        'delivery_fee',
         'is_installation',
         'installation_address',
         'description',

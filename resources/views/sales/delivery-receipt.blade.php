@@ -202,6 +202,15 @@
                                 <td>₱{{ number_format($item->total_price, 2) }}</td>
                             </tr>
                         @endforeach
+                        @if(($sale->delivery_fee ?? 0) > 0)
+                            <tr>
+                                <td>1</td>
+                                <td>fee</td>
+                                <td>Delivery Fee</td>
+                                <td>₱{{ number_format($sale->delivery_fee, 2) }}</td>
+                                <td>₱{{ number_format($sale->delivery_fee, 2) }}</td>
+                            </tr>
+                        @endif
                         <tr class="total-row">
                             <td colspan="4">TOTAL</td>
                             <td>₱{{ number_format($sale->total_amount, 2) }}</td>

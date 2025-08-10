@@ -239,6 +239,11 @@
                     <label for="deliveryNote" class="block text-sm font-medium text-gray-700 mb-1">Delivery Note (Optional)</label>
                     <textarea id="deliveryNote" name="delivery_note" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter delivery notes..."></textarea>
                 </div>
+                    <div>
+                        <label for="deliveryFee" class="block text-sm font-medium text-gray-700 mb-1">Delivery Fee (₱)</label>
+                        <input type="number" id="deliveryFee" name="delivery_fee" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="0.00">
+                        <div class="text-xs text-gray-500 mt-1">If provided, this fee will be added to the total amount.</div>
+                    </div>
                 <div class="flex justify-end gap-3 pt-4">
                     <button type="button" id="cancelDeliveryBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
                     <button type="submit" id="saveDeliveryBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save</button>
@@ -326,10 +331,11 @@ const saleDetailsContent = document.getElementById('saleDetailsContent');
 const deliveryDetailsModal = document.getElementById('deliveryDetailsModal');
 const closeDeliveryDetailsModal = document.getElementById('closeDeliveryDetailsModal');
 const deliveryDetailsForm = document.getElementById('deliveryDetailsForm');
-const deliveryDate = document.getElementById('deliveryDate');
+    const deliveryDate = document.getElementById('deliveryDate');
 const deliveredTo = document.getElementById('deliveredTo');
 const deliveryAddress = document.getElementById('deliveryAddress');
 const deliveryNote = document.getElementById('deliveryNote');
+    const deliveryFee = document.getElementById('deliveryFee');
 const cancelDeliveryBtn = document.getElementById('cancelDeliveryBtn');
 const saveDeliveryBtn = document.getElementById('saveDeliveryBtn');
 const transactionStatusFilter = document.getElementById('transactionStatusFilter');
@@ -1108,7 +1114,8 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
                 delivered_to: delivery_data.delivered_to,
                 delivery_date: delivery_data.delivery_date,
                 delivery_note: delivery_data.delivery_note,
-                delivery_address: delivery_data.delivery_address
+                delivery_address: delivery_data.delivery_address,
+                delivery_fee: delivery_data.delivery_fee
             })
         };
         
@@ -1307,7 +1314,8 @@ deliveryDetailsForm.addEventListener('submit', async function(e) {
         delivery_date: deliveryDate.value,
         delivered_to: deliveredTo.value,
         delivery_address: deliveryAddress.value,
-        delivery_note: deliveryNote.value
+        delivery_note: deliveryNote.value,
+        delivery_fee: deliveryFee.value ? Number(deliveryFee.value) : 0
     };
     
     // Validate required fields

@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('delivery_address')->nullable();
             $table->date('delivery_date')->nullable();
             $table->text('delivery_note')->nullable();
+            $table->decimal('delivery_fee', 12, 2);
             $table->boolean('is_installation')->default(false);
             $table->text('installation_address')->nullable();
             $table->text('description')->nullable();

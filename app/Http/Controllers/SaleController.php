@@ -132,6 +132,7 @@ class SaleController extends Controller
             'delivery_date' => 'nullable|date',
             'delivery_note' => 'nullable|string',
             'delivery_address' => 'nullable|string',
+            'delivery_fee' => 'nullable|numeric|min:0',
         ]);
         
         // Custom validation for inventory_id based on item_type
@@ -170,6 +171,7 @@ class SaleController extends Controller
                 'delivery_date' => $validated['delivery_date'] ?? null,
                 'delivery_note' => $validated['delivery_note'] ?? null,
                 'delivery_address' => $validated['delivery_address'] ?? null,
+                'delivery_fee' => $validated['delivery_fee'] ?? 0,
             ]);
             
             // Only process items if this is not an installation sale or if items are provided
@@ -260,6 +262,12 @@ class SaleController extends Controller
                 }
             }
             
+            // If sale is delivered and has delivery_fee, add it to total_amount
+            if (($sale->is_delivered ?? false) && ($sale->delivery_fee ?? 0) > 0) {
+                $sale->total_amount = ($sale->total_amount ?? 0) + ($sale->delivery_fee ?? 0);
+                $sale->save();
+            }
+
             \DB::commit();
             return response()->json($sale->load(['user', 'saleItems']), 201);
         } catch (\Exception $e) {
