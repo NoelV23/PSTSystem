@@ -11,8 +11,8 @@
                 <!-- Branch options will be loaded here -->
             </select>
         </div>
-        <x-primary-button id="addSaleBtn" class="hidden md:inline-flex">Add New Sale</x-primary-button>
-        <x-primary-button id="addInstallationSaleBtn" class="hidden md:inline-flex ml-2">Add New Sale Inst.</x-primary-button>
+        <button type="button" id="addSaleBtn" class="hidden md:inline-flex px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition duration-200">Add New Sale</button>
+        <button type="button" id="addInstallationSaleBtn" class="hidden md:inline-flex ml-2 px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition duration-200">Add New Sale Inst.</button>
     </div>
 
     <!-- Tabs -->
@@ -137,7 +137,7 @@
                             </div>
                         </div>
                         <div>
-                            <x-primary-button type="button" id="addSaleItemBtn">Add to List</x-primary-button>
+                            <button type="button" id="addSaleItemBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition duration-200">Add to List</button>
                         </div>
                     </div>
                 </div>
@@ -164,7 +164,7 @@
                 <!-- Total Amount & Submit -->
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="text-lg font-bold text-gray-700">Total: ₱ <span id="saleTotalAmount">0.00</span></div>
-                    <x-primary-button type="submit" class="w-full md:w-auto">Create Sale</x-primary-button>
+                    <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Create Sale</button>
                 </div>
             </form>
         </div>
