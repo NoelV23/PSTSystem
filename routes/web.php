@@ -48,6 +48,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/reports/sales', [\App\Http\Controllers\ReportsController::class, 'sales'])->name('reports.sales');
     Route::get('/reports/purchases', [\App\Http\Controllers\ReportsController::class, 'purchases'])->name('reports.purchases');
     Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory');
+    Route::get('/api/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventoryData'])->name('api.reports.inventory');
     Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales');
     
     // Installation Sales - Record Products

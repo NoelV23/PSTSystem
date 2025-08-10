@@ -84,6 +84,36 @@
         </form>
     </div>
 
+    <!-- New Summary Cards: Total Inventory Value & Potential Revenue -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6" id="inventory-extra-cards">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-blue-100 rounded-lg">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V4m0 12v4" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Total Inventory Value</p>
+                    <p class="text-2xl font-bold text-gray-900" id="total-inventory-value">₱0.00</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <div class="flex items-center">
+                <div class="p-3 bg-indigo-100 rounded-lg">
+                    <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h10m-7 5h4M8 3h8l1 4H7l1-4z" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-600">Potential Revenue</p>
+                    <p class="text-2xl font-bold text-gray-900" id="potential-revenue">₱0.00</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <div class="bg-white rounded-lg shadow-md p-6">
@@ -95,7 +125,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Total Products</p>
-                    <p class="text-2xl font-bold text-gray-900">{{ number_format($inventories->count()) }}</p>
+                    <p class="text-2xl font-bold text-gray-900" id="total-products">0</p>
                 </div>
             </div>
         </div>
@@ -109,13 +139,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">In Stock</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ number_format($inventories->filter(function($inv) { 
-                            return $inv->product->base_unit === 'per set' ? 
-                                ($inv->calculated_stock ?? 0) > 0 : 
-                                ($inv->available_stock ?? 0) > 0; 
-                        })->count()) }}
-                    </p>
+                    <p class="text-2xl font-bold text-gray-900" id="in-stock-count">0</p>
                 </div>
             </div>
         </div>
@@ -129,14 +153,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Low Stock</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ number_format($inventories->filter(function($inv) { 
-                            $stock = $inv->product->base_unit === 'per set' ? 
-                                ($inv->calculated_stock ?? 0) : 
-                                ($inv->available_stock ?? 0);
-                            return $stock <= ($inv->reorder_level ?? 0) && $stock > 0; 
-                        })->count()) }}
-                    </p>
+                    <p class="text-2xl font-bold text-gray-900" id="low-stock-count">0</p>
                 </div>
             </div>
         </div>
@@ -150,14 +167,7 @@
                 </div>
                 <div class="ml-4">
                     <p class="text-sm font-medium text-gray-600">Out of Stock</p>
-                    <p class="text-2xl font-bold text-gray-900">
-                        {{ number_format($inventories->filter(function($inv) { 
-                            $stock = $inv->product->base_unit === 'per set' ? 
-                                ($inv->calculated_stock ?? 0) : 
-                                ($inv->available_stock ?? 0);
-                            return $stock === 0; 
-                        })->count()) }}
-                    </p>
+                    <p class="text-2xl font-bold text-gray-900" id="out-of-stock-count">0</p>
                 </div>
             </div>
         </div>
@@ -185,82 +195,10 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    @forelse($inventories as $inventory)
-                    <!-- if status is out of stock column color is light red, if status is low stock column color is light yellow, if status is in stock column color is light green-->
-                    @php
-                        $stock = $inventory->product->base_unit === 'per set' ? 
-                            ($inventory->calculated_stock ?? 0) : 
-                            ($inventory->available_stock ?? 0);
-                        $reorderLevel = $inventory->reorder_level ?? 0;
-                    @endphp
-                    <tr class="hover:bg-gray-50" style="background-color: {{ $stock === 0 ? '#FEF2F2' : ($stock <= $reorderLevel ? '#FFFBEB' : '#F0FDF4') }};" data-inventory-id="{{ $inventory->id }}" data-product-id="{{ $inventory->product_id }}" data-branch-id="{{ $inventory->branch_id }}">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {{ $inventory->product->name }}
-                            @if($inventory->product->measurement_unit)
-                                <span class="text-gray-500 text-xs">({{ $inventory->product->measurement_unit }})</span>
-                            @endif
-                            @if($inventory->product->base_unit === 'per set')
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $inventory->product->sku ?? 'No SKU' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ $inventory->product->category->name ?? 'N/A' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ $inventory->branch->name ?? 'N/A' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            @if($inventory->product->base_unit === 'per set')
-                                {{ $inventory->calculated_stock ?? 0 }}
-                            @else
-                                {{ $inventory->available_stock ?? 0 }}
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_purchased ?? 0) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_sold ?? 0) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_installation_used ?? 0) }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ number_format($inventory->total_remainders ?? 0) }}
-                            @if($inventory->total_remainders > 0)
-                                <button onclick="viewRemainders({{ $inventory->id }})" class="ml-2 text-blue-600 hover:underline text-xs">view</button>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {{ $inventory->reorder_level ?? 0 }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            @if($stock === 0)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                    Out of Stock
-                                </span>
-                            @elseif($stock <= $reorderLevel)
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                    Low Stock
-                                </span>
-                            @else
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    In Stock
-                                </span>
-                            @endif
-                        </td>
-                    </tr>
-                    @empty
+                <tbody class="bg-white divide-y divide-gray-200" id="inventory-table-body">
                     <tr>
-                        <td colspan="11" class="px-6 py-4 text-center text-gray-500">
-                            No inventory found for the selected criteria.
-                        </td>
+                        <td colspan="11" class="px-6 py-4 text-center text-gray-500">Loading...</td>
                     </tr>
-                    @endforelse
                 </tbody>
             </table>
         </div>
@@ -278,6 +216,11 @@
 </div>
 
 <script>
+// Helper: format currency
+function formatCurrency(num) {
+    const n = Number(num || 0);
+    return '₱' + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 function exportToExcel() {
     // Get current URL parameters
     const currentUrl = new URL(window.location);
@@ -364,7 +307,83 @@ document.getElementById('remaindersModal').addEventListener('click', function(e)
         this.classList.add('hidden');
     }
 });
-</script>
-@endsection 
 
-<!-- update inventory report table to use ajax also fix where per set w/o components must be treated like regular products, also add two cards above the 4 cards(Total Products,In Stock,Low Stock,Out of Stock) which is Total Inventory Value and Potential Revenue(The total money you’d make if you sold all current stock at the price.) -->
+// AJAX load for inventory table and summary cards
+function loadInventoryData() {
+    const currentUrl = new URL(window.location);
+    const params = new URLSearchParams(currentUrl.search);
+    const query = params.toString();
+    const url = '/api/reports/inventory' + (query ? ('?' + query) : '');
+
+    const tbody = document.getElementById('inventory-table-body');
+    tbody.innerHTML = '<tr><td colspan="11" class="px-6 py-6 text-center text-gray-500">Loading...</td></tr>';
+
+    fetch(url)
+        .then(resp => resp.json())
+        .then(data => {
+            const s = data.summary || {};
+            document.getElementById('total-inventory-value').textContent = formatCurrency(s.total_inventory_value || 0);
+            document.getElementById('potential-revenue').textContent = formatCurrency(s.potential_revenue || 0);
+            document.getElementById('total-products').textContent = (s.total_products || 0).toLocaleString();
+            document.getElementById('in-stock-count').textContent = (s.in_stock_count || 0).toLocaleString();
+            document.getElementById('low-stock-count').textContent = (s.low_stock_count || 0).toLocaleString();
+            document.getElementById('out-of-stock-count').textContent = (s.out_of_stock_count || 0).toLocaleString();
+
+            const items = data.items || [];
+            if (!items.length) {
+                tbody.innerHTML = '<tr><td colspan="11" class="px-6 py-6 text-center text-gray-500">No inventory found for the selected criteria.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = items.map(inv => {
+                const bg = inv.stock === 0 ? '#FEF2F2' : (inv.stock <= inv.reorder_level ? '#FFFBEB' : '#F0FDF4');
+                const setBadge = inv.is_set_product ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>' : '';
+                const statusBadge = inv.stock === 0
+                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Out of Stock</span>'
+                    : (inv.stock <= inv.reorder_level
+                        ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Low Stock</span>'
+                        : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">In Stock</span>');
+                const remaindersCell = (inv.total_remainders || 0) > 0
+                    ? `${Number(inv.total_remainders || 0).toLocaleString()} <button onclick="viewRemainders(${inv.id})" class="ml-2 text-blue-600 hover:underline text-xs">view</button>`
+                    : `${Number(inv.total_remainders || 0).toLocaleString()}`;
+                const measurement = inv.measurement_unit ? ` <span class=\"text-gray-500 text-xs\">(${inv.measurement_unit})</span>` : '';
+
+                return `
+                <tr class=\"hover:bg-gray-50\" style=\"background-color: ${bg};\" data-inventory-id=\"${inv.id}\" data-product-id=\"${inv.product_id}\" data-branch-id=\"${inv.branch_id}\">
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900\">${inv.product_name}${measurement}${inv.is_set_product ? setBadge : ''}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-500\">${inv.sku}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${inv.category_name}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${inv.branch_name}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.stock || 0).toLocaleString()}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_purchased || 0).toLocaleString()}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_sold || 0).toLocaleString()}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_installation_used || 0).toLocaleString()}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${remaindersCell}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.reorder_level || 0).toLocaleString()}</td>
+                    <td class=\"px-6 py-4 whitespace-nowrap\">${statusBadge}</td>
+                </tr>`;
+            }).join('');
+        })
+        .catch(err => {
+            console.error('Failed to load inventory report:', err);
+            tbody.innerHTML = '<tr><td colspan="11" class="px-6 py-6 text-center text-red-500">Error loading data</td></tr>';
+        });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadInventoryData();
+    // Intercept filter form submit to load via AJAX without reload
+    const form = document.querySelector('form[action*="reports/inventory"]');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(form);
+            const params = new URLSearchParams(formData);
+            const newUrl = window.location.pathname + '?' + params.toString();
+            window.history.replaceState({}, '', newUrl);
+            loadInventoryData();
+        });
+    }
+});
+</script>
+@endsection

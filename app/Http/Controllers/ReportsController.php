@@ -11,6 +11,7 @@ use App\Models\SaleItem;
 use App\Models\PurchaseItem;
 use App\Models\CutRemainder;
 use App\Models\Expense;
+use App\Models\InstallationProductUsage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -611,5 +612,163 @@ class ReportsController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+    /**
+     * API: Inventory report data for AJAX table and summary cards
+     */
+    public function inventoryData(Request $request)
+    {
+        // Staff users cannot access reports
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+
+        $branchId = $request->get('branch_id');
+        $categoryId = $request->get('category_id');
+        $lowStockOnly = $request->boolean('low_stock_only');
+        $dateFrom = $request->get('date_from', Carbon::today()->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
+
+        $query = Inventory::with(['product.category', 'branch'])
+            ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+
+        if ($categoryId) {
+            $query->whereHas('product', function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId);
+            });
+        }
+
+        $inventories = $query->orderBy('created_at', 'desc')->get();
+
+        $items = [];
+        $totalProducts = 0;
+        $inStockCount = 0;
+        $lowStockCount = 0;
+        $outOfStockCount = 0;
+        $totalInventoryValue = 0; // sum of stock * cost
+        $potentialRevenue = 0; // sum of stock * price
+
+        foreach ($inventories as $inventory) {
+            $product = $inventory->product;
+            if (!$product) {
+                continue;
+            }
+
+            $isSetProduct = $product->base_unit === 'per set';
+            $hasComponents = $isSetProduct && $product->setComponents()->exists();
+
+            if ($hasComponents) {
+                // Load components and compute derived stock/price
+                $product->load(['setComponents.componentProduct']);
+                $inventory->calculated_stock = $inventory->calculateSetStock();
+                $inventory->calculated_price = $inventory->calculateSetPrice();
+            }
+
+            // Current stock: for set with components use calculated_stock; otherwise available_stock
+            $currentStock = $hasComponents ? (int) ($inventory->calculated_stock ?? 0) : (int) ($inventory->available_stock ?? 0);
+
+            // Totals
+            $totalPurchased = PurchaseItem::where('product_id', $inventory->product_id)
+                ->whereHas('purchaseOrder', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
+                })
+                ->sum('quantity');
+
+            $totalSold = SaleItem::where('product_id', $inventory->product_id)
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id)
+                      ->where('is_installation', false);
+                })
+                ->sum('quantity');
+
+            $totalInstallationUsed = InstallationProductUsage::where('product_id', $inventory->product_id)
+                ->whereHas('sale', function ($q) use ($inventory) {
+                    $q->where('branch_id', $inventory->branch_id);
+                })
+                ->sum('quantity_used');
+
+            $totalRemainders = CutRemainder::where('product_id', $inventory->product_id)
+                ->where('branch_id', $inventory->branch_id)
+                ->sum('area_remaining');
+
+            $reorderLevel = (int) ($inventory->reorder_level ?? 0);
+
+            // Stock status
+            if ($currentStock === 0) {
+                $status = 'Out of Stock';
+                $outOfStockCount++;
+            } elseif ($currentStock <= $reorderLevel) {
+                $status = 'Low Stock';
+                $lowStockCount++;
+            } else {
+                $status = 'In Stock';
+                $inStockCount++;
+            }
+
+            // Values
+            $costToUse = (float) ($inventory->cost ?? 0);
+            $priceToUse = (float) ($hasComponents ? ($inventory->calculated_price ?? 0) : ($inventory->price ?? 0));
+            $totalInventoryValue += $currentStock * $costToUse;
+            $potentialRevenue += $currentStock * $priceToUse;
+
+            $totalProducts++;
+
+            $items[] = [
+                'id' => $inventory->id,
+                'product_id' => $inventory->product_id,
+                'branch_id' => $inventory->branch_id,
+                'product_name' => $product->name,
+                'measurement_unit' => $product->measurement_unit,
+                'is_set_product' => $isSetProduct,
+                'has_components' => $hasComponents,
+                'sku' => $product->sku ?? 'No SKU',
+                'category_name' => optional($product->category)->name ?? 'N/A',
+                'branch_name' => optional($inventory->branch)->name ?? 'N/A',
+                'stock' => $currentStock,
+                'total_purchased' => (int) ($totalPurchased ?? 0),
+                'total_sold' => (int) ($totalSold ?? 0),
+                'total_installation_used' => (int) ($totalInstallationUsed ?? 0),
+                'total_remainders' => (float) ($totalRemainders ?? 0),
+                'reorder_level' => $reorderLevel,
+                'status' => $status,
+            ];
+        }
+
+        // Apply low stock filter once we have accurate stocks
+        if ($lowStockOnly) {
+            $items = array_values(array_filter($items, function ($item) {
+                return $item['stock'] > 0 && $item['stock'] <= $item['reorder_level'];
+            }));
+            // Recompute counts based on filtered items
+            $totalProducts = count($items);
+            $inStockCount = 0;
+            $lowStockCount = 0;
+            $outOfStockCount = 0;
+            $totalInventoryValue = 0;
+            $potentialRevenue = 0;
+            foreach ($items as $it) {
+                if ($it['stock'] === 0) $outOfStockCount++;
+                elseif ($it['stock'] <= $it['reorder_level']) $lowStockCount++;
+                else $inStockCount++;
+                // For values, we would need per-item cost/price; omit recomputation on filtered set
+            }
+        }
+
+        return response()->json([
+            'items' => $items,
+            'summary' => [
+                'total_products' => $totalProducts,
+                'in_stock_count' => $inStockCount,
+                'low_stock_count' => $lowStockCount,
+                'out_of_stock_count' => $outOfStockCount,
+                'total_inventory_value' => round($totalInventoryValue, 2),
+                'potential_revenue' => round($potentialRevenue, 2),
+            ],
+        ]);
     }
 } 
