@@ -30,12 +30,16 @@ class RestrictStaffAccess
             return $next($request);
         }
 
-        // Allowed web path prefixes for staff (allow subpaths like sales/*, products/*)
-        $allowedPrefixes = ['sales', 'products'];
+        // Allowed web paths for staff (allow root and subpaths like sales/*, products/*)
+        $allowedPrefixes = [
+            'sales',
+            'products',
+        ];
 
         // Normalize current path (without leading slash)
         $path = ltrim($request->path(), '/');
 
+        // If path does not start with any allowed prefix, redirect to sales
         $isAllowed = false;
         foreach ($allowedPrefixes as $prefix) {
             if ($path === $prefix || str_starts_with($path, $prefix . '/')) {

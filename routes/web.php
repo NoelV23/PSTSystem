@@ -24,25 +24,10 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/api/dashboard/data', [DashboardController::class, 'getDashboardData'])->name('api.dashboard.data');
 
     // branches (admin only)
-    Route::middleware(function ($request, $next) {
-        if (auth()->user()->role !== 'admin') {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/branches', [BranchController::class, 'index'])->name('branches.index');
-    });
+    Route::get('/branches', [BranchController::class, 'index'])->name('branches.index')->middleware('role:admin');
 
-    // users (admin and manager)
-    Route::middleware(function ($request, $next) {
-        $role = auth()->user()->role;
-        if (!in_array($role, ['admin', 'manager'])) {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/users', [UserController::class, 'index'])->name('users.index');
-    });
+    // users (admin & manager)
+    Route::get('/users', [UserController::class, 'index'])->name('users.index')->middleware('role:admin,manager');
 
     // inventory
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
@@ -55,80 +40,48 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/products/categories', [CategoryController::class, 'index'])->name('products.categories');
 
-    // purchases (admin and manager)
-    Route::middleware(function ($request, $next) {
-        $role = auth()->user()->role;
-        if (!in_array($role, ['admin', 'manager'])) {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index');
-    });
+    // purchases (admin & manager)
+    Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index')->middleware('role:admin,manager');
 
-    // reports (admin and manager)
-    Route::middleware(function ($request, $next) {
-        $role = auth()->user()->role;
-        if (!in_array($role, ['admin', 'manager'])) {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index');
-        Route::get('/reports/sales', [\App\Http\Controllers\ReportsController::class, 'sales'])->name('reports.sales');
-        Route::get('/reports/purchases', [\App\Http\Controllers\ReportsController::class, 'purchases'])->name('reports.purchases');
-        Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory');
-        Route::get('/api/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventoryData'])->name('api.reports.inventory');
-        Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales');
-    });
+    // reports
+    Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index')->middleware('role:admin,manager');
+    Route::get('/reports/sales', [\App\Http\Controllers\ReportsController::class, 'sales'])->name('reports.sales')->middleware('role:admin,manager');
+    Route::get('/reports/purchases', [\App\Http\Controllers\ReportsController::class, 'purchases'])->name('reports.purchases')->middleware('role:admin,manager');
+    Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory')->middleware('role:admin,manager');
+    Route::get('/api/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventoryData'])->name('api.reports.inventory')->middleware('role:admin,manager');
+    Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales')->middleware('role:admin,manager');
     
     // Installation Sales - Record Products
     Route::get('/api/installation-sales/{id}', [\App\Http\Controllers\InstallationSaleController::class, 'getInstallationSale'])->name('api.installation-sales.show');
     Route::get('/api/installation-sales/{id}/inventory', [\App\Http\Controllers\InstallationSaleController::class, 'getAvailableInventory'])->name('api.installation-sales.inventory');
     Route::post('/api/installation-sales/{id}/record-products', [\App\Http\Controllers\InstallationSaleController::class, 'saveRecordedProducts'])->name('api.installation-sales.save-recorded-products');
     
-    // Export routes (admin and manager)
-    Route::middleware(function ($request, $next) {
-        $role = auth()->user()->role;
-        if (!in_array($role, ['admin', 'manager'])) {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export');
-        Route::get('/reports/purchases/export', [\App\Http\Controllers\ReportsController::class, 'exportPurchases'])->name('reports.purchases.export');
-        Route::get('/reports/inventory/export', [\App\Http\Controllers\ReportsController::class, 'exportInventory'])->name('reports.inventory.export');
-    });
+    // Export routes
+    Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export')->middleware('role:admin,manager');
+    Route::get('/reports/purchases/export', [\App\Http\Controllers\ReportsController::class, 'exportPurchases'])->name('reports.purchases.export')->middleware('role:admin,manager');
+    Route::get('/reports/inventory/export', [\App\Http\Controllers\ReportsController::class, 'exportInventory'])->name('reports.inventory.export')->middleware('role:admin,manager');
     
     // Stock Adjustment routes
     Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\StockAdjustmentController::class, 'adjust'])->name('inventory.adjust');
     Route::get('/stock-adjustments/history', [\App\Http\Controllers\StockAdjustmentController::class, 'history'])->name('stock-adjustments.history');
     Route::get('/stock-adjustments', [\App\Http\Controllers\StockAdjustmentController::class, 'historyPage'])->name('stock-adjustments.index');
 
-    // Expenses (admin & manager only) page
-    Route::middleware(function ($request, $next) {
-        $role = auth()->user()->role;
-        if (!in_array($role, ['admin', 'manager'])) {
-            return redirect()->route('dashboard');
-        }
-        return $next($request);
-    })->group(function () {
-        Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index');
-    });
+    // Expenses (admin & manager) page
+    Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index')->middleware('role:admin,manager');
 
 
     // Branch API routes
-    Route::get('/api/branches', [BranchController::class, 'getAllBranches'])->name('api.branches.index');
-    Route::get('/api/branches/{id}', [BranchController::class, 'show'])->name('api.branches.show');
-    Route::post('/api/branches', [BranchController::class, 'store'])->name('api.branches.store');
-    Route::put('/api/branches/{id}', [BranchController::class, 'update'])->name('api.branches.update');
-    Route::delete('/api/branches/{id}', [BranchController::class, 'destroy'])->name('api.branches.destroy');
+    Route::get('/api/branches', [BranchController::class, 'getAllBranches'])->name('api.branches.index')->middleware('role:admin');
+    Route::get('/api/branches/{id}', [BranchController::class, 'show'])->name('api.branches.show')->middleware('role:admin');
+    Route::post('/api/branches', [BranchController::class, 'store'])->name('api.branches.store')->middleware('role:admin');
+    Route::put('/api/branches/{id}', [BranchController::class, 'update'])->name('api.branches.update')->middleware('role:admin');
+    Route::delete('/api/branches/{id}', [BranchController::class, 'destroy'])->name('api.branches.destroy')->middleware('role:admin');
 
     // User API routes
-    Route::get('/api/users', [UserController::class, 'getAllUsers'])->name('api.users.index');
-    Route::post('/api/users', [UserController::class, 'store'])->name('api.users.store');
-    Route::put('/api/users/{id}', [UserController::class, 'update'])->name('api.users.update');
-    Route::delete('/api/users/{id}', [UserController::class, 'destroy'])->name('api.users.destroy');
+    Route::get('/api/users', [UserController::class, 'getAllUsers'])->name('api.users.index')->middleware('role:admin,manager');
+    Route::post('/api/users', [UserController::class, 'store'])->name('api.users.store')->middleware('role:admin,manager');
+    Route::put('/api/users/{id}', [UserController::class, 'update'])->name('api.users.update')->middleware('role:admin,manager');
+    Route::delete('/api/users/{id}', [UserController::class, 'destroy'])->name('api.users.destroy')->middleware('role:admin,manager');
 
     // Product API routes
     Route::get('/api/products', [ProductController::class, 'getAllProducts'])->name('api.products.index');
@@ -177,9 +130,9 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::patch('/api/cut-remainders/{id}', [\App\Http\Controllers\CutRemainderController::class, 'update'])->name('api.cut-remainders.update');
 
     // Expenses API (admin & manager only)
-    Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert');
-    Route::get('/api/expenses/check-today', [\App\Http\Controllers\ExpensesController::class, 'checkTodayExpense'])->name('api.expenses.check-today');
-    Route::get('/api/expenses/list', [\App\Http\Controllers\ExpensesController::class, 'list'])->name('api.expenses.list');
+    Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert')->middleware('role:admin,manager');
+    Route::get('/api/expenses/check-today', [\App\Http\Controllers\ExpensesController::class, 'checkTodayExpense'])->name('api.expenses.check-today')->middleware('role:admin,manager');
+    Route::get('/api/expenses/list', [\App\Http\Controllers\ExpensesController::class, 'list'])->name('api.expenses.list')->middleware('role:admin,manager');
 });
 
 require __DIR__.'/auth.php';

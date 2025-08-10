@@ -28,6 +28,14 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        // Block inactive users immediately after authentication
+        if (Auth::user() && (Auth::user()->status ?? null) === 'inactive') {
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            return redirect()->route('login')->withErrors(['email' => 'Your account is inactive. Please contact the administrator.']);
+        }
+
         if (Auth::user()->role === 'staff') {
             return redirect()->intended(route('sales.index', absolute: false));
         } else {
