@@ -140,6 +140,7 @@ function createCategoryRow(category) {
             <td class="px-4 py-2 text-gray-900 font-medium">${escapeHtml(category.name)}</td>
             <td class="px-4 py-2 text-gray-700">${category.products_count || 0}</td>
             <td class="px-4 py-2 text-right">
+            @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
                 <button onclick="editCategory(${category.id})" class="flex items-center text-blue-600 hover:text-blue-800 text-sm font-medium transition duration-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h2v2h-2z"></path></svg>
                     <span class="hidden sm:inline ml-1">Edit</span>
@@ -148,6 +149,7 @@ function createCategoryRow(category) {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                     <span class="hidden sm:inline ml-1">Delete</span>
                 </button>
+            @endif
             </td>
         </tr>
     `;
