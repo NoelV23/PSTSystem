@@ -107,24 +107,6 @@ class UserController extends Controller
     // API: Delete user
     public function destroy($id)
     {
-        $currentUser = auth()->user();
-        $user = User::findOrFail($id);
-        
-        if ($user->id == auth()->id()) {
-            return response()->json(['message' => 'You cannot delete yourself'], 403);
-        }
-        
-        // Manager can only delete users from their branch and cannot delete admin users
-        if ($currentUser->role === 'manager') {
-            if ($user->branch_id !== $currentUser->branch_id) {
-                return response()->json(['error' => 'You can only delete users from your branch'], 403);
-            }
-            if ($user->role === 'admin') {
-                return response()->json(['error' => 'Managers cannot delete admin users'], 403);
-            }
-        }
-        
-        $user->delete();
-        return response()->json(['message' => 'User deleted successfully']);
+        abort(404);
     }
 }

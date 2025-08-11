@@ -539,10 +539,8 @@ function renderSalesTable() {
         
         const rowClass = isInstallation ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50';
         
-        // For installation sales, only show view action
-        const actions = isInstallation ? 
-            `<button class="text-blue-600 hover:underline" onclick="viewSaleDetails(${sale.id})">View</button>` :
-            `<button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
+
+        const actions = `<button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
              <a href="/sales/${sale.id}/edit" class="text-green-600 hover:underline">Edit</a>
              ${sale.is_delivered ? `<button class="text-purple-600 hover:underline ml-2" onclick="printDeliveryReceipt(${sale.id})">Delivery Receipt</button>` : ''}`;
         

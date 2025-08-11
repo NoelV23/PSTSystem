@@ -176,29 +176,6 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div id="deleteModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <div class="flex items-center mb-4">
-                <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
-                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
-                    </svg>
-                </div>
-            </div>
-            <div class="text-center">
-                <h3 class="text-lg font-medium text-gray-900 mb-2">Delete User</h3>
-                <p class="text-gray-600 mb-6">Are you sure you want to delete this user? This action cannot be undone.</p>
-                <div class="flex justify-center space-x-3">
-                    <button id="cancelDelete" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button id="confirmDelete" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <!-- Toast Notification -->
 <div id="toast" class="fixed top-4 right-4 z-50 hidden">
     <div class="bg-white border border-gray-200 rounded-lg shadow-lg p-4 max-w-sm">
@@ -219,7 +196,6 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute
 let users = [];
 let branches = [];
 let currentUserId = {{ auth()->id() }};
-let userToDelete = null;
 let isEditMode = false;
 
 const loadingState = document.getElementById('loadingState');
@@ -227,7 +203,6 @@ const errorState = document.getElementById('errorState');
 const usersTbody = document.getElementById('usersTbody');
 const emptyState = document.getElementById('emptyState');
 const userModal = document.getElementById('userModal');
-const deleteModal = document.getElementById('deleteModal');
 const toast = document.getElementById('toast');
 
 // Initialize
@@ -244,15 +219,12 @@ function setupEventListeners() {
     document.getElementById('closeModal').addEventListener('click', closeModal);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
     document.getElementById('userForm').addEventListener('submit', handleFormSubmit);
-    document.getElementById('cancelDelete').addEventListener('click', closeDeleteModal);
-    document.getElementById('confirmDelete').addEventListener('click', confirmDelete);
     document.getElementById('closeToast').addEventListener('click', hideToast);
     document.getElementById('retryBtn').addEventListener('click', loadUsers);
     document.getElementById('searchInput').addEventListener('input', renderUsers);
     document.getElementById('roleFilter').addEventListener('change', renderUsers);
     document.getElementById('branchFilter').addEventListener('change', renderUsers);
     userModal.addEventListener('click', function(e) { if (e.target === userModal) closeModal(); });
-    deleteModal.addEventListener('click', function(e) { if (e.target === deleteModal) closeDeleteModal(); });
     const userRoleSelect = document.getElementById('userRole');
     if (userRoleSelect) {
         userRoleSelect.addEventListener('change', handleRoleChange);
@@ -345,17 +317,6 @@ function createUserRow(user) {
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6-6m2 2l-6 6m-2 2h2v2h-2z"></path></svg>
                     <span class="hidden sm:inline ml-1">Edit</span>
                 </button>
-                ${currentUserId !== user.id ? `
-                <button onclick="deleteUser(${user.id})" class="flex items-center text-red-600 hover:text-red-800 text-sm font-medium transition duration-200 ml-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    <span class="hidden sm:inline ml-1">Delete</span>
-                </button>
-                ` : `
-                <span class="flex items-center text-gray-400 text-sm font-medium ml-2 cursor-not-allowed" title="You cannot delete your own account">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    <span class="hidden sm:inline ml-1">Delete</span>
-                </span>
-                `}
             </td>
         </tr>
     `;
@@ -395,11 +356,6 @@ function openEditModal(user) {
 function closeModal() {
     userModal.classList.add('hidden');
     currentUserId = null;
-}
-
-function closeDeleteModal() {
-    deleteModal.classList.add('hidden');
-    userToDelete = null;
 }
 
 async function handleFormSubmit(e) {
@@ -454,44 +410,6 @@ async function handleFormSubmit(e) {
 function editUser(userId) {
     const user = users.find(u => u.id === userId);
     if (user) openEditModal(user);
-}
-
-function deleteUser(userId) {
-    userToDelete = userId;
-    deleteModal.classList.remove('hidden');
-}
-
-async function confirmDelete() {
-    if (!userToDelete) return;
-    try {
-        const response = await fetch(`/api/users/${userToDelete}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': csrfToken,
-                'Accept': 'application/json',
-            }
-        });
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-            // Handle specific error messages from backend
-            if (result.message && result.message.includes('cannot delete yourself')) {
-                showToast('You cannot delete your own account', 'error');
-            } else {
-                throw new Error(result.error || 'Failed to delete user');
-            }
-            return;
-        }
-        
-        users = users.filter(u => u.id !== userToDelete);
-        renderUsers();
-        showToast('User deleted successfully!', 'success');
-        closeDeleteModal();
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        showToast('Failed to delete user. Please try again.', 'error');
-    }
 }
 
 function displayValidationErrors(errors) {
