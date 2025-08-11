@@ -318,7 +318,7 @@ function loadInventoryData() {
     const tbody = document.getElementById('inventory-table-body');
     tbody.innerHTML = '<tr><td colspan="11" class="px-6 py-6 text-center text-gray-500">Loading...</td></tr>';
 
-    fetch(url)
+    return fetch(url) // <--- return the fetch promise
         .then(resp => resp.json())
         .then(data => {
             const s = data.summary || {};
@@ -372,16 +372,42 @@ function loadInventoryData() {
 
 document.addEventListener('DOMContentLoaded', function() {
     loadInventoryData();
-    // Intercept filter form submit to load via AJAX without reload
+
     const form = document.querySelector('form[action*="reports/inventory"]');
     if (form) {
+        const submitBtn = form.querySelector('button[type="submit"]');
+
+        // Store the original HTML/text ONCE at page load
+        if (submitBtn && !submitBtn.dataset.realOriginalText) {
+            submitBtn.dataset.realOriginalText = submitBtn.innerHTML.trim();
+        }
+
         form.addEventListener('submit', function(e) {
             e.preventDefault();
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                submitBtn.innerHTML =
+                    '<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">' +
+                    '<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>' +
+                    '<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>' +
+                    '</svg><span>Processing...</span>';
+            }
+
             const formData = new FormData(form);
             const params = new URLSearchParams(formData);
             const newUrl = window.location.pathname + '?' + params.toString();
             window.history.replaceState({}, '', newUrl);
-            loadInventoryData();
+
+            loadInventoryData().finally(() => {
+                // Restore original button text & state
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                    submitBtn.innerHTML = submitBtn.dataset.realOriginalText || 'Apply Filters';
+                }
+            });
         });
     }
 });

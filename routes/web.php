@@ -32,6 +32,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     // inventory
     Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
     Route::get('/inventory/{branch}', [InventoryController::class, 'show'])->name('inventory.show');
+    Route::post('/inventory/stats', [InventoryController::class, 'stats'])->name('inventory.stats');
 
     // sales
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');

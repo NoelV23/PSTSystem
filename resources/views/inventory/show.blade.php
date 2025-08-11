@@ -50,6 +50,20 @@
             </div>
         </div>
 
+        <!-- New Summary Cards -->
+        <div id="extraSummaryBar" class="bg-white rounded-lg shadow p-4 mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-blue-600 loading-skeleton" id="inventoryValue">₱0.00</div>
+                    <div class="text-sm text-gray-600">Inventory Value</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-green-600 loading-skeleton" id="potentialRevenue">₱0.00</div>
+                    <div class="text-sm text-gray-600">Potential Revenue</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Summary Bar -->
         <div id="summaryBar" class="bg-white rounded-lg shadow p-4 mb-6">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -387,6 +401,7 @@ const toast = document.getElementById('toast');
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadInventory().then(() => {
+        fetchInventoryStats(); 
         loadProducts();
         loadCategories();
     });
@@ -1652,5 +1667,47 @@ document.getElementById('closeRemainderModal').addEventListener('click', functio
             showToast('Failed to adjust stock. Please try again.', 'error');
         }
     });
+
+    function formatCurrency(value) {
+        const number = parseFloat(value) || 0;
+        return '₱' + number.toLocaleString('en-PH', { minimumFractionDigits: 2 });
+    }
+
+    function fetchInventoryStats() {
+        // Keep shimmer active during loading (default set in HTML)
+
+        fetch("{{ route('inventory.stats') }}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ branch_id: branchId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            const inventoryEl = document.getElementById('inventoryValue');
+            const revenueEl = document.getElementById('potentialRevenue');
+
+            // Remove shimmer
+            inventoryEl.classList.remove('loading-skeleton');
+            revenueEl.classList.remove('loading-skeleton');
+
+            // Update with formatted numbers
+            inventoryEl.textContent = formatCurrency(data.inventory_value);
+            revenueEl.textContent = formatCurrency(data.potential_revenue);
+        })
+        .catch(err => {
+            console.error('Error fetching inventory stats:', err);
+
+            document.getElementById('inventoryValue').classList.remove('loading-skeleton');
+            document.getElementById('potentialRevenue').classList.remove('loading-skeleton');
+
+            document.getElementById('inventoryValue').textContent = '₱0.00';
+            document.getElementById('potentialRevenue').textContent = '₱0.00';
+        });
+    }
+
+
 </script>
 @endsection 
