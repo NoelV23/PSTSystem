@@ -694,7 +694,7 @@ function createInventoryRow(item) {
             <td class="px-6 py-4 text-sm text-gray-500">
                 <div class="flex items-center space-x-2">
                     <span>${availableStock}</span>
-                    ${item.product.base_unit !== 'per set' && (userRole === 'admin' || userRole === 'manager') ? `
+                    ${item.product.set_components_count == 0 && (userRole === 'admin' || userRole === 'manager') ? `
                         <div class="flex space-x-1">
                             <button onclick="adjustStock(${item.id}, 'increase')" class="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50" title="Increase Stock">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
