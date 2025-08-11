@@ -351,20 +351,21 @@ class InventoryController extends Controller
     public function stats(Request $request)
     {
         $branchId = $request->input('branch_id');
-    
+
         $query = Inventory::query();
-    
-        // Filter if branch is provided (non-admin users)
+
         if ($branchId) {
             $query->where('branch_id', $branchId);
         }
-    
+
         $inventoryValue = $query->sum(\DB::raw('cost * available_stock'));
         $potentialRevenue = $query->sum(\DB::raw('price * available_stock'));
-    
+        $potentialNetProfit = $potentialRevenue - $inventoryValue;
+
         return response()->json([
             'inventory_value' => $inventoryValue,
             'potential_revenue' => $potentialRevenue,
+            'potential_net_profit' => $potentialNetProfit,
         ]);
-    }    
+    } 
 } 

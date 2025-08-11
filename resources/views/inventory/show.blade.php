@@ -52,7 +52,7 @@
 
         <!-- New Summary Cards -->
         <div id="extraSummaryBar" class="bg-white rounded-lg shadow p-4 mb-6">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="text-center">
                     <div class="text-2xl font-bold text-blue-600 loading-skeleton" id="inventoryValue">₱0.00</div>
                     <div class="text-sm text-gray-600">Inventory Value</div>
@@ -60,6 +60,10 @@
                 <div class="text-center">
                     <div class="text-2xl font-bold text-green-600 loading-skeleton" id="potentialRevenue">₱0.00</div>
                     <div class="text-sm text-gray-600">Potential Revenue</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-2xl font-bold text-purple-600 loading-skeleton" id="potentialNetProfit">₱0.00</div>
+                    <div class="text-sm text-gray-600">Potential Net Profit</div>
                 </div>
             </div>
         </div>
@@ -1674,8 +1678,6 @@ document.getElementById('closeRemainderModal').addEventListener('click', functio
     }
 
     function fetchInventoryStats() {
-        // Keep shimmer active during loading (default set in HTML)
-
         fetch("{{ route('inventory.stats') }}", {
             method: 'POST',
             headers: {
@@ -1688,26 +1690,27 @@ document.getElementById('closeRemainderModal').addEventListener('click', functio
         .then(data => {
             const inventoryEl = document.getElementById('inventoryValue');
             const revenueEl = document.getElementById('potentialRevenue');
+            const netProfitEl = document.getElementById('potentialNetProfit');
 
             // Remove shimmer
             inventoryEl.classList.remove('loading-skeleton');
             revenueEl.classList.remove('loading-skeleton');
+            netProfitEl.classList.remove('loading-skeleton');
 
-            // Update with formatted numbers
+            // Update values
             inventoryEl.textContent = formatCurrency(data.inventory_value);
             revenueEl.textContent = formatCurrency(data.potential_revenue);
+            netProfitEl.textContent = formatCurrency(data.potential_net_profit);
         })
         .catch(err => {
             console.error('Error fetching inventory stats:', err);
 
-            document.getElementById('inventoryValue').classList.remove('loading-skeleton');
-            document.getElementById('potentialRevenue').classList.remove('loading-skeleton');
-
-            document.getElementById('inventoryValue').textContent = '₱0.00';
-            document.getElementById('potentialRevenue').textContent = '₱0.00';
+            ['inventoryValue', 'potentialRevenue', 'potentialNetProfit'].forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.remove('loading-skeleton');
+                el.textContent = '₱0.00';
+            });
         });
     }
-
-
 </script>
 @endsection 
