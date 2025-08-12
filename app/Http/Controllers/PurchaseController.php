@@ -9,6 +9,7 @@ use App\Models\Inventory;
 use App\Models\Branch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PurchaseController extends Controller
 {
@@ -22,6 +23,8 @@ class PurchaseController extends Controller
     {
         $perPage = $request->get('per_page', 10);
         $search = $request->get('search', '');
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
         
         $query = PurchaseOrder::with(['branch', 'purchaseItems.product'])
             ->where('branch_id', $branchId);
@@ -33,6 +36,19 @@ class PurchaseController extends Controller
                   ->orWhere('purchase_receipt_no', 'like', "%{$search}%")
                   ->orWhere('note', 'like', "%{$search}%");
             });
+        }
+
+        // Apply date range filter (default to today if not provided)
+        if (!$dateFrom && !$dateTo) {
+            $dateFrom = Carbon::today()->format('Y-m-d');
+            $dateTo = Carbon::today()->format('Y-m-d');
+        }
+
+        if ($dateFrom) {
+            $query->whereDate('order_date', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('order_date', '<=', $dateTo);
         }
         
         $purchases = $query->orderBy('order_date', 'desc')->paginate($perPage);

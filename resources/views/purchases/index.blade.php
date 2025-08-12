@@ -47,6 +47,23 @@
         </script>
         @endif
 
+        <!-- Date Range Filters (visible to all roles) -->
+        <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                <div class="flex items-end space-x-4">
+                    <div>
+                        <label for="filterDateFrom" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                        <input type="date" id="filterDateFrom" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="filterDateTo" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                        <input type="date" id="filterDateTo" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    </div>
+                </div>
+                <div class="text-sm text-gray-500">Changing dates will refresh the list</div>
+            </div>
+        </div>
+
         <!-- Loading State -->
         <div id="loadingState" class="bg-white rounded-xl shadow p-12 text-center hidden">
             <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto"></div>
@@ -249,6 +266,7 @@ const toast = document.getElementById('toast');
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    initDateFilters();
     loadBranches();
     setupEventListeners();
 });
@@ -297,6 +315,22 @@ function setupEventListeners() {
     
     if (perPageFilter) {
         perPageFilter.addEventListener('change', function() {
+            document.getElementById('purchasesTable').dataset.currentPage = 1;
+            loadPurchases();
+        });
+    }
+
+    // Date range filters
+    const dateFromInput = document.getElementById('filterDateFrom');
+    const dateToInput = document.getElementById('filterDateTo');
+    if (dateFromInput) {
+        dateFromInput.addEventListener('change', function() {
+            document.getElementById('purchasesTable').dataset.currentPage = 1;
+            loadPurchases();
+        });
+    }
+    if (dateToInput) {
+        dateToInput.addEventListener('change', function() {
             document.getElementById('purchasesTable').dataset.currentPage = 1;
             loadPurchases();
         });
@@ -354,14 +388,20 @@ async function loadPurchases() {
         const page = document.getElementById('purchasesTable').dataset.currentPage || 1;
         const perPageFilter = document.getElementById('perPageFilter');
         const searchInput = document.getElementById('searchInput');
+        const dateFromInput = document.getElementById('filterDateFrom');
+        const dateToInput = document.getElementById('filterDateTo');
         
         const perPage = perPageFilter ? perPageFilter.value : '10';
         const searchTerm = searchInput ? searchInput.value : '';
+        const dateFrom = dateFromInput ? dateFromInput.value : '';
+        const dateTo = dateToInput ? dateToInput.value : '';
 
         const params = new URLSearchParams({
             page: page,
             per_page: perPage,
             search: searchTerm,
+            date_from: dateFrom,
+            date_to: dateTo,
         });
 
         const response = await fetch(`/api/purchases/branch/${selectedBranchId}?${params.toString()}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
@@ -826,6 +866,18 @@ function hideEmptyState() {
 function hidePurchasesTable() {
     document.getElementById('purchasesTable').classList.add('hidden');
     emptyState.classList.add('hidden');
+}
+
+function initDateFilters() {
+    const dateFromInput = document.getElementById('filterDateFrom');
+    const dateToInput = document.getElementById('filterDateTo');
+    const today = new Date().toISOString().split('T')[0];
+    if (dateFromInput && !dateFromInput.value) {
+        dateFromInput.value = today;
+    }
+    if (dateToInput && !dateToInput.value) {
+        dateToInput.value = today;
+    }
 }
 
 function clearFormErrors() {
