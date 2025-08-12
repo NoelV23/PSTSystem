@@ -308,6 +308,18 @@ class ProductController extends Controller
         
         $product = Product::findOrFail($id);
         
+        // Prevent deletion if product exists in stock (any positive quantity/area/length)
+        $hasStock = \App\Models\Inventory::where('product_id', $product->id)
+            ->where(function($q) {
+                $q->where('available_stock', '>', 0)
+                  ->orWhere('available_length', '>', 0)
+                  ->orWhere('available_area', '>', 0);
+            })
+            ->exists();
+        if ($hasStock) {
+            return response()->json(['error' => 'Cannot delete product because it has existing stock in inventory. Please clear stock first.'], 400);
+        }
+
         DB::beginTransaction();
         try {
             // Delete set components first

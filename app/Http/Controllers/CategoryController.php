@@ -48,6 +48,11 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         $category = Category::findOrFail($id);
+        // Prevent delete if category has products
+        $hasProducts = $category->products()->exists();
+        if ($hasProducts) {
+            return response()->json(['error' => 'Cannot delete category because it has products assigned. Move or delete those products first.'], 400);
+        }
         $category->delete();
         return response()->json(['message' => 'Category deleted successfully']);
     }
