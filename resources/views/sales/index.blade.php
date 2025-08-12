@@ -37,6 +37,19 @@
 
     <!-- Tab Content -->
     <div id="salesTodayTab" class="tab-content">
+        <!-- Date Range Filters (default to today) -->
+        <div id="salesDateFilters" class="mb-4">
+            <div class="flex items-end gap-4">
+                <div>
+                    <label for="dateFromFilter" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
+                    <input id="dateFromFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400" />
+                </div>
+                <div>
+                    <label for="dateToFilter" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
+                    <input id="dateToFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400" />
+                </div>
+            </div>
+        </div>
         <!-- Loader -->
         <div id="salesLoader" class="hidden">
             <x-loader />
@@ -343,6 +356,9 @@ const referenceNumberSection = document.getElementById('referenceNumberSection')
 const referenceNumberInput = document.getElementById('referenceNumber');
 const noInvoiceCheckbox = document.getElementById('noInvoice');
 const isDeliveredCheckbox = document.getElementById('isDelivered');
+const dateFromFilter = document.getElementById('dateFromFilter');
+const dateToFilter = document.getElementById('dateToFilter');
+const salesDateFilters = document.getElementById('salesDateFilters');
 
 // --- Utility ---
 function showToast(message, type = 'success') {
@@ -493,6 +509,13 @@ async function loadSales(page = 1) {
             branch_id: currentBranchId,
             page: page
         });
+        // Date filters
+        if (dateFromFilter && dateFromFilter.value) {
+            params.append('date_from', dateFromFilter.value);
+        }
+        if (dateToFilter && dateToFilter.value) {
+            params.append('date_to', dateToFilter.value);
+        }
         if (transactionStatusFilterValue) {
             params.append('transaction_status', transactionStatusFilterValue);
         }
@@ -1347,6 +1370,18 @@ transactionStatusFilter.addEventListener('change', function() {
     loadSales();
 });
 
+// --- Date Filters ---
+if (dateFromFilter) {
+    dateFromFilter.addEventListener('change', function() {
+        loadSales();
+    });
+}
+if (dateToFilter) {
+    dateToFilter.addEventListener('change', function() {
+        loadSales();
+    });
+}
+
 // --- No Invoice Checkbox ---
 noInvoiceCheckbox.addEventListener('change', function() {
     if (this.checked) {
@@ -1466,6 +1501,18 @@ document.addEventListener('DOMContentLoaded', function() {
     loadBranches();
     switchTab('today');
     resetSaleForm();
+    // Initialize date filters to today
+    const today = new Date().toISOString().slice(0, 10);
+    if (typeof dateFromFilter !== 'undefined' && dateFromFilter && !dateFromFilter.value) {
+        dateFromFilter.value = today;
+    }
+    if (typeof dateToFilter !== 'undefined' && dateToFilter && !dateToFilter.value) {
+        dateToFilter.value = today;
+    }
+    // Hide date filters for staff (backend also enforces)
+    if (currentUserRole === 'staff' && salesDateFilters) {
+        salesDateFilters.style.display = 'none';
+    }
     
     // Initialize Add New Sale button as disabled
     const addSaleBtn = document.getElementById('addSaleBtn');

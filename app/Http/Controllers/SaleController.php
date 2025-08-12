@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Sale;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class SaleController extends Controller
 {
@@ -46,14 +47,38 @@ class SaleController extends Controller
         if ($currentUser->role === 'manager') {
             $branchId = $currentUser->branch_id;
         }
+        // Staff can only see sales from their branch as well
+        if ($currentUser->role === 'staff') {
+            $branchId = $currentUser->branch_id;
+        }
         
         $perPage = $request->get('per_page', 10);
         $transactionStatus = $request->get('transaction_status');
-        $today = now()->toDateString();
+        $dateFrom = $request->get('date_from');
+        $dateTo = $request->get('date_to');
+        
+        // If staff, force today regardless of input
+        if ($currentUser->role === 'staff') {
+            $dateFrom = Carbon::today()->format('Y-m-d');
+            $dateTo = Carbon::today()->format('Y-m-d');
+        }
+        
+        // Default to today if no date filters provided
+        if (!$dateFrom && !$dateTo) {
+            $dateFrom = Carbon::today()->format('Y-m-d');
+            $dateTo = Carbon::today()->format('Y-m-d');
+        }
         
         $query = \App\Models\Sale::with(['user', 'saleItems', 'branch'])
-            ->where('branch_id', $branchId)
-            ->whereDate('created_at', $today);
+            ->where('branch_id', $branchId);
+        
+        // Apply date filters
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
         
         // Apply transaction status filter
         if ($transactionStatus) {
