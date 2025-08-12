@@ -121,6 +121,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     // Sales API routes
     Route::get('/api/sales', [SaleController::class, 'getBranchSales'])->name('api.sales.branch');
     Route::post('/api/sales', [SaleController::class, 'storeWithItems'])->name('api.sales.store');
+    Route::put('/api/sales/{id}', [SaleController::class, 'update'])->name('api.sales.update');
     Route::get('/api/sales/{id}', [SaleController::class, 'showDetails'])->name('api.sales.show');
     Route::get('/sales/{id}/edit', [SaleController::class, 'edit'])->name('sales.edit');
     Route::post('/api/sales/{id}/add-items', [SaleController::class, 'addItems'])->name('api.sales.addItems');

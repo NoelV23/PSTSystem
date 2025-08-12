@@ -27,8 +27,27 @@ class SaleController extends Controller
     public function update(Request $request, $id)
     {
         $sale = Sale::findOrFail($id);
-        $sale->update($request->all());
-        return response()->json($sale);
+        
+        $validated = $request->validate([
+            'reference_number' => 'nullable|string|max:255',
+            'delivery_fee' => 'nullable|numeric|min:0',
+        ]);
+        
+        // Handle delivery fee adjustment on total if provided and sale is delivered
+        if (array_key_exists('delivery_fee', $validated) && ($sale->is_delivered ?? false)) {
+            $oldFee = $sale->delivery_fee ?? 0;
+            $newFee = $validated['delivery_fee'] ?? 0;
+            $sale->total_amount = max(0, ($sale->total_amount ?? 0) - $oldFee + $newFee);
+            $sale->delivery_fee = $newFee;
+        }
+        
+        if (array_key_exists('reference_number', $validated)) {
+            $sale->reference_number = $validated['reference_number'];
+        }
+        
+        $sale->save();
+        
+        return response()->json($sale->fresh(['user','saleItems','branch']));
     }
 
     public function destroy($id)

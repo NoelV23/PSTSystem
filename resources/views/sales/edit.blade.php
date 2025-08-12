@@ -47,8 +47,35 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Current Total</label>
-                    <p class="text-lg font-semibold text-gray-900">₱{{ number_format($sale->total_amount, 2) }}</p>
+                    <p id="currentTotalAmount" class="text-lg font-semibold text-gray-900">₱{{ number_format($sale->total_amount, 2) }}</p>
                 </div>
+                @if($sale->reference_number)
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700">Reference Number</label>
+                    <div id="referenceNumberDisplay" class="flex items-center gap-2">
+                        <span id="referenceNumberText" class="text-sm text-gray-900">{{ $sale->reference_number }}</span>
+                        <button id="editReferenceBtn" type="button" class="text-blue-600 hover:text-blue-800" title="Edit Reference Number">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-1-1v2m-4 7l7-7 3 3-7 7H7v-3z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div id="referenceNumberEditor" class="hidden mt-2 flex items-center gap-2">
+                        <input type="text" id="referenceNumberInput" class="px-2 py-1 border rounded w-48" value="{{ $sale->reference_number }}" />
+                        <button id="saveReferenceBtn" type="button" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded">Save</button>
+                        <button id="cancelReferenceBtn" type="button" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded">Cancel</button>
+                    </div>
+                </div>
+                @endif
+                @if($sale->is_delivered)
+                <div class="md:col-span-1">
+                    <label class="block text-sm font-medium text-gray-700">Delivery Fee (₱)</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" step="0.01" min="0" id="deliveryFeeInput" class="px-2 py-1 border rounded w-32" value="{{ number_format($sale->delivery_fee ?? 0, 2, '.', '') }}" />
+                        <button id="saveDeliveryFeeBtn" type="button" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white rounded">Update</button>
+                    </div>
+                </div>
+                @endif
             </div>
         </div>
 
@@ -90,6 +117,7 @@
             </div>
         </div>
 
+        @if(!$sale->is_installation)
         <!-- Add New Items -->
         <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-semibold text-gray-900 mb-4">Add New Items</h3>
@@ -152,6 +180,7 @@
                 </button>
             </form>
         </div>
+        @endif
     </div>
 </div>
 
@@ -177,6 +206,7 @@ let remainders = [];
 const saleId = {{ $sale->id }};
 const branchId = {{ $sale->branch_id }};
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+const isDelivered = {{ $sale->is_delivered ? 'true' : 'false' }};
 
 // Load inventory and remainders
 async function loadData() {
@@ -451,6 +481,71 @@ document.addEventListener('click', function(e) {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
+    // Reference number editor handlers
+    const editRefBtn = document.getElementById('editReferenceBtn');
+    const refDisplay = document.getElementById('referenceNumberDisplay');
+    const refEditor = document.getElementById('referenceNumberEditor');
+    const refInput = document.getElementById('referenceNumberInput');
+    const saveRefBtn = document.getElementById('saveReferenceBtn');
+    const cancelRefBtn = document.getElementById('cancelReferenceBtn');
+    const refText = document.getElementById('referenceNumberText');
+    const totalAmountEl = document.getElementById('currentTotalAmount');
+    
+    if (editRefBtn) {
+        editRefBtn.addEventListener('click', function() {
+            refDisplay.classList.add('hidden');
+            refEditor.classList.remove('hidden');
+            refInput?.focus();
+        });
+    }
+    if (cancelRefBtn) {
+        cancelRefBtn.addEventListener('click', function() {
+            refEditor.classList.add('hidden');
+            refDisplay.classList.remove('hidden');
+            if (refInput) refInput.value = refText?.textContent || '';
+        });
+    }
+    if (saveRefBtn) {
+        saveRefBtn.addEventListener('click', async function() {
+            try {
+                const response = await fetch(`/api/sales/${saleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    body: JSON.stringify({ reference_number: refInput?.value || null })
+                });
+                if (!response.ok) throw new Error('Failed to update reference number');
+                const updated = await response.json();
+                if (refText) refText.textContent = updated.reference_number || '';
+                refEditor.classList.add('hidden');
+                refDisplay.classList.remove('hidden');
+                showToast('Reference number updated', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to update reference number', 'error');
+            }
+        });
+    }
+    
+    // Delivery fee update
+    const saveDeliveryFeeBtn = document.getElementById('saveDeliveryFeeBtn');
+    const deliveryFeeInput = document.getElementById('deliveryFeeInput');
+    if (saveDeliveryFeeBtn && deliveryFeeInput) {
+        saveDeliveryFeeBtn.addEventListener('click', async function() {
+            const fee = Number(deliveryFeeInput.value || 0);
+            try {
+                const response = await fetch(`/api/sales/${saleId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    body: JSON.stringify({ delivery_fee: fee })
+                });
+                if (!response.ok) throw new Error('Failed to update delivery fee');
+                const updated = await response.json();
+                if (totalAmountEl) totalAmountEl.textContent = `₱${Number(updated.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}`;
+                showToast('Delivery fee updated', 'success');
+            } catch (e) {
+                showToast(e.message || 'Failed to update delivery fee', 'error');
+            }
+        });
+    }
 });
 </script>
 @endsection 
