@@ -109,6 +109,8 @@
                 <option value="100">100 per page</option>
                 <option value="1000">All</option>
             </select>
+            <div class="flex-1"></div>
+            <button id="exportCsvBtn" class="px-4 py-2 bg-white border border-gray-300 rounded-lg shadow-sm text-gray-700 hover:bg-gray-50">Export CSV</button>
         </div>
 
         <!-- Loading State -->
@@ -420,6 +422,7 @@ function setupEventListeners() {
     document.getElementById('inventoryForm').addEventListener('submit', handleFormSubmit);
     document.getElementById('closeToast').addEventListener('click', hideToast);
     document.getElementById('retryBtn').addEventListener('click', loadInventory);
+    document.getElementById('exportCsvBtn').addEventListener('click', exportInventoryCsv);
     document.getElementById('searchInput').addEventListener('input', function() {
         document.getElementById('inventoryTable').dataset.currentPage = 1;
         renderInventory();
@@ -568,6 +571,59 @@ async function loadSummary() {
 function renderInventory() {
     // This function now just triggers a reload of inventory with current filters
     loadInventory();
+}
+
+function exportInventoryCsv() {
+    // Build CSV from current table rows to match visible data/columns
+    try {
+        const table = document.getElementById('inventoryTable');
+        if (!table) return;
+        const rows = [];
+
+        // Header row: read visible headers and decide included columns (exclude Actions)
+        const theadCells = table.querySelectorAll('thead tr th');
+        const includedIndexes = [];
+        const header = [];
+        theadCells.forEach((th, idx) => {
+            const text = (th.textContent || '').trim();
+            if (text && text.toLowerCase() !== 'actions') {
+                includedIndexes.push(idx);
+                header.push(text);
+            }
+        });
+        rows.push(header);
+
+        // Body rows
+        const bodyRows = table.querySelectorAll('tbody tr');
+        bodyRows.forEach(tr => {
+            const row = [];
+            const cells = tr.querySelectorAll('td');
+            includedIndexes.forEach(idx => {
+                const td = cells[idx];
+                if (!td) return;
+                let value = td.innerText || td.textContent || '';
+                value = value.replace(/\s+/g, ' ').trim();
+                // Escape double quotes for CSV and wrap
+                value = '"' + value.replace(/"/g, '""') + '"';
+                row.push(value);
+            });
+            if (row.length > 0) rows.push(row);
+        });
+
+        const csvContent = rows.map(r => r.join(',')).join('\n');
+        const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `inventory-${branchId}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        console.error('Export CSV error:', e);
+        showToast('Failed to export CSV.', 'error');
+    }
 }
 
 // Function to handle pagination changes

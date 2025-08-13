@@ -879,15 +879,19 @@ function deleteProduct(productId) {
             'Accept': 'application/json',
         }
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to delete product');
+    .then(async response => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const msg = result.error || 'Failed to delete product';
+            throw new Error(msg);
+        }
         products = products.filter(p => p.id !== productId);
         renderProducts(true);
-        showToast('Product deleted successfully!', 'success');
+        showToast(result.message || 'Product deleted successfully!', 'success');
     })
     .catch(error => {
         console.error('Error deleting product:', error);
-        showToast('Failed to delete product. Please try again.', 'error');
+        showToast(error.message || 'Failed to delete product. Please try again.', 'error');
     });
 }
 

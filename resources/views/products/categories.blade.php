@@ -236,15 +236,19 @@ function deleteCategory(categoryId) {
             'Accept': 'application/json',
         }
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to delete category');
+    .then(async response => {
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            const msg = result.error || 'Failed to delete category';
+            throw new Error(msg);
+        }
         categories = categories.filter(c => c.id !== categoryId);
         renderCategories();
-        showToast('Category deleted successfully!', 'success');
+        showToast(result.message || 'Category deleted successfully!', 'success');
     })
     .catch(error => {
         console.error('Error deleting category:', error);
-        showToast('Failed to delete category. Please try again.', 'error');
+        showToast(error.message || 'Failed to delete category. Please try again.', 'error');
     });
 }
 
