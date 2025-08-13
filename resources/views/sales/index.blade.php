@@ -563,9 +563,11 @@ function renderSalesTable() {
         const rowClass = isInstallation ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-gray-50';
         
 
-        const actions = `<button class="text-blue-600 hover:underline mr-2" onclick="viewSaleDetails(${sale.id})">View</button>
-             <a href="/sales/${sale.id}/edit" class="text-green-600 hover:underline">Edit</a>
-             ${sale.is_delivered ? `<button class="text-purple-600 hover:underline ml-2" onclick="printDeliveryReceipt(${sale.id})">Delivery Receipt</button>` : ''}`;
+        const canDelete = (currentUserRole === 'admin' || currentUserRole === 'manager');
+        const actions = `${canDelete ? `<button class=\"text-red-600 hover:underline mr-2\" onclick=\"confirmDeleteSale(${sale.id})\">Delete</button>` : ''}
+            <button class=\"text-blue-600 hover:underline mr-2\" onclick=\"viewSaleDetails(${sale.id})\">View</button>
+            <a href=\"/sales/${sale.id}/edit\" class=\"text-green-600 hover:underline\">Edit</a>
+            ${sale.is_delivered ? `<button class=\"text-purple-600 hover:underline ml-2\" onclick=\"printDeliveryReceipt(${sale.id})\">Delivery Receipt</button>` : ''}`;
         
         return `
             <tr class="${rowClass}">
@@ -582,6 +584,34 @@ function renderSalesTable() {
             </tr>
         `;
     }).join('');
+}
+
+// Delete sale with confirmation about stock restoration
+window.confirmDeleteSale = function(saleId) {
+    if (!(currentUserRole === 'admin' || currentUserRole === 'manager')) return;
+    const warning = 'Deleting this sale will restore the involved products back to inventory. Do you want to continue?';
+    if (!confirm(warning)) return;
+    deleteSale(saleId);
+};
+
+async function deleteSale(saleId) {
+    try {
+        const res = await fetch(`/api/sales/${saleId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                'Accept': 'application/json'
+            }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to delete sale');
+        }
+        showToast(data.message || 'Sale deleted and inventory restored.', 'success');
+        loadSales();
+    } catch (e) {
+        showToast(e.message || 'Failed to delete sale', 'error');
+    }
 }
 function renderSalesPagination() {
     // TODO: Implement pagination controls if needed

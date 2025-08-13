@@ -126,6 +126,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/sales/{id}/edit', [SaleController::class, 'edit'])->name('sales.edit');
     Route::post('/api/sales/{id}/add-items', [SaleController::class, 'addItems'])->name('api.sales.addItems');
     Route::get('/sales/{id}/delivery-receipt', [SaleController::class, 'deliveryReceipt'])->name('sales.delivery-receipt');
+    Route::delete('/api/sales/{id}', [SaleController::class, 'destroy'])->name('api.sales.destroy')->middleware('role:admin,manager');
 
     // Cut Remainder API routes
     Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');

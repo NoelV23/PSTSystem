@@ -52,8 +52,57 @@ class SaleController extends Controller
 
     public function destroy($id)
     {
-        Sale::destroy($id);
-        return response()->json(null, 204);
+        // Only admin/manager allowed via route middleware
+        $sale = \App\Models\Sale::with(['saleItems.product', 'branch'])->findOrFail($id);
+
+        \DB::beginTransaction();
+        try {
+            // Restore inventory for each sale item
+            foreach ($sale->saleItems as $item) {
+                $product = $item->product;
+                if (!$product) { continue; }
+                $branchId = $sale->branch_id;
+
+                if ($product->base_unit === 'per set') {
+                    // Add back component stocks used for set products
+                    $setComponents = $product->setComponents;
+                    foreach ($setComponents as $component) {
+                        $componentInventory = \App\Models\Inventory::where('product_id', $component->component_product_id)
+                            ->where('branch_id', $branchId)
+                            ->first();
+                        if ($componentInventory) {
+                            $componentInventory->available_stock += ($component->quantity_required * $item->quantity);
+                            $componentInventory->save();
+                        }
+                    }
+                } else {
+                    // For regular products, restore main inventory
+                    $inventory = \App\Models\Inventory::where('product_id', $product->id)
+                        ->where('branch_id', $branchId)
+                        ->first();
+                    if ($inventory) {
+                        $inventory->available_stock = ($inventory->available_stock ?? 0) + ($item->quantity ?? 0);
+                        $inventory->save();
+                    }
+
+                    // Attempt to reverse any generated remainders for cut sales: best-effort cleanup
+                    if (!is_null($item->cut_length) || !is_null($item->cut_width) || !is_null($item->cut_height)) {
+                        // We cannot perfectly reconstruct previous remainder state without full audit trail.
+                        // Skip strict reversal; inventory restore above already returns sellable stock.
+                    }
+                }
+            }
+
+            // Delete related sale items, then the sale
+            $sale->saleItems()->delete();
+            $sale->delete();
+
+            \DB::commit();
+            return response()->json(['message' => 'Sale deleted and inventory restored successfully.']);
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json(['error' => 'Failed to delete sale: ' . $e->getMessage()], 500);
+        }
     }
 
     // API: Get today's sales for a branch (paginated)
