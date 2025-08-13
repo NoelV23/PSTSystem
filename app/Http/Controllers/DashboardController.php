@@ -233,7 +233,9 @@ class DashboardController extends Controller
                     'user' => $sale->user ? $sale->user->name : 'System',
                     'action' => "Added new sale for {$sale->branch->name} branch",
                 ];
-            });
+            })
+            ->values()
+            ->toBase();
 
         $inventoryQuery = Inventory::with(['branch', 'product'])
             ->where('updated_at', '>=', Carbon::now()->subHours(24));
@@ -251,7 +253,9 @@ class DashboardController extends Controller
                     'user' => 'System',
                     'action' => "Updated inventory for {$inventory->branch->name} - {$inventory->product->name}",
                 ];
-            });
+            })
+            ->values()
+            ->toBase();
 
         return $recentSales->merge($recentInventory)
             ->sortByDesc('time')
