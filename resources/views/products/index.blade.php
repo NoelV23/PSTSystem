@@ -494,7 +494,22 @@ function populateComponentDropdown(idx, productsToShow) {
              data-product-id="${product.id}" 
              data-product-name="${escapeHtml(product.name)}" 
              data-product-sku="${escapeHtml(product.sku || '')}">
-            <div class="font-medium">${escapeHtml(product.name)}</div>
+            <div class="font-medium">
+                ${escapeHtml(product.name)}
+                ${product.default_length ? ' ' + escapeHtml(product.default_length) : ''} 
+                ${product.default_width && product.default_height 
+                    ? ' ' + escapeHtml(product.default_width) + ' x ' + escapeHtml(product.default_height) 
+                    : product.default_width 
+                        ? ' ' + escapeHtml(product.default_width) 
+                        : product.default_height 
+                            ? ' ' + escapeHtml(product.default_height) 
+                            : ''} 
+                ${ (product.default_length || product.default_width || product.default_height) && product.measurement_unit 
+                    ? ' ' + escapeHtml(product.measurement_unit) 
+                    : ''} 
+                ${product.color ? ' ' + escapeHtml(product.color) : ''}
+            </div>
+
             <div class="text-xs text-gray-600">${escapeHtml(product.sku || 'No SKU')} • ${escapeHtml(product.category?.name || 'No Category')}</div>
         </div>
     `).join('');

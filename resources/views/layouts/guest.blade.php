@@ -10,13 +10,17 @@
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
-
+        <link rel="icon" type="image/png" href="{{ asset('images/rvj-logo2.png') }}">
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+        <script src="https://unpkg.com/alpinejs" defer></script>
     </head>
     <body class="font-sans text-gray-900 antialiased bg-white">
-        <div class="min-h-screen flex flex-col items-center justify-center bg-white">
-            {{ $slot }}
+        <div class="min-h-screen flex items-center justify-center bg-white">
+            <div class="w-full">
+                {{ $slot }}
+            </div>
         </div>
         <script>
             // Disable submit buttons on guest forms and show a loading state

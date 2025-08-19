@@ -212,7 +212,7 @@ class SaleController extends Controller
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'items' => 'nullable|array',
-            'items.*.quantity' => 'nullable|numeric|min:1',
+            'items.*.quantity' => 'nullable|numeric|min:0',
             'items.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.total_price' => 'nullable|numeric|min:0',
             'items.*.item_type' => 'nullable|in:inventory,remainder',

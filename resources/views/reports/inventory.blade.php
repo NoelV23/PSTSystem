@@ -62,14 +62,6 @@
                     <input type="date" name="date_to" id="date_to" value="{{ $dateTo }}" 
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
                 </div>
-                
-                <div class="flex items-end">
-                    <label class="flex items-center">
-                        <input type="checkbox" name="low_stock_only" value="1" {{ $lowStockOnly ? 'checked' : '' }} 
-                               class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
-                        <span class="ml-2 text-sm text-gray-700">Low Stock Only</span>
-                    </label>
-                </div>
             </div>
             
             <!-- Second Row: Action Buttons -->
@@ -186,7 +178,6 @@
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Purchased</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sold</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installation Used</th>
@@ -336,31 +327,27 @@ function loadInventoryData() {
             }
 
             tbody.innerHTML = items.map(inv => {
-                const bg = inv.stock === 0 ? '#FEF2F2' : (inv.stock <= inv.reorder_level ? '#FFFBEB' : '#F0FDF4');
-                const setBadge = inv.is_set_product ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>' : '';
-                const statusBadge = inv.stock === 0
-                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Out of Stock</span>'
-                    : (inv.stock <= inv.reorder_level
-                        ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Low Stock</span>'
-                        : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">In Stock</span>');
+                const setBadge = inv.is_set_product
+                    ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>'
+                    : '';
                 const remaindersCell = (inv.total_remainders || 0) > 0
                     ? `${Number(inv.total_remainders || 0).toLocaleString()} <button onclick="viewRemainders(${inv.id})" class="ml-2 text-blue-600 hover:underline text-xs">view</button>`
                     : `${Number(inv.total_remainders || 0).toLocaleString()}`;
-                const measurement = inv.measurement_unit ? ` <span class=\"text-gray-500 text-xs\">(${inv.measurement_unit})</span>` : '';
+                const measurement = inv.measurement_unit
+                    ? ` <span class="text-gray-500 text-xs">(${inv.measurement_unit})</span>`
+                    : '';
 
                 return `
-                <tr class=\"hover:bg-gray-50\" style=\"background-color: ${bg};\" data-inventory-id=\"${inv.id}\" data-product-id=\"${inv.product_id}\" data-branch-id=\"${inv.branch_id}\">
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900\">${inv.product_name}${measurement}${inv.is_set_product ? setBadge : ''}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-500\">${inv.sku}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${inv.category_name}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${inv.branch_name}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.stock || 0).toLocaleString()}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_purchased || 0).toLocaleString()}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_sold || 0).toLocaleString()}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.total_installation_used || 0).toLocaleString()}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${remaindersCell}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap text-sm text-gray-900\">${Number(inv.reorder_level || 0).toLocaleString()}</td>
-                    <td class=\"px-6 py-4 whitespace-nowrap\">${statusBadge}</td>
+                <tr class="hover:bg-gray-50" data-inventory-id="${inv.id}" data-product-id="${inv.product_id}" data-branch-id="${inv.branch_id}">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${inv.product_name}${measurement}${setBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${inv.sku}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${inv.category_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${inv.branch_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${Number(inv.total_purchased || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${Number(inv.total_sold || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${Number(inv.total_installation_used || 0).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${remaindersCell}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${Number(inv.reorder_level || 0).toLocaleString()}</td>
                 </tr>`;
             }).join('');
         })

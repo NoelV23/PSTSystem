@@ -19,34 +19,39 @@
         <!-- Sidebar -->
         <aside :class="open ? 'w-52' : 'w-16'" class="fixed left-0 top-0 h-full bg-red-600 flex flex-col py-6 px-2 transition-all duration-200 z-40 overflow-x-hidden">
             <!-- Logo/Title -->
-             <a href="/dashboard">
+            <a href="/dashboard">
                 <div class="mb-10 flex flex-col items-center">
+                    <!-- When sidebar is open -->
                     <span 
                         x-show="open"
                         class="flex flex-row items-center justify-center h-16"
-                        style="margin-top: -18px; text-shadow: 1px 1px 0 black, -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black;"
+                        style="margin-top: -18px;"
                     >
-                        <span class="text-3xl font-extrabold text-yellow-300 leading-tight tracking-tight" style="line-height: 1;">
-                            RV
-                        </span>
-                        <span class="flex flex-col justify-center ml-3 h-full">
-                            <span class="text-yellow-400 text-sm font-semibold leading-none" style="line-height: 1.1;">
-                                GLASS <span class="text-yellow-300">and</span>
+                        <!-- Logo Image -->
+                        <img src="{{ asset('images/rvj-logo.png') }}" alt="RVJ Logo" class="h-8 w-auto">
+
+                        <!-- Text beside logo -->
+                        <span class="flex flex-col justify-center h-full">
+                            <span class="text-white text-sm font-semibold leading-none" style="line-height: 1.1;">
+                                GLASS
                             </span>
-                            <span class="text-yellow-400 text-xs font-semibold uppercase leading-none" style="line-height: 1.1;">
-                                ALUMINUM SUPPLY
+                            <span class="text-white text-xs font-semibold uppercase leading-none" style="line-height: 1.1;">
+                                Inventory
                             </span>
                         </span>
                     </span>
 
+                    <!-- When sidebar is closed -->
                     <span 
-                        class="text-3xl font-extrabold text-yellow-300 leading-tight tracking-tight text-center mb-4" 
                         x-show="!open"
-                        style="margin-top: -6px; text-shadow: 1px 1px 0 black, -1px -1px 0 black, 1px -1px 0 black, -1px 1px 0 black;">
-                        RV
+                        class="text-center mb-4"
+                        style="margin-top: -6px;"
+                    >
+                        <img src="{{ asset('images/rvj-logo.png') }}" alt="RVJ Logo" class="h-8 w-16 mx-auto mt-1">
                     </span>
                 </div>
             </a>
+
 
             <!-- Navigation Links -->
             <nav class="flex-1 flex flex-col gap-2 mt-3">

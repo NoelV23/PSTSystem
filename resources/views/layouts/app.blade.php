@@ -10,6 +10,10 @@
         <!-- Fonts -->
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Favicon -->
+        <link rel="icon" type="image/png" href="{{ asset('images/rvj-logo2.png') }}">
+
         <style>
             .loading-skeleton {
                 color: transparent !important;
@@ -25,6 +29,7 @@
                 100% { background-position: 200% 0; }
             }
         </style>
+        
         <!-- Scripts -->
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
