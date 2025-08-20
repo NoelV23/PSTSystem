@@ -195,8 +195,8 @@ class InstallationSaleController extends Controller
                     }
                 } else {
                     // No cut dimensions: deduct from inventory normally
-                    $inventory->available_stock = max(0, $inventory->available_stock - $item['quantity_used']);
-                    $inventory->save();
+                $inventory->available_stock = max(0, $inventory->available_stock - $item['quantity_used']);
+                $inventory->save();
                 }
                 
                 $totalCost += $totalCostForItem;
