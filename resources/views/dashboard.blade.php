@@ -130,8 +130,8 @@
                         <tr :class="alert.stock < alert.minStock ? 'bg-red-50' : ''">
                             <td class="px-4 py-2 text-gray-900 font-medium" x-text="alert.product"></td>
                             <td class="px-4 py-2 text-gray-700" x-text="alert.branch"></td>
-                            <td class="px-4 py-2 font-bold" :class="alert.stock < alert.minStock ? 'text-red-700' : 'text-gray-700'" x-text="alert.stock"></td>
-                            <td class="px-4 py-2 text-gray-700" x-text="alert.minStock"></td>
+                            <td class="px-4 py-2 font-bold" :class="alert.stock < alert.minStock ? 'text-red-700' : 'text-gray-700'" x-text="formatNumber(alert.stock)"></td>
+                            <td class="px-4 py-2 text-gray-700" x-text="formatNumber(alert.minStock)"></td>
                             <td class="px-4 py-2 text-right">
                                 <a :href="`/inventory/${alert.branchId || 1}`" class="bg-yellow-400 hover:bg-yellow-500 text-black px-3 py-1 rounded font-bold">Restock Now</a>
                             </td>
