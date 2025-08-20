@@ -12,7 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('sale_items', function (Blueprint $table) {
-            //
+            $table->enum('fulfillment_source', ['inventory', 'remainder'])->default('inventory')->after('total_price');
         });
     }
 
@@ -22,7 +22,7 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('sale_items', function (Blueprint $table) {
-            //
+            $table->dropColumn('fulfillment_source');
         });
     }
 };

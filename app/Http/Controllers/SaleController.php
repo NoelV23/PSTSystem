@@ -660,6 +660,9 @@ class SaleController extends Controller
             
             $newTotalAmount = $sale->total_amount;
             
+            // Check if fulfillment_source column exists
+            $hasFulfillmentSource = \Schema::hasColumn('sale_items', 'fulfillment_source');
+            
             foreach ($validated['items'] as $item) {
                 if ($item['item_type'] === 'inventory') {
                     $inventory = \App\Models\Inventory::find($item['inventory_id']);
@@ -684,18 +687,24 @@ class SaleController extends Controller
                         $inventory->save();
                     }
                     
-                    // Create sale item
-                    \App\Models\SaleItem::create([
+                    // Create sale item data
+                    $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => $product->id,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
                         'total_price' => $item['total_price'],
-                        'fulfillment_source' => 'inventory',
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
-                    ]);
+                    ];
+                    
+                    // Add fulfillment_source only if column exists
+                    if ($hasFulfillmentSource) {
+                        $saleItemData['fulfillment_source'] = 'inventory';
+                    }
+                    
+                    \App\Models\SaleItem::create($saleItemData);
                     
                     // Create remainder if needed
                     if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
@@ -709,18 +718,24 @@ class SaleController extends Controller
                     // Handle remainder sale
                     $this->handleCutRemainderSale($remainder, $item);
                     
-                    // Create sale item
-                    \App\Models\SaleItem::create([
+                    // Create sale item data
+                    $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => $product->id,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
                         'total_price' => $item['total_price'],
-                        'fulfillment_source' => 'remainder',
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
-                    ]);
+                    ];
+                    
+                    // Add fulfillment_source only if column exists
+                    if ($hasFulfillmentSource) {
+                        $saleItemData['fulfillment_source'] = 'remainder';
+                    }
+                    
+                    \App\Models\SaleItem::create($saleItemData);
                 }
                 
                 $newTotalAmount += $item['total_price'];
@@ -752,12 +767,23 @@ class SaleController extends Controller
     {
         $sale = \App\Models\Sale::findOrFail($id);
         
-        $validated = $request->validate([
-            'items' => 'required|array|min:1',
-            'items.*.item_id' => 'required|exists:sale_items,id',
-            'items.*.quantity' => 'required|numeric|min:0.01',
-            'items.*.fulfillment_source' => 'required|in:inventory,remainder',
-        ]);
+        // Check if fulfillment_source column exists
+        $hasFulfillmentSource = \Schema::hasColumn('sale_items', 'fulfillment_source');
+        
+        if ($hasFulfillmentSource) {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.item_id' => 'required|exists:sale_items,id',
+                'items.*.quantity' => 'required|numeric|min:0.01',
+                'items.*.fulfillment_source' => 'required|in:inventory,remainder',
+            ]);
+        } else {
+            $validated = $request->validate([
+                'items' => 'required|array|min:1',
+                'items.*.item_id' => 'required|exists:sale_items,id',
+                'items.*.quantity' => 'required|numeric|min:0.01',
+            ]);
+        }
 
         try {
             \DB::beginTransaction();
@@ -775,8 +801,11 @@ class SaleController extends Controller
                 $quantity = $itemData['quantity'];
                 $product = $saleItem->product;
                 
+                // Determine fulfillment source
+                $fulfillmentSource = $hasFulfillmentSource ? $itemData['fulfillment_source'] : 'inventory';
+                
                 // Return stock to inventory based on fulfillment source
-                if ($itemData['fulfillment_source'] === 'inventory') {
+                if ($fulfillmentSource === 'inventory') {
                     if ($product->base_unit === 'per set') {
                         // For set products, return components to inventory
                         $this->returnSetComponents($product, $sale->branch_id, $quantity);
@@ -791,7 +820,7 @@ class SaleController extends Controller
                             $inventory->save();
                         }
                     }
-                } elseif ($itemData['fulfillment_source'] === 'remainder') {
+                } elseif ($fulfillmentSource === 'remainder') {
                     // For remainder items, we can't easily reconstruct the original remainder
                     // So we'll just add to main inventory as a best-effort approach
                     $inventory = \App\Models\Inventory::where('product_id', $product->id)

@@ -119,8 +119,8 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->unit_price, 2) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->total_price, 2) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $item->fulfillment_source === 'inventory' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' }}">
-                                    {{ ucfirst($item->fulfillment_source) }}
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($item->fulfillment_source ?? 'inventory') === 'inventory' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' }}">
+                                    {{ ucfirst($item->fulfillment_source ?? 'inventory') }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -129,7 +129,7 @@
                                     data-item-id="{{ $item->id }}"
                                     data-product-name="{{ $item->product->name }}"
                                     data-quantity="{{ $item->quantity }}"
-                                    data-fulfillment-source="{{ $item->fulfillment_source }}"
+                                    data-fulfillment-source="{{ $item->fulfillment_source ?? '' }}"
                                     class="remove-item-btn inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200"
                                     title="Remove item and return to inventory"
                                 >
@@ -525,6 +525,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const fulfillmentSource = btn.dataset.fulfillmentSource;
             
             console.log('Button data:', { itemId, productName, quantity, fulfillmentSource });
+            console.log('Button dataset:', btn.dataset);
+            console.log('Fulfillment source from dataset:', btn.dataset.fulfillmentSource);
+            console.log('All data attributes:', {
+                'data-item-id': btn.getAttribute('data-item-id'),
+                'data-product-name': btn.getAttribute('data-product-name'),
+                'data-quantity': btn.getAttribute('data-quantity'),
+                'data-fulfillment-source': btn.getAttribute('data-fulfillment-source')
+            });
             removeSaleItem(itemId, productName, quantity, fulfillmentSource);
         }
     });
@@ -602,7 +610,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const itemId = '{{ $sale->saleItems->first()->id }}'; // Replace with a valid item ID from your sale
             const productName = '{{ $sale->saleItems->first()->product->name }}';
             const quantity = '{{ $sale->saleItems->first()->quantity }}';
-            const fulfillmentSource = '{{ $sale->saleItems->first()->fulfillment_source }}';
+            const fulfillmentSource = '{{ $sale->saleItems->first()->fulfillment_source ?? "" }}';
 
             console.log('Testing remove item API with data:', { itemId, productName, quantity, fulfillmentSource });
 
@@ -614,8 +622,12 @@ document.addEventListener('DOMContentLoaded', function() {
             const itemData = {
                 item_id: itemId,
                 quantity: quantity,
-                fulfillment_source: fulfillmentSource,
             };
+
+            // Only add fulfillment_source if it's available and not empty
+            if (fulfillmentSource && fulfillmentSource.trim() !== '') {
+                itemData.fulfillment_source = fulfillmentSource.trim();
+            }
 
             try {
                 const response = await fetch(`/api/sales/${saleId}/remove-item`, {
@@ -673,17 +685,29 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         removeBtn.innerHTML = '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Removing...';
     }
 
+    // Prepare item data - use fallback if fulfillment_source is not available
     const itemData = {
         item_id: itemId,
         quantity: quantity,
-        fulfillment_source: fulfillmentSource,
     };
+
+    // Only add fulfillment_source if it's available and not empty
+    if (fulfillmentSource && fulfillmentSource.trim() !== '') {
+        itemData.fulfillment_source = fulfillmentSource.trim();
+    }
 
     console.log('Sending request to:', `/api/sales/${saleId}/remove-item`);
     console.log('Request method: POST');
     console.log('Request data:', { items: [itemData] });
     console.log('CSRF Token:', csrfToken);
     console.log('Sale ID:', saleId);
+    console.log('Item data details:', {
+        item_id: itemData.item_id,
+        quantity: itemData.quantity,
+        fulfillment_source: itemData.fulfillment_source || 'not provided',
+        fulfillment_source_type: typeof itemData.fulfillment_source,
+        fulfillment_source_length: itemData.fulfillment_source ? itemData.fulfillment_source.length : 'null'
+    });
 
     const requestUrl = `/api/sales/${saleId}/remove-item`;
     console.log('Full request URL:', requestUrl);

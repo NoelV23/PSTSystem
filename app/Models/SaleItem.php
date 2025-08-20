@@ -18,6 +18,7 @@ class SaleItem extends Model
         'cut_width',
         'cut_height',
         'total_price',
+        'fulfillment_source',
     ];
 
     public function sale()
