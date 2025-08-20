@@ -107,8 +107,18 @@
                         @foreach($sale->saleItems as $item)
                         <tr id="sale-item-{{ $item->id }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                {{ $item->product->name }}
-                                @if($item->product->base_unit === 'per set')
+                                @php
+                                    $p = $item->product;
+                                    $measurementText = '';
+                                    if (($p->measurement_unit === 'sq ft') && $p->default_width && $p->default_height) {
+                                        $measurementText = $p->default_width . '×' . $p->default_height . ' sq ft';
+                                    } elseif ($p->default_length) {
+                                        $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
+                                        $measurementText = $p->default_length . ' ' . $unit;
+                                    }
+                                @endphp
+                                {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif @if($measurementText) <span class="text-gray-500">({{ $measurementText }})</span>@endif
+                                @if($p->base_unit === 'per set')
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>
                                 @endif
                             </td>

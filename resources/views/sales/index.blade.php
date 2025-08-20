@@ -192,8 +192,8 @@
     <div id="saleToast" class="hidden"></div>
 
     <!-- Sale Details Modal -->
-    <div id="saleDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
-        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl mx-4 p-6 relative">
+    <div id="saleDetailsModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden overflow-y-auto">
+        <div class="bg-white rounded-lg shadow-lg w-full max-w-4xl mx-4 p-6 relative max-h-[90vh] overflow-y-auto">
             <button id="closeSaleDetailsModal" class="absolute top-4 right-4 text-gray-400 hover:text-red-500 text-2xl">&times;</button>
             <h2 class="text-xl font-bold mb-4">Sale Details</h2>
             <div id="saleDetailsContent" class="space-y-4">
@@ -1308,7 +1308,24 @@ window.viewSaleDetails = async function(saleId) {
                                     <div class="border-b border-gray-200 pb-3 last:border-b-0">
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex-1">
-                                                <div class="font-medium">${item.product?.name || 'Unknown Product'}</div>
+                                                <div class="font-medium">
+                                                    ${(() => {
+                                                        const p = item.product || {};
+                                                        const baseUnit = (p.base_unit || '');
+                                                        const unitFallback = baseUnit.replace('per ', '');
+                                                        let measurement = '';
+                                                        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+                                                            measurement = `${p.default_width}×${p.default_height} sq ft`;
+                                                        } else if (p.default_length) {
+                                                            const unit = p.measurement_unit || unitFallback;
+                                                            measurement = `${p.default_length} ${unit}`;
+                                                        }
+                                                        const name = p.name || 'Unknown Product';
+                                                        const color = p.color ? ` ${p.color}` : '';
+                                                        const measureText = measurement ? ` (${measurement})` : '';
+                                                        return `${name}${color}${measureText}`;
+                                                    })()}
+                                                </div>
                                                 <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
                                                 ${item.cut_length || item.cut_width || item.cut_height ? `
                                                     <div class="text-sm text-gray-600">

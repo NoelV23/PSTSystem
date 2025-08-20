@@ -43,21 +43,21 @@
             flex: 1;
         }
         .company-name {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: bold;
             margin-bottom: 5px;
         }
         .company-address {
-            font-size: 11px;
+            font-size: 12px;
             color: #666;
         }
         .ref-number {
-            font-size: 12px;
+            font-size: 13px;
             color: #333;
         }
         .title {
             text-align: center;
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
             margin: 12px 0;
             text-transform: uppercase;
@@ -72,17 +72,17 @@
         .delivery-label {
             font-weight: bold;
             width: 100px;
-            font-size: 12px;
+            font-size: 13px;
         }
         .delivery-value {
             flex: 1;
-            font-size: 12px;
+            font-size: 13px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
             margin-bottom: 15px;
-            font-size: 11px;
+            font-size: 12px;
         }
         th, td {
             border: 1px solid #ddd;
@@ -110,7 +110,7 @@
             border-top: 1px solid #000;
             margin-top: 20px;
             padding-top: 5px;
-            font-size: 11px;
+            font-size: 12px;
         }
 
         @media print {
@@ -197,7 +197,19 @@
                             <tr>
                                 <td>{{ $item->quantity }}</td>
                                 <td>{{ $item->product->base_unit }}</td>
-                                <td>{{ $item->product->name }}</td>
+                                <td>
+                                    @php
+                                        $p = $item->product;
+                                        $measurementText = '';
+                                        if (($p->measurement_unit === 'sq ft') && $p->default_width && $p->default_height) {
+                                            $measurementText = $p->default_width . '×' . $p->default_height . ' sq ft';
+                                        } elseif ($p->default_length) {
+                                            $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
+                                            $measurementText = $p->default_length . ' ' . $unit;
+                                        }
+                                    @endphp
+                                    {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif @if($measurementText) ({{ $measurementText }})@endif
+                                </td>
                                 <td>₱{{ number_format($item->unit_price, 2) }}</td>
                                 <td>₱{{ number_format($item->total_price, 2) }}</td>
                             </tr>
