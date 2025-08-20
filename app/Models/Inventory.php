@@ -23,12 +23,12 @@ class Inventory extends Model
     ];
 
     protected $casts = [
-        'available_stock' => 'integer',
+        'available_stock' => 'decimal:4',
         'cost' => 'decimal:2',
         'price' => 'decimal:2',
         'wholesale_price' => 'decimal:2',
         'reorder_level' => 'integer',
-        'calculated_stock' => 'integer',
+        'calculated_stock' => 'decimal:4',
         'calculated_price' => 'decimal:2',
     ];
 

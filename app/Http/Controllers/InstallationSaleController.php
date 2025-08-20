@@ -79,7 +79,7 @@ class InstallationSaleController extends Controller
         $validated = $request->validate([
             'items' => 'required|array|min:1',
             'items.*.inventory_id' => 'required|exists:inventories,id',
-            'items.*.quantity_used' => 'required|numeric|min:1',
+            'items.*.quantity_used' => 'required|numeric|min:0.01',
         ]);
         
         DB::beginTransaction();

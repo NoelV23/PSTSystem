@@ -23,7 +23,7 @@ class StockAdjustmentController extends Controller
         
         $request->validate([
             'type' => 'required|in:increase,decrease',
-            'quantity' => 'required|integer|min:1',
+            'quantity' => 'required|numeric|min:0.01',
             'reason' => 'required|string|max:500',
         ]);
 

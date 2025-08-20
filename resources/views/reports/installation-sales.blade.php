@@ -241,7 +241,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                         <label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity Used</label>
-                        <input type="number" id="productQuantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="productQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-red-400 focus:border-transparent">
                 </div>
                 <div>
                         <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>

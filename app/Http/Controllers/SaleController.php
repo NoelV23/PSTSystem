@@ -627,7 +627,7 @@ class SaleController extends Controller
         
         $validated = $request->validate([
             'items' => 'required|array|min:1',
-            'items.*.quantity' => 'required|numeric|min:1',
+            'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
             'items.*.item_type' => 'required|in:inventory,remainder',
@@ -744,6 +744,113 @@ class SaleController extends Controller
                 'success' => false,
                 'message' => 'Failed to add items: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    // Remove item from sale and return to inventory
+    public function removeItem(Request $request, $id)
+    {
+        $sale = \App\Models\Sale::findOrFail($id);
+        
+        $validated = $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.item_id' => 'required|exists:sale_items,id',
+            'items.*.quantity' => 'required|numeric|min:0.01',
+            'items.*.fulfillment_source' => 'required|in:inventory,remainder',
+        ]);
+
+        try {
+            \DB::beginTransaction();
+            
+            $newTotalAmount = $sale->total_amount;
+            
+            foreach ($validated['items'] as $itemData) {
+                $saleItem = \App\Models\SaleItem::with('product')->findOrFail($itemData['item_id']);
+                
+                // Verify this item belongs to the sale
+                if ($saleItem->sale_id != $sale->id) {
+                    throw new \Exception('Sale item does not belong to this sale.');
+                }
+                
+                $quantity = $itemData['quantity'];
+                $product = $saleItem->product;
+                
+                // Return stock to inventory based on fulfillment source
+                if ($itemData['fulfillment_source'] === 'inventory') {
+                    if ($product->base_unit === 'per set') {
+                        // For set products, return components to inventory
+                        $this->returnSetComponents($product, $sale->branch_id, $quantity);
+                    } else {
+                        // For regular products, return to main inventory
+                        $inventory = \App\Models\Inventory::where('product_id', $product->id)
+                            ->where('branch_id', $sale->branch_id)
+                            ->first();
+                        
+                        if ($inventory) {
+                            $inventory->available_stock += $quantity;
+                            $inventory->save();
+                        }
+                    }
+                } elseif ($itemData['fulfillment_source'] === 'remainder') {
+                    // For remainder items, we can't easily reconstruct the original remainder
+                    // So we'll just add to main inventory as a best-effort approach
+                    $inventory = \App\Models\Inventory::where('product_id', $product->id)
+                        ->where('branch_id', $sale->branch_id)
+                        ->first();
+                    
+                    if ($inventory) {
+                        $inventory->available_stock += $quantity;
+                        $inventory->save();
+                    }
+                }
+                
+                // Subtract from sale total
+                $newTotalAmount -= $saleItem->total_price;
+                
+                // Delete the sale item
+                $saleItem->delete();
+            }
+            
+            // Update sale total
+            $sale->total_amount = max(0, $newTotalAmount);
+            $sale->save();
+            
+            \DB::commit();
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Items removed successfully',
+                'total_amount' => $sale->total_amount,
+                'sale' => $sale->load(['saleItems.product'])
+            ]);
+            
+        } catch (\Exception $e) {
+            \DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove items: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+    
+    /**
+     * Return components to set products inventory
+     */
+    private function returnSetComponents($product, $branchId, $quantity)
+    {
+        $setComponents = $product->setComponents;
+        
+        foreach ($setComponents as $component) {
+            $componentInventory = \App\Models\Inventory::where('product_id', $component->component_product_id)
+                ->where('branch_id', $branchId)
+                ->first();
+            
+            if ($componentInventory) {
+                // Calculate how much of this component to return
+                $returnQuantity = $component->quantity_required * $quantity;
+                $componentInventory->available_stock += $returnQuantity;
+                $componentInventory->save();
+            }
         }
     }
 } 

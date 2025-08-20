@@ -1,6 +1,15 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
 <div class="py-6">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <!-- Page Header -->
@@ -91,11 +100,12 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Unit Price</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Source</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($sale->saleItems as $item)
-                        <tr>
+                        <tr id="sale-item-{{ $item->id }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 {{ $item->product->name }}
                                 @if($item->product->base_unit === 'per set')
@@ -109,6 +119,18 @@
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $item->fulfillment_source === 'inventory' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' }}">
                                     {{ ucfirst($item->fulfillment_source) }}
                                 </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <button 
+                                    onclick="removeSaleItem({{ $item->id }}, '{{ $item->product->name }}', {{ $item->quantity }}, '{{ $item->fulfillment_source }}')"
+                                    class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200"
+                                    title="Remove item and return to inventory"
+                                >
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                    </svg>
+                                    Remove
+                                </button>
                             </td>
                         </tr>
                         @endforeach
@@ -145,7 +167,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label for="saleQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                        <input type="number" id="saleQuantity" min="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="saleQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
                     </div>
                     <div>
                         <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
@@ -547,5 +569,84 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
+    // Create a more user-friendly confirmation dialog
+    const confirmationMessage = `Are you sure you want to remove "${productName}" (${quantity} pcs) from this sale?\n\nThis will:\n• Remove the item from the sale\n• Return the stock to inventory\n• Update the sale total\n\nThis action cannot be undone.`;
+    
+    if (!confirm(confirmationMessage)) {
+        return;
+    }
+
+    const itemRow = document.getElementById(`sale-item-${itemId}`);
+    if (!itemRow) {
+        showToast('Item not found.', 'error');
+        return;
+    }
+
+    // Disable the remove button to prevent double-clicks
+    const removeBtn = itemRow.querySelector('button');
+    if (removeBtn) {
+        removeBtn.disabled = true;
+        removeBtn.innerHTML = '<svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>Removing...';
+    }
+
+    const itemData = {
+        item_id: itemId,
+        quantity: quantity,
+        fulfillment_source: fulfillmentSource,
+    };
+
+    fetch(`/api/sales/${saleId}/remove-item`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': csrfToken,
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify({ items: [itemData] })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(result => {
+        if (result.success) {
+            showToast('Item removed successfully and returned to inventory.', 'success');
+            itemRow.remove();
+            
+            // Update total amount
+            const totalAmountEl = document.getElementById('currentTotalAmount');
+            if (totalAmountEl) {
+                totalAmountEl.textContent = `₱${Number(result.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}`;
+            }
+            
+            // Check if there are no more items
+            const tbody = itemRow.parentElement;
+            if (tbody && tbody.children.length === 0) {
+                // Add a message when no items remain
+                tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No items in this sale</td></tr>';
+            }
+        } else {
+            showToast(result.message || 'Failed to remove item.', 'error');
+            // Re-enable the button if there was an error
+            if (removeBtn) {
+                removeBtn.disabled = false;
+                removeBtn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>Remove';
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error removing item:', error);
+        showToast('Failed to remove item. Please try again.', 'error');
+        // Re-enable the button if there was an error
+        if (removeBtn) {
+            removeBtn.disabled = false;
+            removeBtn.innerHTML = '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>Remove';
+        }
+    });
+}
 </script>
 @endsection 

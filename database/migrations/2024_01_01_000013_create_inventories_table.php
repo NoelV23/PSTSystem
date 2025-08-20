@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('branch_id');
-            $table->decimal('available_stock')->nullable();
+            $table->decimal('available_stock', 12, 4)->nullable();
             $table->decimal('cost', 12, 2)->nullable();
             $table->integer('reorder_level')->nullable();
             $table->timestamps();

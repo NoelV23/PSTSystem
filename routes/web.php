@@ -125,6 +125,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/api/sales/{id}', [SaleController::class, 'showDetails'])->name('api.sales.show');
     Route::get('/sales/{id}/edit', [SaleController::class, 'edit'])->name('sales.edit');
     Route::post('/api/sales/{id}/add-items', [SaleController::class, 'addItems'])->name('api.sales.addItems');
+    Route::post('/api/sales/{id}/remove-item', [SaleController::class, 'removeItem'])->name('api.sales.removeItem');
     Route::get('/sales/{id}/delivery-receipt', [SaleController::class, 'deliveryReceipt'])->name('sales.delivery-receipt');
     Route::delete('/api/sales/{id}', [SaleController::class, 'destroy'])->name('api.sales.destroy')->middleware('role:admin,manager');
 
