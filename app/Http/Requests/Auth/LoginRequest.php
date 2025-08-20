@@ -11,6 +11,15 @@ use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
 {
+    protected function prepareForValidation(): void
+    {
+        $email = trim((string) $this->input('email', ''));
+        $this->merge([
+            'email' => \Illuminate\Support\Str::lower($email),
+            'password' => (string) $this->input('password', ''),
+        ]);
+    }
+
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -27,8 +36,8 @@ class LoginRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'string', 'email'],
-            'password' => ['required', 'string'],
+            'email' => ['bail', 'required', 'string', 'email:rfc', 'max:255'],
+            'password' => ['bail', 'required', 'string'],
         ];
     }
 
@@ -42,7 +51,8 @@ class LoginRequest extends FormRequest
         $this->ensureIsNotRateLimited();
 
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
-            RateLimiter::hit($this->throttleKey());
+            // Count this failed attempt and set a 5-minute decay
+            RateLimiter::hit($this->throttleKey(), 300);
 
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
@@ -59,7 +69,8 @@ class LoginRequest extends FormRequest
      */
     public function ensureIsNotRateLimited(): void
     {
-        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 5)) {
+        // Allow only 3 attempts within the decay window
+        if (! RateLimiter::tooManyAttempts($this->throttleKey(), 3)) {
             return;
         }
 
