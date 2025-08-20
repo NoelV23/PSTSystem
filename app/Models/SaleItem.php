@@ -19,6 +19,9 @@ class SaleItem extends Model
         'cut_height',
         'total_price',
         'fulfillment_source',
+        'created_remainder_id',
+        'remainder_before_json',
+        'remainder_after_id',
     ];
 
     public function sale()

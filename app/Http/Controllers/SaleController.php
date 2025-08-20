@@ -471,6 +471,9 @@ class SaleController extends Controller
             'location_note' => $item['location_note'] ?? $remainder->location_note,
             'status' => $item['status'] ?? 'available',
         ];
+        $consumedId = $remainder->id;
+        $beforeJson = $remainder->toArray();
+        $afterId = null;
         
         // Handle length-based remainders
         if (isset($item['cut_length']) && $item['cut_length'] > 0 && $remainder->length_remaining) {
@@ -487,7 +490,8 @@ class SaleController extends Controller
                 $remainder->delete();
                 
                 // Create new remainder with remaining dimensions
-                \App\Models\CutRemainder::create($newRemainderData);
+                $newRem = \App\Models\CutRemainder::create($newRemainderData);
+                $afterId = $newRem->id;
             } else {
                 // Full consumption - just delete the remainder
                 $remainder->delete();
@@ -513,7 +517,8 @@ class SaleController extends Controller
                 $remainder->delete();
                 
                 // Create new remainder with remaining dimensions
-                \App\Models\CutRemainder::create($newRemainderData);
+                $newRem = \App\Models\CutRemainder::create($newRemainderData);
+                $afterId = $newRem->id;
             } else {
                 // Full consumption - just delete the remainder
                 $remainder->delete();
@@ -523,6 +528,11 @@ class SaleController extends Controller
         else {
             $remainder->delete();
         }
+
+        return [
+            'remainder_before_json' => $beforeJson,
+            'remainder_after_id' => $afterId,
+        ];
     }
     
     /**
@@ -594,8 +604,9 @@ class SaleController extends Controller
                 $remainderData['discard_reason'] = $item['discard_reason'] ?? null;
                 $remainderData['discarded_at'] = now();
             }
-            \App\Models\CutRemainder::create($remainderData);
+            return \App\Models\CutRemainder::create($remainderData);
         }
+        return null;
     }
 
     // API: Show sale details with items and user
@@ -703,20 +714,23 @@ class SaleController extends Controller
                     if ($hasFulfillmentSource) {
                         $saleItemData['fulfillment_source'] = 'inventory';
                     }
+
+                    // If cut, create the remainder now and store reference id
+                    if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
+                        $createdRem = $this->createNewRemainderIfNeeded($product, $sale->branch_id, $item);
+                        if ($createdRem) {
+                            $saleItemData['created_remainder_id'] = $createdRem->id;
+                        }
+                    }
                     
                     \App\Models\SaleItem::create($saleItemData);
-                    
-                    // Create remainder if needed
-                    if (isset($item['cut_length']) || isset($item['cut_width']) || isset($item['cut_height'])) {
-                        $this->createNewRemainderIfNeeded($product, $sale->branch_id, $item);
-                    }
                     
                 } elseif ($item['item_type'] === 'remainder') {
                     $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
                     $product = $remainder->product;
                     
-                    // Handle remainder sale
-                    $this->handleCutRemainderSale($remainder, $item);
+                    // Handle remainder sale and capture tracking
+                    $remTrack = $this->handleCutRemainderSale($remainder, $item);
                     
                     // Create sale item data
                     $saleItemData = [
@@ -728,6 +742,8 @@ class SaleController extends Controller
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
+                        'remainder_before_json' => isset($remTrack['remainder_before_json']) ? json_encode($remTrack['remainder_before_json']) : null,
+                        'remainder_after_id' => $remTrack['remainder_after_id'] ?? null,
                     ];
                     
                     // Add fulfillment_source only if column exists
@@ -804,7 +820,7 @@ class SaleController extends Controller
                 // Determine fulfillment source
                 $fulfillmentSource = $hasFulfillmentSource ? $itemData['fulfillment_source'] : 'inventory';
                 
-                // Return stock to inventory based on fulfillment source
+                // Return stock to inventory based on fulfillment source, and undo remainder effects
                 if ($fulfillmentSource === 'inventory') {
                     if ($product->base_unit === 'per set') {
                         // For set products, return components to inventory
@@ -819,17 +835,46 @@ class SaleController extends Controller
                             $inventory->available_stock += $quantity;
                             $inventory->save();
                         }
+
+                        // If we created a remainder when selling this cut, delete that remainder
+                        if (!empty($saleItem->created_remainder_id)) {
+                            $createdRem = \App\Models\CutRemainder::find($saleItem->created_remainder_id);
+                            if ($createdRem) { $createdRem->delete(); }
+                        }
                     }
                 } elseif ($fulfillmentSource === 'remainder') {
-                    // For remainder items, we can't easily reconstruct the original remainder
-                    // So we'll just add to main inventory as a best-effort approach
-                    $inventory = \App\Models\Inventory::where('product_id', $product->id)
-                        ->where('branch_id', $sale->branch_id)
-                        ->first();
+                    // Try to reconstruct the consumed remainder using tracking fields
+                    $afterId = $saleItem->remainder_after_id ?? null;
+                    $beforeJson = $saleItem->remainder_before_json ? json_decode($saleItem->remainder_before_json, true) : null;
+
+                    if ($afterId) {
+                        // Delete the remainder that represented the leftover after the cut
+                        $after = \App\Models\CutRemainder::find($afterId);
+                        if ($after) { $after->delete(); }
+                    }
                     
-                    if ($inventory) {
-                        $inventory->available_stock += $quantity;
-                        $inventory->save();
+                    if ($beforeJson) {
+                        // Restore the prior remainder state by creating a new record with the previous dimensions
+                        $restoreData = [
+                            'product_id' => $beforeJson['product_id'] ?? $product->id,
+                            'branch_id' => $beforeJson['branch_id'] ?? $sale->branch_id,
+                            'length_remaining' => $beforeJson['length_remaining'] ?? null,
+                            'width_remaining' => $beforeJson['width_remaining'] ?? null,
+                            'height_remaining' => $beforeJson['height_remaining'] ?? null,
+                            'area_remaining' => $beforeJson['area_remaining'] ?? null,
+                            'location_note' => $beforeJson['location_note'] ?? null,
+                            'status' => 'available',
+                        ];
+                        \App\Models\CutRemainder::create($restoreData);
+                    } else {
+                        // Fallback: cannot reconstruct exact remainder, return to main inventory
+                        $inventory = \App\Models\Inventory::where('product_id', $product->id)
+                            ->where('branch_id', $sale->branch_id)
+                            ->first();
+                        if ($inventory) {
+                            $inventory->available_stock += $quantity;
+                            $inventory->save();
+                        }
                     }
                 }
                 

@@ -56,6 +56,10 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/api/installation-sales/{id}', [\App\Http\Controllers\InstallationSaleController::class, 'getInstallationSale'])->name('api.installation-sales.show');
     Route::get('/api/installation-sales/{id}/inventory', [\App\Http\Controllers\InstallationSaleController::class, 'getAvailableInventory'])->name('api.installation-sales.inventory');
     Route::post('/api/installation-sales/{id}/record-products', [\App\Http\Controllers\InstallationSaleController::class, 'saveRecordedProducts'])->name('api.installation-sales.save-recorded-products');
+    // Installation Sales - Edit page and add/remove usage
+    Route::get('/installation-sales/{id}/edit', [\App\Http\Controllers\InstallationSaleController::class, 'edit'])->name('installation-sales.edit')->middleware('role:admin,manager');
+    Route::post('/api/installation-sales/{id}/add-usage', [\App\Http\Controllers\InstallationSaleController::class, 'addUsage'])->name('api.installation-sales.add-usage');
+    Route::post('/api/installation-sales/{id}/remove-usage', [\App\Http\Controllers\InstallationSaleController::class, 'removeUsage'])->name('api.installation-sales.remove-usage');
     
     // Export routes
     Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export')->middleware('role:admin,manager');

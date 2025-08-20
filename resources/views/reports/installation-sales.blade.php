@@ -182,6 +182,7 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <button onclick="viewInstallationDetails({{ $sale->id }})" class="text-blue-600 hover:underline mr-2">View Details</button>
+                            <a href="{{ route('installation-sales.edit', $sale->id) }}" class="text-indigo-600 hover:underline mr-2">Edit</a>
                             @if($sale->status === 'pending')
                                 <button onclick="recordInstallationProducts({{ $sale->id }})" class="text-green-600 hover:underline">Record Products</button>
                             @else
@@ -333,7 +334,31 @@ function viewInstallationDetails(saleId) {
             const productsList = sale.installation_product_usages && sale.installation_product_usages.length > 0 
                 ? sale.installation_product_usages.map(item => `
                     <tr>
-                        <td class="px-4 py-2 text-sm text-gray-900">${item.product.name} (${item.product.sku})</td>
+                        <td class="px-4 py-2 text-sm text-gray-900">
+                            ${(() => {
+                                const p = item.product || {};
+                                let name = p.name || '';
+                                if (p.color) name += ' ' + p.color;
+                                let measurement = '';
+                                if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+                                    measurement = `${p.default_width}×${p.default_height} sq ft`;
+                                } else if (p.default_length) {
+                                    const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', ''));
+                                    measurement = `${p.default_length} ${unit}`;
+                                }
+                                const displayName = measurement ? `${name} (${measurement})` : name;
+                                const skuPart = p.sku ? ` (SKU: ${p.sku})` : '';
+                                let cutInfo = '';
+                                if (item.cut_length) {
+                                    const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', '')) || '';
+                                    cutInfo = `Cut: ${parseFloat(item.cut_length).toFixed(2)}${unit ? ' ' + unit : ''}`;
+                                } else if (item.cut_width && item.cut_height) {
+                                    const unit = p.measurement_unit === 'sq ft' ? 'sq ft' : (p.measurement_unit || '');
+                                    cutInfo = `Cut: ${parseFloat(item.cut_width).toFixed(2)}×${parseFloat(item.cut_height).toFixed(2)}${unit ? ' ' + unit : ''}`;
+                                }
+                                return `${displayName}${skuPart}${cutInfo ? `<div class=\"text-xs text-gray-500\">${cutInfo}</div>` : ''}`;
+                            })()}
+                        </td>
                         <td class="px-4 py-2 text-sm text-gray-900">${item.quantity_used}</td>
                         <td class="px-4 py-2 text-sm text-gray-900">₱${parseFloat(item.unit_cost || 0).toFixed(2)}</td>
                         <td class="px-4 py-2 text-sm text-gray-900">₱${parseFloat(item.total_cost || 0).toFixed(2)}</td>

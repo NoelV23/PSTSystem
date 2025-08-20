@@ -16,12 +16,18 @@ class InstallationProductUsage extends Model
         'quantity_used',
         'unit_cost',
         'total_cost',
+        'cut_length',
+        'cut_width',
+        'cut_height',
     ];
 
     protected $casts = [
         'quantity_used' => 'integer',
         'unit_cost' => 'decimal:2',
         'total_cost' => 'decimal:2',
+        'cut_length' => 'decimal:2',
+        'cut_width' => 'decimal:2',
+        'cut_height' => 'decimal:2',
     ];
 
     public function sale()
