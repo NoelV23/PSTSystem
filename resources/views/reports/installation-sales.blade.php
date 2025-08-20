@@ -239,16 +239,32 @@
             <!-- Product Details Section -->
             <div id="productDetailsSection" class="hidden space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                    <div>
                         <label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity Used</label>
                         <input type="number" id="productQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-red-400 focus:border-transparent">
-                </div>
-                <div>
+                    </div>
+                    <div>
                         <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
                         <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" readonly>
                     </div>
                 </div>
-                
+                <!-- Cut Fields -->
+                <div id="cutFields" class="hidden">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="cutLength" class="block text-sm font-medium text-gray-700 mb-1">Cut Length</label>
+                            <input type="number" id="cutLength" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="cutWidth" class="block text-sm font-medium text-gray-700 mb-1">Cut Width</label>
+                            <input type="number" id="cutWidth" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label for="cutHeight" class="block text-sm font-medium text-gray-700 mb-1">Cut Height</label>
+                            <input type="number" id="cutHeight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        </div>
+                    </div>
+                </div>
                 <div class="flex justify-end">
                     <button type="button" id="addProductBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Add Product</button>
                 </div>
@@ -516,6 +532,29 @@ function selectProduct(inventoryId) {
     document.getElementById('productDetailsSection').classList.remove('hidden');
     document.getElementById('productName').value = item.product.name;
     document.getElementById('productQuantity').value = 1;
+
+    // Show cut fields if product has default dimensions and is not a set
+    const hasLength = !!item.product.default_length;
+    const hasWidth = !!item.product.default_width;
+    const hasHeight = !!item.product.default_height;
+    const isSet = item.product.base_unit === 'per set';
+    const cutFields = document.getElementById('cutFields');
+    if ((hasLength || hasWidth || hasHeight) && !isSet) {
+        cutFields.classList.remove('hidden');
+        // Reset previous values
+        const cutLength = document.getElementById('cutLength');
+        const cutWidth = document.getElementById('cutWidth');
+        const cutHeight = document.getElementById('cutHeight');
+        if (cutLength) cutLength.value = '';
+        if (cutWidth) cutWidth.value = '';
+        if (cutHeight) cutHeight.value = '';
+        // Toggle visibility based on available defaults
+        cutLength.parentElement.style.display = hasLength ? 'block' : 'none';
+        cutWidth.parentElement.style.display = hasWidth ? 'block' : 'none';
+        cutHeight.parentElement.style.display = hasHeight ? 'block' : 'none';
+    } else {
+        cutFields.classList.add('hidden');
+    }
 }
 
 document.getElementById('addProductBtn').addEventListener('click', function() {
@@ -536,6 +575,7 @@ document.getElementById('addProductBtn').addEventListener('click', function() {
         return;
     }
     
+    // Build product item with optional cut fields
     const productItem = {
         inventory_id: selectedProduct.id,
         product_name: selectedProduct.product.name,
@@ -544,6 +584,12 @@ document.getElementById('addProductBtn').addEventListener('click', function() {
         unit_cost: parseFloat(selectedProduct.cost || 0),
         total_cost: parseFloat(selectedProduct.cost || 0) * quantity
     };
+    const cutLength = document.getElementById('cutLength');
+    const cutWidth = document.getElementById('cutWidth');
+    const cutHeight = document.getElementById('cutHeight');
+    if (cutLength && cutLength.value) productItem.cut_length = parseFloat(cutLength.value);
+    if (cutWidth && cutWidth.value) productItem.cut_width = parseFloat(cutWidth.value);
+    if (cutHeight && cutHeight.value) productItem.cut_height = parseFloat(cutHeight.value);
     
     recordedProducts.push(productItem);
     renderProductsTable();
@@ -562,7 +608,7 @@ function renderProductsTable() {
     tbody.innerHTML = recordedProducts.map((item, index) => `
         <tr>
             <td class="px-4 py-2 text-sm text-gray-900">${item.product_name} (${item.product_sku})</td>
-            <td class="px-4 py-2 text-sm text-gray-900">${item.quantity_used}</td>
+            <td class="px-4 py-2 text-sm text-gray-900">${item.quantity_used}${(item.cut_length||item.cut_width||item.cut_height) ? ` (cut: ${[item.cut_length,item.cut_width,item.cut_height].filter(Boolean).join(' x ')})` : ''}</td>
             <td class="px-4 py-2 text-sm text-gray-900">₱${parseFloat(item.unit_cost || 0).toFixed(2)}</td>
             <td class="px-4 py-2 text-sm text-gray-900">₱${parseFloat(item.total_cost || 0).toFixed(2)}</td>
             <td class="px-4 py-2 text-sm text-gray-900">
