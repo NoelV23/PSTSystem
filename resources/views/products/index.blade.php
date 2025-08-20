@@ -569,8 +569,8 @@ function handleBaseUnitChange() {
     measurementUnitSection.classList.add('hidden');
     setComponentsSection.classList.add('hidden');
     
-    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet') {
-        // Show measurement section for per pc and per length products
+    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet' || baseUnit === 'per roll') {
+        // Show measurement section for per pc, per length, per sheet, and per roll products
         measurementSection.classList.remove('hidden');
         measurementUnitSection.classList.remove('hidden');
         updateMeasurementLabels();
