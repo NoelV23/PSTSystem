@@ -315,7 +315,21 @@ function displayProductDropdown(items) {
     } else {
         dropdown.innerHTML = items.map(item => `
             <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
-                <div class="font-medium">${item.product.name}</div>
+                <div class="font-medium">
+                    ${(() => {
+                        const p = item.product || {};
+                        let name = p.name || '';
+                        if (p.color) name += ' ' + p.color;
+                        let measurement = '';
+                        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+                            measurement = `${p.default_width}×${p.default_height} sq ft`;
+                        } else if (p.default_length) {
+                            const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', ''));
+                            measurement = `${p.default_length} ${unit}`;
+                        }
+                        return measurement ? `${name} (${measurement})` : name;
+                    })()}
+                </div>
                 <div class="text-sm text-gray-500">${item.product.sku || 'No SKU'} - ${item.type === 'remainder' ? 'Remainder' : 'Inventory'}</div>
             </div>
         `).join('');
@@ -344,14 +358,20 @@ window.selectProduct = function(type, id) {
     selectedProduct = item;
     document.getElementById('productDropdown').classList.add('hidden');
     
-    // Build display name
-    let displayName = item.product.name;
-    if (item.product.color) {
-        displayName += ` ${item.product.color}`;
-    }
-    if (item.product.measurement_unit) {
-        displayName += ` (${item.product.measurement_unit})`;
-    }
+    // Build display name with color and measurement
+    let displayName = (() => {
+        const p = item.product || {};
+        let name = p.name || '';
+        if (p.color) name += ` ${p.color}`;
+        let measurement = '';
+        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+            measurement = `${p.default_width}×${p.default_height} sq ft`;
+        } else if (p.default_length) {
+            const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', ''));
+            measurement = `${p.default_length} ${unit}`;
+        }
+        return measurement ? `${name} (${measurement})` : name;
+    })();
     displayName += ` (${item.product.sku || 'No SKU'})`;
     
     if (item.type === 'remainder') {

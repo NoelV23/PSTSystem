@@ -513,7 +513,21 @@ document.getElementById('productSearch').addEventListener('input', function() {
     } else {
         dropdown.innerHTML = filtered.map(item => `
             <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectProduct(${item.id})">
-                <div class="font-medium">${item.product.name}</div>
+                <div class="font-medium">
+                    ${(() => {
+                        const p = item.product || {};
+                        let name = p.name || '';
+                        if (p.color) name += ' ' + p.color;
+                        let measurement = '';
+                        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+                            measurement = `${p.default_width}×${p.default_height} sq ft`;
+                        } else if (p.default_length) {
+                            const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', ''));
+                            measurement = `${p.default_length} ${unit}`;
+                        }
+                        return measurement ? `${name} (${measurement})` : name;
+                    })()}
+                </div>
                 <div class="text-sm text-gray-500">SKU: ${item.product.sku} | Available: ${item.available_stock}</div>
             </div>
         `).join('');
@@ -527,10 +541,24 @@ function selectProduct(inventoryId) {
     if (!item) return;
     
     selectedProduct = item;
-    document.getElementById('productSearch').value = item.product.name;
+    // Build display name with color and measurement
+    const displayName = (() => {
+        const p = item.product || {};
+        let name = p.name || '';
+        if (p.color) name += ' ' + p.color;
+        let measurement = '';
+        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+            measurement = `${p.default_width}×${p.default_height} sq ft`;
+        } else if (p.default_length) {
+            const unit = p.measurement_unit || ((p.base_unit || '').replace('per ', ''));
+            measurement = `${p.default_length} ${unit}`;
+        }
+        return measurement ? `${name} (${measurement})` : name;
+    })();
+    document.getElementById('productSearch').value = displayName;
     document.getElementById('productDropdown').classList.add('hidden');
     document.getElementById('productDetailsSection').classList.remove('hidden');
-    document.getElementById('productName').value = item.product.name;
+    document.getElementById('productName').value = displayName;
     document.getElementById('productQuantity').value = 1;
 
     // Show cut fields if product has default dimensions and is not a set
