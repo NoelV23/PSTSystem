@@ -26,6 +26,9 @@
                         </svg>
                         Back to Sales
                     </a>
+                    <button id="testRemoveApi" class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition duration-200 ml-2">
+                        Test Remove API
+                    </button>
                 </div>
             </div>
         </div>
@@ -509,8 +512,11 @@ document.addEventListener('DOMContentLoaded', function() {
     loadData();
     
     // Set up event listeners for remove item buttons
+    console.log('Setting up remove item event listeners...');
     document.addEventListener('click', function(e) {
+        console.log('Click event detected on:', e.target);
         if (e.target.closest('.remove-item-btn')) {
+            console.log('Remove button clicked!');
             e.preventDefault();
             const btn = e.target.closest('.remove-item-btn');
             const itemId = btn.dataset.itemId;
@@ -518,6 +524,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const quantity = btn.dataset.quantity;
             const fulfillmentSource = btn.dataset.fulfillmentSource;
             
+            console.log('Button data:', { itemId, productName, quantity, fulfillmentSource });
             removeSaleItem(itemId, productName, quantity, fulfillmentSource);
         }
     });
@@ -587,21 +594,77 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Test Remove API button
+    const testRemoveApiBtn = document.getElementById('testRemoveApi');
+    if (testRemoveApiBtn) {
+        testRemoveApiBtn.addEventListener('click', async function() {
+            const itemId = '{{ $sale->saleItems->first()->id }}'; // Replace with a valid item ID from your sale
+            const productName = '{{ $sale->saleItems->first()->product->name }}';
+            const quantity = '{{ $sale->saleItems->first()->quantity }}';
+            const fulfillmentSource = '{{ $sale->saleItems->first()->fulfillment_source }}';
+
+            console.log('Testing remove item API with data:', { itemId, productName, quantity, fulfillmentSource });
+
+            const confirmationMessage = `Are you sure you want to remove "${productName}" (${quantity} pcs) from this sale?\n\nThis will:\n• Remove the item from the sale\n• Return the stock to inventory\n• Update the sale total\n\nThis action cannot be undone.`;
+            if (!confirm(confirmationMessage)) {
+                return;
+            }
+
+            const itemData = {
+                item_id: itemId,
+                quantity: quantity,
+                fulfillment_source: fulfillmentSource,
+            };
+
+            try {
+                const response = await fetch(`/api/sales/${saleId}/remove-item`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify({ items: [itemData] })
+                });
+                const result = await response.json();
+                console.log('Test Remove API Response:', result);
+                showToast(result.message || 'Test Remove API completed', result.success ? 'success' : 'error');
+                if (result.success) {
+                    // Reload the page to show updated sale
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                }
+            } catch (error) {
+                console.error('Error testing remove item API:', error);
+                showToast('Failed to test remove item API. Please try again.', 'error');
+            }
+        });
+    }
 });
 
 function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
+    console.log('removeSaleItem called with:', { itemId, productName, quantity, fulfillmentSource });
+    
     // Create a more user-friendly confirmation dialog
     const confirmationMessage = `Are you sure you want to remove "${productName}" (${quantity} pcs) from this sale?\n\nThis will:\n• Remove the item from the sale\n• Return the stock to inventory\n• Update the sale total\n\nThis action cannot be undone.`;
     
     if (!confirm(confirmationMessage)) {
+        console.log('User cancelled removal');
         return;
     }
 
+    console.log('User confirmed removal, proceeding...');
+
     const itemRow = document.getElementById(`sale-item-${itemId}`);
     if (!itemRow) {
+        console.error('Item row not found for ID:', itemId);
         showToast('Item not found.', 'error');
         return;
     }
+
+    console.log('Item row found, disabling button...');
 
     // Disable the remove button to prevent double-clicks
     const removeBtn = itemRow.querySelector('button');
@@ -620,8 +683,12 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
     console.log('Request method: POST');
     console.log('Request data:', { items: [itemData] });
     console.log('CSRF Token:', csrfToken);
+    console.log('Sale ID:', saleId);
 
-    fetch(`/api/sales/${saleId}/remove-item`, {
+    const requestUrl = `/api/sales/${saleId}/remove-item`;
+    console.log('Full request URL:', requestUrl);
+
+    fetch(requestUrl, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
