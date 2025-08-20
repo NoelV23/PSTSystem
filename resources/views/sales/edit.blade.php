@@ -26,9 +26,6 @@
                         </svg>
                         Back to Sales
                     </a>
-                    <button id="testRemoveApi" class="inline-flex items-center px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white font-medium rounded-lg transition duration-200 ml-2">
-                        Test Remove API
-                    </button>
                 </div>
             </div>
         </div>
@@ -237,6 +234,17 @@ const branchId = {{ $sale->branch_id }};
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 const isDelivered = {{ $sale->is_delivered ? 'true' : 'false' }};
 
+// Format decimal function to remove unnecessary trailing zeros
+function formatDecimal(value) {
+    if (value === null || value === undefined || value === '') return '0';
+    const number = parseFloat(value);
+    if (isNaN(number)) return '0';
+    if (Number.isInteger(number)) {
+        return number.toString();
+    }
+    return number.toString().replace(/\.?0+$/, '');
+}
+
 // Load inventory and remainders
 async function loadData() {
     try {
@@ -349,7 +357,7 @@ window.selectProduct = function(type, id) {
     // Show product meta
     let unit = item.product.measurement_unit ? ` (${item.product.measurement_unit})` : '';
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
-    let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' ? (item.calculated_stock || 0) : item.available_stock);
+    let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' ? formatDecimal(item.calculated_stock || 0) : formatDecimal(item.available_stock));
     
     document.getElementById('productMeta').innerHTML = `Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>`;
     
@@ -512,11 +520,8 @@ document.addEventListener('DOMContentLoaded', function() {
     loadData();
     
     // Set up event listeners for remove item buttons
-    console.log('Setting up remove item event listeners...');
     document.addEventListener('click', function(e) {
-        console.log('Click event detected on:', e.target);
         if (e.target.closest('.remove-item-btn')) {
-            console.log('Remove button clicked!');
             e.preventDefault();
             const btn = e.target.closest('.remove-item-btn');
             const itemId = btn.dataset.itemId;
@@ -524,15 +529,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const quantity = btn.dataset.quantity;
             const fulfillmentSource = btn.dataset.fulfillmentSource;
             
-            console.log('Button data:', { itemId, productName, quantity, fulfillmentSource });
-            console.log('Button dataset:', btn.dataset);
-            console.log('Fulfillment source from dataset:', btn.dataset.fulfillmentSource);
-            console.log('All data attributes:', {
-                'data-item-id': btn.getAttribute('data-item-id'),
-                'data-product-name': btn.getAttribute('data-product-name'),
-                'data-quantity': btn.getAttribute('data-quantity'),
-                'data-fulfillment-source': btn.getAttribute('data-fulfillment-source')
-            });
             removeSaleItem(itemId, productName, quantity, fulfillmentSource);
         }
     });
@@ -602,58 +598,6 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-
-    // Test Remove API button
-    const testRemoveApiBtn = document.getElementById('testRemoveApi');
-    if (testRemoveApiBtn) {
-        testRemoveApiBtn.addEventListener('click', async function() {
-            const itemId = '{{ $sale->saleItems->first()->id }}'; // Replace with a valid item ID from your sale
-            const productName = '{{ $sale->saleItems->first()->product->name }}';
-            const quantity = '{{ $sale->saleItems->first()->quantity }}';
-            const fulfillmentSource = '{{ $sale->saleItems->first()->fulfillment_source ?? "" }}';
-
-            console.log('Testing remove item API with data:', { itemId, productName, quantity, fulfillmentSource });
-
-            const confirmationMessage = `Are you sure you want to remove "${productName}" (${quantity} pcs) from this sale?\n\nThis will:\n• Remove the item from the sale\n• Return the stock to inventory\n• Update the sale total\n\nThis action cannot be undone.`;
-            if (!confirm(confirmationMessage)) {
-                return;
-            }
-
-            const itemData = {
-                item_id: itemId,
-                quantity: quantity,
-            };
-
-            // Only add fulfillment_source if it's available and not empty
-            if (fulfillmentSource && fulfillmentSource.trim() !== '') {
-                itemData.fulfillment_source = fulfillmentSource.trim();
-            }
-
-            try {
-                const response = await fetch(`/api/sales/${saleId}/remove-item`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify({ items: [itemData] })
-                });
-                const result = await response.json();
-                console.log('Test Remove API Response:', result);
-                showToast(result.message || 'Test Remove API completed', result.success ? 'success' : 'error');
-                if (result.success) {
-                    // Reload the page to show updated sale
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1000);
-                }
-            } catch (error) {
-                console.error('Error testing remove item API:', error);
-                showToast('Failed to test remove item API. Please try again.', 'error');
-            }
-        });
-    }
 });
 
 function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
@@ -663,11 +607,8 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
     const confirmationMessage = `Are you sure you want to remove "${productName}" (${quantity} pcs) from this sale?\n\nThis will:\n• Remove the item from the sale\n• Return the stock to inventory\n• Update the sale total\n\nThis action cannot be undone.`;
     
     if (!confirm(confirmationMessage)) {
-        console.log('User cancelled removal');
         return;
     }
-
-    console.log('User confirmed removal, proceeding...');
 
     const itemRow = document.getElementById(`sale-item-${itemId}`);
     if (!itemRow) {
@@ -675,8 +616,6 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         showToast('Item not found.', 'error');
         return;
     }
-
-    console.log('Item row found, disabling button...');
 
     // Disable the remove button to prevent double-clicks
     const removeBtn = itemRow.querySelector('button');
@@ -696,23 +635,7 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         itemData.fulfillment_source = fulfillmentSource.trim();
     }
 
-    console.log('Sending request to:', `/api/sales/${saleId}/remove-item`);
-    console.log('Request method: POST');
-    console.log('Request data:', { items: [itemData] });
-    console.log('CSRF Token:', csrfToken);
-    console.log('Sale ID:', saleId);
-    console.log('Item data details:', {
-        item_id: itemData.item_id,
-        quantity: itemData.quantity,
-        fulfillment_source: itemData.fulfillment_source || 'not provided',
-        fulfillment_source_type: typeof itemData.fulfillment_source,
-        fulfillment_source_length: itemData.fulfillment_source ? itemData.fulfillment_source.length : 'null'
-    });
-
-    const requestUrl = `/api/sales/${saleId}/remove-item`;
-    console.log('Full request URL:', requestUrl);
-
-    fetch(requestUrl, {
+    fetch(`/api/sales/${saleId}/remove-item`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -722,11 +645,8 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         body: JSON.stringify({ items: [itemData] })
     })
     .then(response => {
-        console.log('Response status:', response.status);
-        console.log('Response headers:', response.headers);
         if (!response.ok) {
             return response.text().then(text => {
-                console.log('Error response body:', text);
                 throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
             });
         }
