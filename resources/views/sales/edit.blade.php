@@ -122,8 +122,12 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <button 
-                                    onclick="removeSaleItem({{ $item->id }}, '{{ $item->product->name }}', {{ $item->quantity }}, '{{ $item->fulfillment_source }}')"
-                                    class="inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200"
+                                    type="button"
+                                    data-item-id="{{ $item->id }}"
+                                    data-product-name="{{ $item->product->name }}"
+                                    data-quantity="{{ $item->quantity }}"
+                                    data-fulfillment-source="{{ $item->fulfillment_source }}"
+                                    class="remove-item-btn inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200"
                                     title="Remove item and return to inventory"
                                 >
                                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -503,6 +507,21 @@ document.addEventListener('click', function(e) {
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
     loadData();
+    
+    // Set up event listeners for remove item buttons
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-item-btn')) {
+            e.preventDefault();
+            const btn = e.target.closest('.remove-item-btn');
+            const itemId = btn.dataset.itemId;
+            const productName = btn.dataset.productName;
+            const quantity = btn.dataset.quantity;
+            const fulfillmentSource = btn.dataset.fulfillmentSource;
+            
+            removeSaleItem(itemId, productName, quantity, fulfillmentSource);
+        }
+    });
+    
     // Reference number editor handlers
     const editRefBtn = document.getElementById('editReferenceBtn');
     const refDisplay = document.getElementById('referenceNumberDisplay');
@@ -597,6 +616,11 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         fulfillment_source: fulfillmentSource,
     };
 
+    console.log('Sending request to:', `/api/sales/${saleId}/remove-item`);
+    console.log('Request method: POST');
+    console.log('Request data:', { items: [itemData] });
+    console.log('CSRF Token:', csrfToken);
+
     fetch(`/api/sales/${saleId}/remove-item`, {
         method: 'POST',
         headers: {
@@ -607,8 +631,13 @@ function removeSaleItem(itemId, productName, quantity, fulfillmentSource) {
         body: JSON.stringify({ items: [itemData] })
     })
     .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            return response.text().then(text => {
+                console.log('Error response body:', text);
+                throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+            });
         }
         return response.json();
     })

@@ -682,9 +682,9 @@ function createInventoryRow(item) {
     let availableStock = '-';
     if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
         // Use calculated stock for set products with components
-        availableStock = item.calculated_stock ? `${item.calculated_stock} sets` : '0 sets';
+        availableStock = item.calculated_stock ? `${formatDecimal(item.calculated_stock)} sets` : '0 sets';
     } else {
-        availableStock = item.available_stock ? `${item.available_stock}` : '-';
+        availableStock = item.available_stock ? `${formatDecimal(item.available_stock)}` : '-';
     }
     
     let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
@@ -770,7 +770,7 @@ function createInventoryRow(item) {
             ${userRole !== 'staff' ?`<td class="px-6 py-4 text-sm text-gray-500">${cost}</td>` : ''}
             <td class="px-6 py-4 text-sm text-gray-500">${price}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${wholesalePrice}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level || '-'}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level ? formatDecimal(item.reorder_level) : '-'}</td>
             <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
             <td class="px-6 py-4 text-right">
                 ${userRole !== 'staff' ? `<button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
@@ -1095,9 +1095,9 @@ async function loadSetComponentsInfo(productId) {
             let availableStock = 'Not in inventory';
             if (componentInventory) {
                 if (componentInventory.product.base_unit === 'per pc') {
-                    availableStock = `${componentInventory.available_stock || 0} pieces`;
+                    availableStock = `${formatDecimal(componentInventory.available_stock || 0)} pieces`;
                 } else {
-                    availableStock = `${componentInventory.available_length || 0} ${componentInventory.product.base_unit.replace('per ', '')}`;
+                    availableStock = `${formatDecimal(componentInventory.available_length || 0)} ${componentInventory.product.base_unit.replace('per ', '')}`;
                 }
             }
             
@@ -1463,9 +1463,9 @@ async function viewSetComponents(productId, productName) {
                 
                 if (componentInventory) {
                     if (componentInventory.product.base_unit === 'per pc' || componentInventory.product.base_unit === 'per length') {
-                        availableStock = `${componentInventory.available_stock || 0} pieces`;
+                        availableStock = `${formatDecimal(componentInventory.available_stock || 0)} pieces`;
                     } else {
-                        availableStock = `${componentInventory.available_length || 0} ${componentInventory.product.base_unit.replace('per ', '')}`;
+                        availableStock = `${formatDecimal(componentInventory.available_length || 0)} ${componentInventory.product.base_unit.replace('per ', '')}`;
                     }
                     
                     // Determine stock status
@@ -1727,6 +1727,21 @@ document.getElementById('closeRemainderModal').addEventListener('click', functio
             showToast('Failed to adjust stock. Please try again.', 'error');
         }
     });
+
+    function formatDecimal(value) {
+        if (value === null || value === undefined || value === '') return '0';
+        
+        const number = parseFloat(value);
+        if (isNaN(number)) return '0';
+        
+        // If it's a whole number, return without decimal
+        if (Number.isInteger(number)) {
+            return number.toString();
+        }
+        
+        // Remove trailing zeros after decimal point
+        return number.toString().replace(/\.?0+$/, '');
+    }
 
     function formatCurrency(value) {
         const number = parseFloat(value) || 0;
