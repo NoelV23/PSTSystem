@@ -14,7 +14,7 @@
                 </span>
             </div>
             <div class="text-gray-700 font-medium text-sm sm:text-base">Total Inventory Value</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.inventoryValue ? summary.inventoryValue.toLocaleString() : '0'"></span></div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="formatNumber(summary.inventoryValue)"></span></div>
         </div>
         <!-- Total Sales Today -->
         <div class="bg-green-50 border border-green-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0">
@@ -27,7 +27,7 @@
                 </span>
             </div>
             <div class="text-gray-700 font-medium text-sm sm:text-base">Total Sales Today</div>
-            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="summary.salesToday ? summary.salesToday.toLocaleString() : '0'"></span></div>
+            <div class="text-xl sm:text-2xl font-extrabold text-gray-900 mt-1">₱<span x-text="formatNumber(summary.salesToday)"></span></div>
         </div>
         <!-- Active Branches Today, hidden when user role is staff and manager-->
         <div class="bg-yellow-50 border border-yellow-100 rounded-lg p-4 sm:p-6 flex flex-col items-start w-full min-w-0" x-show="role !== 'staff' && role !== 'manager'">
@@ -92,8 +92,8 @@
                     <template x-for="branch in branches" :key="branch.id">
                         <tr>
                             <td class="px-4 py-2 text-gray-900 font-medium" x-text="branch.name"></td>
-                            <td class="px-4 py-2 text-green-700 font-bold">₱<span x-text="branch.sales ? branch.sales.toLocaleString() : '0'"></span></td>
-                            <td class="px-4 py-2 text-blue-700 font-bold" x-show="role !== 'staff'">₱<span x-text="branch.inventoryValue ? branch.inventoryValue.toLocaleString() : '0'"></span></td>
+                            <td class="px-4 py-2 text-green-700 font-bold">₱<span x-text="formatNumber(branch.sales)"></span></td>
+                            <td class="px-4 py-2 text-blue-700 font-bold" x-show="role !== 'staff'">₱<span x-text="formatNumber(branch.inventoryValue)"></span></td>
                             <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.lowStock || '0'"></td>
                             <td class="px-4 py-2 text-red-700 font-bold" x-text="branch.outOfStock || '0'"></td>
                             <td class="px-4 py-2 text-gray-500" x-text="branch.lastActivity || 'No activity'"></td>
@@ -182,6 +182,14 @@ function dashboardData() {
         branches: [],
         inventoryAlerts: [],
         activityLog: [],
+        
+        formatNumber(value) {
+            const num = Number(value || 0);
+            if (Number.isNaN(num)) return '0';
+            // Show up to 2 decimals, but strip trailing zeros
+            const fixed = num.toLocaleString('en-PH', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+            return fixed;
+        },
         
         async init() {
             await this.loadDashboardData();
