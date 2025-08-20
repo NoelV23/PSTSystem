@@ -266,6 +266,9 @@ class PurchaseController extends Controller
                 $inventoryData['available_area'] = $quantity;
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
                 $inventoryData['available_stock'] = $quantity;
+            } elseif ($product->base_unit === 'per set') {
+                // Per set without components: track as stock count of sets
+                $inventoryData['available_stock'] = $quantity;
             } elseif ($product->base_unit === 'per roll') {
                 $inventoryData['available_stock'] = $quantity;
             }
@@ -280,6 +283,9 @@ class PurchaseController extends Controller
             } elseif ($product->base_unit === 'per sq ft') {
                 $inventory->increment('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
+                $inventory->increment('available_stock', $quantity);
+            } elseif ($product->base_unit === 'per set') {
+                // Per set without components: track as stock count of sets
                 $inventory->increment('available_stock', $quantity);
             } elseif ($product->base_unit === 'per roll') {
                 $inventory->increment('available_stock', $quantity);
@@ -401,6 +407,9 @@ class PurchaseController extends Controller
             } elseif ($product->base_unit === 'per sq ft') {
                 $inventory->decrement('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
+                $inventory->decrement('available_stock', $quantity);
+            } elseif ($product->base_unit === 'per set') {
+                // Per set without components: decrement set stock directly
                 $inventory->decrement('available_stock', $quantity);
             } elseif ($product->base_unit === 'per roll') {
                 $inventory->decrement('available_stock', $quantity);
