@@ -234,6 +234,14 @@ class PurchaseController extends Controller
     private function updateInventory($productId, $branchId, $quantity, $costPrice = null)
     {
         $product = Product::find($productId);
+        
+        // Handle per set products with components
+        if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
+            // Add stock to each component instead of the set product
+            $this->addStockToSetComponents($product, $branchId, $quantity, $costPrice);
+            return;
+        }
+        
         $inventory = Inventory::where('product_id', $productId)
             ->where('branch_id', $branchId)
             ->first();
@@ -258,6 +266,8 @@ class PurchaseController extends Controller
                 $inventoryData['available_area'] = $quantity;
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
                 $inventoryData['available_stock'] = $quantity;
+            } elseif ($product->base_unit === 'per roll') {
+                $inventoryData['available_stock'] = $quantity;
             }
 
             Inventory::create($inventoryData);
@@ -271,6 +281,8 @@ class PurchaseController extends Controller
                 $inventory->increment('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
                 $inventory->increment('available_stock', $quantity);
+            } elseif ($product->base_unit === 'per roll') {
+                $inventory->increment('available_stock', $quantity);
             }
             
             // Update cost price if provided
@@ -280,10 +292,103 @@ class PurchaseController extends Controller
         }
     }
 
+    // Helper method to add stock to set components
+    private function addStockToSetComponents($product, $branchId, $quantity, $costPrice = null)
+    {
+        $setComponents = $product->setComponents;
+        
+        \Log::info("Processing set product purchase", [
+            'product_id' => $product->id,
+            'product_name' => $product->name,
+            'quantity' => $quantity,
+            'components_count' => $setComponents->count()
+        ]);
+        
+        foreach ($setComponents as $component) {
+            $componentProduct = $component->componentProduct;
+            $componentQuantity = $component->quantity_required * $quantity;
+            
+            \Log::info("Adding stock to component", [
+                'component_product_id' => $componentProduct->id,
+                'component_name' => $componentProduct->name,
+                'quantity_required' => $component->quantity_required,
+                'total_quantity' => $componentQuantity
+            ]);
+            
+            // Find or create inventory for the component
+            $componentInventory = Inventory::where('product_id', $componentProduct->id)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if (!$componentInventory) {
+                // Create new inventory record for component
+                $inventoryData = [
+                    'product_id' => $componentProduct->id,
+                    'branch_id' => $branchId,
+                    'available_stock' => 0,
+                    'available_length' => 0,
+                    'available_area' => 0,
+                    'cost' => $costPrice,
+                ];
+
+                // Set initial values based on component product type
+                if ($componentProduct->base_unit === 'per pc' || $componentProduct->base_unit === 'per length' || $componentProduct->base_unit === 'per sheet') {
+                    $inventoryData['available_stock'] = $componentQuantity;
+                } elseif ($componentProduct->base_unit === 'per ft') {
+                    $inventoryData['available_stock'] = $componentQuantity;
+                } elseif ($componentProduct->base_unit === 'per sq ft') {
+                    $inventoryData['available_area'] = $componentQuantity;
+                } elseif ($componentProduct->base_unit === 'per kg' || $componentProduct->base_unit === 'per liter') {
+                    $inventoryData['available_stock'] = $componentQuantity;
+                } elseif ($componentProduct->base_unit === 'per roll') {
+                    $inventoryData['available_stock'] = $componentQuantity;
+                }
+
+                Inventory::create($inventoryData);
+                \Log::info("Created new inventory for component", [
+                    'component_product_id' => $componentProduct->id,
+                    'quantity_added' => $componentQuantity
+                ]);
+            } else {
+                // Update existing inventory for component
+                if ($componentProduct->base_unit === 'per pc' || $componentProduct->base_unit === 'per length' || $componentProduct->base_unit === 'per sheet') {
+                    $componentInventory->increment('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per ft') {
+                    $componentInventory->increment('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per sq ft') {
+                    $componentInventory->increment('available_area', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per kg' || $componentProduct->base_unit === 'per liter') {
+                    $componentInventory->increment('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per roll') {
+                    $componentInventory->increment('available_stock', $componentQuantity);
+                }
+                
+                // Update cost price if provided
+                if ($costPrice !== null) {
+                    $componentInventory->update(['cost' => $costPrice]);
+                }
+                
+                \Log::info("Updated existing inventory for component", [
+                    'component_product_id' => $componentProduct->id,
+                    'quantity_added' => $componentQuantity,
+                    'new_total' => $componentInventory->fresh()->available_stock
+                ]);
+            }
+        }
+    }
+
     // Helper method to remove inventory (for deletion)
     private function removeInventory($productId, $branchId, $quantity)
     {
         $product = Product::find($productId);
+        
+        // Handle per set products with components
+        if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
+            // Remove stock from each component instead of the set product
+            $this->removeStockFromSetComponents($product, $branchId, $quantity);
+            return;
+        }
+        
         $inventory = Inventory::where('product_id', $productId)
             ->where('branch_id', $branchId)
             ->first();
@@ -297,6 +402,39 @@ class PurchaseController extends Controller
                 $inventory->decrement('available_area', $quantity);
             } elseif ($product->base_unit === 'per kg' || $product->base_unit === 'per liter') {
                 $inventory->decrement('available_stock', $quantity);
+            } elseif ($product->base_unit === 'per roll') {
+                $inventory->decrement('available_stock', $quantity);
+            }
+        }
+    }
+
+    // Helper method to remove stock from set components
+    private function removeStockFromSetComponents($product, $branchId, $quantity)
+    {
+        $setComponents = $product->setComponents;
+        
+        foreach ($setComponents as $component) {
+            $componentProduct = $component->componentProduct;
+            $componentQuantity = $component->quantity_required * $quantity;
+            
+            // Find inventory for the component
+            $componentInventory = Inventory::where('product_id', $componentProduct->id)
+                ->where('branch_id', $branchId)
+                ->first();
+
+            if ($componentInventory) {
+                // Remove stock from component inventory
+                if ($componentProduct->base_unit === 'per pc' || $componentProduct->base_unit === 'per length' || $componentProduct->base_unit === 'per sheet') {
+                    $componentInventory->decrement('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per ft') {
+                    $componentInventory->decrement('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per sq ft') {
+                    $componentInventory->decrement('available_area', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per kg' || $componentProduct->base_unit === 'per liter') {
+                    $componentInventory->decrement('available_stock', $componentQuantity);
+                } elseif ($componentProduct->base_unit === 'per roll') {
+                    $componentInventory->decrement('available_stock', $componentQuantity);
+                }
             }
         }
     }
