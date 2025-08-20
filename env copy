@@ -67,3 +67,6 @@ AWS_BUCKET=
 AWS_USE_PATH_STYLE_ENDPOINT=false
 
 VITE_APP_NAME="${APP_NAME}"
+
+edit:1069 Error removing item: Error: HTTP error! status: 422, body: {"message":"The items.0.fulfillment_source field is required.","errors":{"items.0.fulfillment_source":["The items.0.fulfillment_source field is required."]}}
+    at edit:1037:23
