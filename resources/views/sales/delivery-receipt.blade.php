@@ -207,8 +207,19 @@
                                             $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
                                             $measurementText = $p->default_length . ' ' . $unit;
                                         }
+                                        $cutText = '';
+                                        if (!is_null($item->cut_length)) {
+                                            $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
+                                            $cutText = number_format($item->cut_length, 2) . ($unit ? ' ' . $unit : '');
+                                        } elseif (!is_null($item->cut_width) && !is_null($item->cut_height)) {
+                                            $unit = ($p->measurement_unit === 'sq ft') ? 'sq ft' : ($p->measurement_unit ?: '');
+                                            $cutText = number_format($item->cut_width, 2) . '×' . number_format($item->cut_height, 2) . ($unit ? ' ' . $unit : '');
+                                        }
                                     @endphp
                                     {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif @if($measurementText) ({{ $measurementText }})@endif
+                                    @if($cutText)
+                                        <br><span style="font-size: 11px; color: #666;">Cut: {{ $cutText }}</span>
+                                    @endif
                                 </td>
                                 <td>₱{{ number_format($item->unit_price, 2) }}</td>
                                 <td>₱{{ number_format($item->total_price, 2) }}</td>
