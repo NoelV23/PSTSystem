@@ -99,8 +99,8 @@ class ExpensesController extends Controller
     private function authorizeRole(): void
     {
         $user = auth()->user();
-        if (!in_array($user->role, ['admin', 'manager'])) {
-            abort(403, 'Only admin and manager can access expenses');
+        if (!in_array($user->role, ['admin', 'manager','staff'])) {
+            abort(403, 'Only admin manager, and staff can access expenses');
         }
     }
 }

@@ -34,6 +34,7 @@ class RestrictStaffAccess
         $allowedPrefixes = [
             'sales',
             'products',
+            'expenses',
         ];
 
         // Normalize current path (without leading slash)

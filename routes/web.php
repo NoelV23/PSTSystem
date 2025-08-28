@@ -71,8 +71,8 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/stock-adjustments/history', [\App\Http\Controllers\StockAdjustmentController::class, 'history'])->name('stock-adjustments.history');
     Route::get('/stock-adjustments', [\App\Http\Controllers\StockAdjustmentController::class, 'historyPage'])->name('stock-adjustments.index');
 
-    // Expenses (admin & manager) page
-    Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index')->middleware('role:admin,manager');
+    // Expenses (admin, manager & staff) page
+    Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index');
 
 
     // Branch API routes
@@ -138,9 +138,9 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::patch('/api/cut-remainders/{id}', [\App\Http\Controllers\CutRemainderController::class, 'update'])->name('api.cut-remainders.update');
 
     // Expenses API (admin & manager only)
-    Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert')->middleware('role:admin,manager');
-    Route::get('/api/expenses/check-today', [\App\Http\Controllers\ExpensesController::class, 'checkTodayExpense'])->name('api.expenses.check-today')->middleware('role:admin,manager');
-    Route::get('/api/expenses/list', [\App\Http\Controllers\ExpensesController::class, 'list'])->name('api.expenses.list')->middleware('role:admin,manager');
+    Route::post('/api/expenses', [\App\Http\Controllers\ExpensesController::class, 'upsert'])->name('api.expenses.upsert');
+    Route::get('/api/expenses/check-today', [\App\Http\Controllers\ExpensesController::class, 'checkTodayExpense'])->name('api.expenses.check-today');
+    Route::get('/api/expenses/list', [\App\Http\Controllers\ExpensesController::class, 'list'])->name('api.expenses.list');
 });
 
 require __DIR__.'/auth.php';

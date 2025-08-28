@@ -291,7 +291,6 @@
                 @endif
 
                 <!-- Expenses (admin and manager only) -->
-                @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
                 <a href="/expenses" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('expenses') ? 'bg-red-700' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
@@ -316,7 +315,6 @@
                         Expenses
                     </div>
                 </a>
-                @endif
                 <!-- Users (admin and manager can see) -->
                 @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
                     <a href="/users" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-red-700 transition {{ request()->is('users') ? 'bg-red-700' : '' }}"
