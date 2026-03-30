@@ -41,7 +41,7 @@
             <textarea id="note" name="note" rows="3" class="w-full px-3 py-2 border rounded" placeholder="Optional"></textarea>
           </div>
           <div class="flex justify-end gap-2">
-            <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded">Save</button>
+            <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded">Save</button>
           </div>
         </form>
       </div>

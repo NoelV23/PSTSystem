@@ -13,7 +13,7 @@
             <div class="mt-4 flex items-center justify-between">
                 <form method="POST" action="{{ route('verification.send') }}">
                     @csrf
-                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-red-500">
+                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-blue-500">
                         {{ __('Resend Email') }}
                     </x-primary-button>
                 </form>

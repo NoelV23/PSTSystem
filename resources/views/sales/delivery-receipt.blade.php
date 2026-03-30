@@ -148,7 +148,7 @@
             <div class="receipt">
                 <div class="header">
                     <div class="company-info">
-                        <div class="company-name">{{ $sale->branch->name ?? 'RV Glass & Aluminum Supply' }}</div>
+                        <div class="company-name">{{ $sale->branch->name ?? 'PSTSystem' }}</div>
                         <div class="company-address">{{ $sale->branch->location ?? 'National Highway Mabua, Tandag City' }}</div>
                         <div class="company-address">TEL.No. {{ $sale->branch->phone ?? '09399277927' }}</div>
                     </div>

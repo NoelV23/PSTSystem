@@ -13,7 +13,7 @@
                 <!-- Email Address -->
                 <div>
                     <x-input-label for="email" :value="__('Email')" />
-                    <x-text-input id="email" class="block mt-1 w-full border-gray-300 focus:border-red-500 focus:ring-red-500" type="email" name="email" :value="old('email')" required autofocus />
+                    <x-text-input id="email" class="block mt-1 w-full border-gray-300 focus:border-red-500 focus:ring-blue-500" type="email" name="email" :value="old('email')" required autofocus />
                     <x-input-error :messages="$errors->get('email')" class="mt-2 text-red-700" />
                 </div>
 
@@ -23,7 +23,7 @@
                         {{ __('Back to login') }}
                     </a>
                     <!-- Send Reset Link -->
-                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-red-500">
+                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-blue-500">
                         {{ __('Send Reset Link') }}
                     </x-primary-button>
                 </div>

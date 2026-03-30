@@ -15,7 +15,7 @@
             @if(auth()->user()->role === 'admin')
             <div>
                 <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-                <select id="branch_id" name="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                <select id="branch_id" name="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <option value="">All Branches</option>
                     @foreach($branches as $branch)
                         <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
@@ -30,17 +30,17 @@
 
             <div>
                 <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                <input type="date" id="date_from" name="date_from" value="{{ request('date_from') }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                <input type="date" id="date_from" name="date_from" value="{{ request('date_from') }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
             </div>
 
             <div>
                 <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                <input type="date" id="date_to" name="date_to" value="{{ request('date_to') }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                <input type="date" id="date_to" name="date_to" value="{{ request('date_to') }}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
             </div>
 
             <div>
                 <label for="type" class="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select id="type" name="type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                <select id="type" name="type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <option value="">All Types</option>
                     <option value="increase" {{ request('type') == 'increase' ? 'selected' : '' }}>Increase</option>
                     <option value="decrease" {{ request('type') == 'decrease' ? 'selected' : '' }}>Decrease</option>
@@ -51,7 +51,7 @@
                 <button type="button" onclick="resetFilters()" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">
                     Reset
                 </button>
-                <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">
+                <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">
                     Apply Filters
                 </button>
             </div>

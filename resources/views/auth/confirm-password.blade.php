@@ -11,7 +11,7 @@
                 <div>
                     <x-input-label for="password" :value="__('Password')" />
 
-                    <x-text-input id="password" class="block mt-1 w-full border-gray-300 focus:border-red-500 focus:ring-red-500"
+                    <x-text-input id="password" class="block mt-1 w-full border-gray-300 focus:border-red-500 focus:ring-blue-500"
                                     type="password"
                                     name="password"
                                     required autocomplete="current-password" />
@@ -20,7 +20,7 @@
                 </div>
 
                 <div class="flex justify-end mt-6">
-                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-red-500">
+                    <x-primary-button class="bg-red-600 hover:bg-red-700 focus:ring-blue-500">
                         {{ __('Confirm') }}
                     </x-primary-button>
                 </div>
