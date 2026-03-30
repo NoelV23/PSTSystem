@@ -18,7 +18,7 @@
                     <h2 class="text-2xl font-bold text-gray-900">Product Management</h2>
                     <p class="text-gray-600 mt-1">Manage your products, bundles, and categories</p>
                 </div>
-                <button id="addProductBtn" class="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addProductBtn" class="flex items-center bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                     <span class="hidden sm:inline ml-1">Add Product</span>
                 </button>
@@ -27,11 +27,11 @@
 
         <!-- Search & Filters -->
         <div class="flex flex-col sm:flex-row gap-2 mb-4">
-            <input id="searchInput" type="text" placeholder="Search by name or SKU..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-            <select id="categoryFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <input id="searchInput" type="text" placeholder="Search by name or SKU..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <select id="categoryFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Categories</option>
             </select>
-            <select id="perPageFilter" class="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <select id="perPageFilter" class="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="10">10 per page</option>
                 <option value="25">25 per page</option>
                 <option value="50">50 per page</option>
@@ -55,7 +55,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-red-800 mb-2">Failed to load products</h3>
                 <p class="text-red-600 mb-4">There was an error loading the products. Please try again.</p>
-                <button id="retryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="retryBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Retry
                 </button>
             </div>
@@ -95,7 +95,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No products found</h3>
                 <p class="text-gray-600 mb-6">Get started by adding your first product.</p>
-                <button id="addFirstProductBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addFirstProductBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Add Your First Product
                 </button>
             </div>
@@ -119,7 +119,7 @@
                 <input type="hidden" id="productId" name="product_id">
                 <div>
                     <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
-                    <input type="text" id="productName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="text" id="productName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="nameError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div id="skuSection" class="hidden">
@@ -130,14 +130,14 @@
                 </div>
                 <div>
                     <label for="productCategory" class="block text-sm font-medium text-gray-700 mb-1">Category *</label>
-                    <select id="productCategory" name="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="productCategory" name="category_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="">Select category</option>
                     </select>
                     <div id="category_idError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
                     <label for="productBaseUnit" class="block text-sm font-medium text-gray-700 mb-1">Base Unit *</label>
-                    <select id="productBaseUnit" name="base_unit" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="productBaseUnit" name="base_unit" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="per pc">Per pc</option>
                         <option value="per length">Per length</option>
                         <option value="per sheet">Per sheet</option>
@@ -152,7 +152,7 @@
                 <!-- Measurement Unit Field (shown for non-ft/sq ft units) -->
                 <div id="measurementUnitSection" class="hidden">
                     <label for="productMeasurementUnit" class="block text-sm font-medium text-gray-700 mb-1">Measurement Unit</label>
-                    <select id="productMeasurementUnit" name="measurement_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="productMeasurementUnit" name="measurement_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="">None</option>
                         <option value="ft">Feet (ft)</option>
                         <option value="sq ft">Square Feet (sq ft)</option>
@@ -176,34 +176,34 @@
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                             <label for="productLength" class="block text-sm font-medium text-gray-700 mb-1">Value <span id="lengthUnit">(ft)</span></label>
-                            <input type="number" id="productLength" name="default_length" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="productLength" name="default_length" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <div id="default_lengthError" class="text-red-500 text-sm mt-1 hidden"></div>
                         </div>
                         <div>
                             <label for="productWidth" class="block text-sm font-medium text-gray-700 mb-1">Width <span id="widthUnit">(ft)</span></label>
-                            <input type="number" id="productWidth" name="default_width" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="productWidth" name="default_width" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <div id="default_widthError" class="text-red-500 text-sm mt-1 hidden"></div>
                         </div>
                         <div>
                             <label for="productHeight" class="block text-sm font-medium text-gray-700 mb-1">Height <span id="heightUnit">(ft)</span></label>
-                            <input type="number" id="productHeight" name="default_height" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="productHeight" name="default_height" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <div id="default_heightError" class="text-red-500 text-sm mt-1 hidden"></div>
                         </div>
                     </div>
                 </div>
                 <div>
                     <label for="productColor" class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                    <input type="text" id="productColor" name="color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="text" id="productColor" name="color" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="colorError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
                     <label for="productDescription" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                    <textarea id="productDescription" name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"></textarea>
+                    <textarea id="productDescription" name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"></textarea>
                     <div id="descriptionError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Product</button>
+                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Product</button>
                 </div>
             </form>
         </div>
@@ -676,7 +676,7 @@ function renderPagination(totalPages, currentPage) {
     
     for (let i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
-            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-red-500 border border-red-500 rounded-md">${i}</span>`;
+            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-blue-500 border border-red-500 rounded-md">${i}</span>`;
         } else {
             paginationHtml += `<button onclick="goToPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">${i}</button>`;
         }

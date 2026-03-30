@@ -1,80 +1,55 @@
 <x-guest-layout>
     @php
-        $image1 = asset('images/rv-glass-outside.jpg'); 
-        $image2 = asset('images/j-glass-outside.jpg'); 
-        $logoUrl = asset('images/rvJ-glass-logo.png'); 
+        $logoUrl = asset('images/PSTLogo.jpg');
     @endphp
 
-    <div class="min-h-screen flex items-center justify-center">
-        <div class="bg-white rounded-lg shadow-lg flex overflow-hidden w-full max-w-3xl">
-            
-            <!-- Left: Image Slideshow -->
-            <div id="slideshow" class="w-1/2 relative aspect-[4/3] overflow-hidden bg-white">
-                <div class="slides flex w-full h-full transition-transform duration-1000 ease-in-out">
-                    <img src="{{ $image1 }}" class="w-full h-full object-contain flex-shrink-0" alt="RV Glass and Aluminum Supply">
-                    <img src="{{ $image2 }}" class="w-full h-full object-contain flex-shrink-0" alt="J Glass and General Merchandise">
-                    <!-- Duplicate first image for seamless loop -->
-                    <img src="{{ $image1 }}" class="w-full h-full object-contain flex-shrink-0" alt="RV Glass and Aluminum Supply">
+    <div class="min-h-screen flex items-center justify-center px-4 py-8 bg-slate-100">
+        <div class="w-full max-w-5xl bg-white rounded-2xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+            <div class="hidden md:flex flex-col justify-between bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 p-10 text-white">
+                <div>
+                    <p class="uppercase tracking-[0.2em] text-yellow-300 text-xs font-semibold">Welcome to</p>
+                    <h1 class="text-3xl font-bold mt-2 leading-tight">PSTSystem</h1>
+                    <p class="mt-4 text-blue-100 text-sm">Polytech Steel Trading inventory and operations platform.</p>
+                </div>
+                <div class="rounded-xl bg-white/10 border border-white/20 p-4">
+                    <p class="text-sm text-blue-50">Fast access to sales, inventory, purchases, and reporting in one secure dashboard.</p>
                 </div>
             </div>
 
-            <!-- Right: Login Form -->
-            <div class="w-1/2 bg-[#E31C23] flex flex-col items-center justify-center p-12">
-                <img src="{{ $logoUrl }}" alt="RV Glass and Aluminum Supply Logo" class="mt-1.5 mb-12 w-56">
-                <form method="POST" action="{{ route('login') }}" class="w-full max-w-lg">
+            <div class="p-8 md:p-12 flex flex-col justify-center">
+                <div class="flex justify-center mb-6">
+                    <img src="{{ $logoUrl }}" alt="PST Logo" class="w-40 h-40 object-contain rounded-xl shadow-sm ring-1 ring-slate-200">
+                </div>
+
+                <h2 class="text-center text-2xl font-bold text-slate-800">Sign in to PSTSystem</h2>
+                <p class="text-center text-sm text-slate-500 mt-1 mb-8">Use your account credentials to continue.</p>
+
+                <form method="POST" action="{{ route('login') }}" class="space-y-4">
                     @csrf
-                    <!-- Email Address -->
-                    <div class="mb-4">
+
+                    <div>
                         <input id="email" name="email" type="email" placeholder="Email Address" required autofocus autocomplete="username"
-                            class="w-full px-4 py-3 rounded bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <x-input-error :messages="$errors->get('email')" class="mt-2 text-yellow-200" />
+                            class="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <x-input-error :messages="$errors->get('email')" class="mt-2 text-red-600" />
                     </div>
 
-                    <!-- Password -->
-                    <div class="mb-4 relative">
+                    <div>
                         <input id="password" name="password" type="password" placeholder="Password" required autocomplete="current-password"
-                            class="w-full px-4 py-3 rounded bg-white border border-gray-300 focus:outline-none focus:ring-2 focus:ring-yellow-400">
-                        <x-input-error :messages="$errors->get('password')" class="mt-2 text-yellow-200" />
+                            class="w-full px-4 py-3 rounded-lg bg-white border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                        <x-input-error :messages="$errors->get('password')" class="mt-2 text-red-600" />
                     </div>
 
                     <button type="submit"
-                        class="w-full bg-yellow-400 hover:bg-yellow-500 text-black font-bold py-3 rounded mb-3 transition">
+                        class="w-full bg-yellow-400 hover:bg-yellow-500 text-slate-900 font-semibold py-3 rounded-lg transition shadow-sm">
                         Log In
                     </button>
 
                     @if (Route::has('password.request'))
                         <a href="{{ route('password.request') }}"
-                            class="block text-center text-yellow-200 hover:text-yellow-100 text-sm">Forgot password?</a>
+                            class="block text-center text-sm text-blue-700 hover:text-blue-900 font-medium">Forgot password?</a>
                     @endif
                 </form>
             </div>
         </div>
     </div>
-
-
-    <!-- Slideshow Script -->
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            const slidesContainer = document.querySelector("#slideshow .slides");
-            const totalSlides = slidesContainer.children.length;
-            let current = 0;
-
-            function showNextSlide() {
-                current++;
-                slidesContainer.style.transition = "transform 1s ease-in-out";
-                slidesContainer.style.transform = `translateX(-${current * 100}%)`;
-
-                // If we're at the last duplicate slide, reset instantly after animation
-                if (current === totalSlides - 1) {
-                    setTimeout(() => {
-                        slidesContainer.style.transition = "none";
-                        slidesContainer.style.transform = "translateX(0)";
-                        current = 0;
-                    }, 1000); // match transition duration
-                }
-            }
-
-            setInterval(showNextSlide, 4000); // 4s pause (3s still + 1s slide)
-        });
-    </script>
 </x-guest-layout>

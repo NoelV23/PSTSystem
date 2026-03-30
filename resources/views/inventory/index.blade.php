@@ -50,7 +50,7 @@
                     </div>
                     
                     <div class="flex justify-between items-center">
-                        <button onclick="manageInventory({{ $branch->id }})" class="flex items-center bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200">
+                        <button onclick="manageInventory({{ $branch->id }})" class="flex items-center bg-blue-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200">
                             <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
                             </svg>

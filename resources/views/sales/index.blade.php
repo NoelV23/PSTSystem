@@ -6,7 +6,7 @@
     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
         <div class="flex items-center gap-4">
             <h1 class="text-2xl font-bold text-gray-800">Sales Management</h1>
-            <select id="branchSelector" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <select id="branchSelector" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">Select Branch</option>
                 <!-- Branch options will be loaded here -->
             </select>
@@ -26,7 +26,7 @@
 
     <!-- Transaction Status Filter -->
     <div class="mb-4">
-        <select id="transactionStatusFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+        <select id="transactionStatusFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="">All Sales</option>
             <option value="invoice">Invoice</option>
             <option value="no_invoice">No Invoice</option>
@@ -42,11 +42,11 @@
             <div class="flex items-end gap-4">
                 <div>
                     <label for="dateFromFilter" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                    <input id="dateFromFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <input id="dateFromFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
                 <div>
                     <label for="dateToFilter" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                    <input id="dateToFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400" />
+                    <input id="dateToFilter" type="date" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
             </div>
         </div>
@@ -108,11 +108,11 @@
                 <!-- No Invoice and Delivered Checkboxes -->
                 <div class="flex items-center gap-6 mb-4">
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="noInvoice" name="no_invoice" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                        <input type="checkbox" id="noInvoice" name="no_invoice" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
                         <label for="noInvoice" class="text-sm font-medium text-gray-700">No Invoice</label>
                     </div>
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="isDelivered" name="is_delivered" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2">
+                        <input type="checkbox" id="isDelivered" name="is_delivered" class="w-4 h-4 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2">
                         <label for="isDelivered" class="text-sm font-medium text-gray-700">Delivered</label>
                     </div>
                 </div>
@@ -177,7 +177,7 @@
                 <!-- Total Amount & Submit -->
                 <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                     <div class="text-lg font-bold text-gray-700">Total: ₱ <span id="saleTotalAmount">0.00</span></div>
-                    <button type="submit" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Create Sale</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Create Sale</button>
                 </div>
             </form>
         </div>
@@ -212,7 +212,7 @@
             <input id="cutRemainderNote" type="text" class="w-full px-3 py-2 border rounded mb-2" placeholder="Location note (optional)">
             <div class="flex justify-end gap-2">
                 <button id="discardCutRemainderBtn" class="px-4 py-2 bg-yellow-500 text-white rounded">Mark as Discarded</button>
-                <button id="saveCutRemainderBtn" class="px-4 py-2 bg-red-500 text-white rounded">Save Remainder</button>
+                <button id="saveCutRemainderBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Save Remainder</button>
             </div>
         </div>
     </div>
@@ -225,7 +225,7 @@
             <textarea id="discardCutReasonInput" class="w-full px-3 py-2 border rounded mb-4" placeholder="Reason for discarding..."></textarea>
             <div class="flex justify-end gap-2">
                 <button id="cancelDiscardCutBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">Cancel</button>
-                <button id="confirmDiscardCutBtn" class="px-4 py-2 bg-red-500 text-white rounded">Discard</button>
+                <button id="confirmDiscardCutBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Discard</button>
             </div>
         </div>
     </div>
@@ -238,28 +238,28 @@
             <form id="deliveryDetailsForm" data-custom-submit="true" class="space-y-4">
                 <div>
                     <label for="deliveryDate" class="block text-sm font-medium text-gray-700 mb-1">Delivery Date *</label>
-                    <input type="date" id="deliveryDate" name="delivery_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="date" id="deliveryDate" name="delivery_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                 </div>
                 <div>
                     <label for="deliveredTo" class="block text-sm font-medium text-gray-700 mb-1">Delivered To *</label>
-                    <input type="text" id="deliveredTo" name="delivered_to" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter recipient name">
+                    <input type="text" id="deliveredTo" name="delivered_to" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter recipient name">
                 </div>
                 <div>
                     <label for="deliveryAddress" class="block text-sm font-medium text-gray-700 mb-1">Delivery Address (Optional)</label>
-                    <textarea id="deliveryAddress" name="delivery_address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter delivery address..."></textarea>
+                    <textarea id="deliveryAddress" name="delivery_address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter delivery address..."></textarea>
                 </div>
                 <div>
                     <label for="deliveryNote" class="block text-sm font-medium text-gray-700 mb-1">Delivery Note (Optional)</label>
-                    <textarea id="deliveryNote" name="delivery_note" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter delivery notes..."></textarea>
+                    <textarea id="deliveryNote" name="delivery_note" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter delivery notes..."></textarea>
                 </div>
                     <div>
                         <label for="deliveryFee" class="block text-sm font-medium text-gray-700 mb-1">Delivery Fee (₱)</label>
-                        <input type="number" id="deliveryFee" name="delivery_fee" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="0.00">
+                        <input type="number" id="deliveryFee" name="delivery_fee" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="0.00">
                         <div class="text-xs text-gray-500 mt-1">If provided, this fee will be added to the total amount.</div>
                     </div>
                 <div class="flex justify-end gap-3 pt-4">
                     <button type="button" id="cancelDeliveryBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="saveDeliveryBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save</button>
+                    <button type="submit" id="saveDeliveryBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save</button>
                 </div>
             </form>
         </div>

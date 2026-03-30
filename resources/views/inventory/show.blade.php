@@ -34,13 +34,13 @@
                 </div>
                 <div class="flex items-center space-x-3">
                     <!-- Branch Switcher -->
-                    <select id="branchSwitcher" class="px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                    <select id="branchSwitcher" class="px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                         @foreach(\App\Models\Branch::where('status', 'active')->get() as $b)
                         <option value="{{ $b->id }}" {{ $b->id == $branch->id ? 'selected' : '' }}>{{ $b->name }}</option>
                         @endforeach
                     </select>
                     
-                    <button id="addInventoryBtn" class="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                    <button id="addInventoryBtn" class="flex items-center bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                         </svg>
@@ -92,17 +92,17 @@
 
         <!-- Search & Filters -->
         <div class="flex flex-col sm:flex-row gap-2 mb-4">
-            <input id="searchInput" type="text" placeholder="Search by product name or SKU..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-            <select id="categoryFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <input id="searchInput" type="text" placeholder="Search by product name or SKU..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <select id="categoryFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Categories</option>
             </select>
-            <select id="stockFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <select id="stockFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Stock Levels</option>
                 <option value="low">Low Stock</option>
                 <option value="out">Out of Stock</option>
                 <option value="normal">Normal Stock</option>
             </select>
-            <select id="perPageFilter" class="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <select id="perPageFilter" class="w-full sm:w-32 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="10">10 per page</option>
                 <option value="25">25 per page</option>
                 <option value="50">50 per page</option>
@@ -129,7 +129,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-red-800 mb-2">Failed to load inventory</h3>
                 <p class="text-red-600 mb-4">There was an error loading the inventory. Please try again.</p>
-                <button id="retryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="retryBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Retry
                 </button>
             </div>
@@ -175,7 +175,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No inventory found</h3>
                 <p class="text-gray-600 mb-6">Get started by adding inventory items for this branch.</p>
-                <button id="addFirstInventoryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addFirstInventoryBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Add Your First Inventory Item
                 </button>
             </div>
@@ -202,7 +202,7 @@
                 <div>
                     <label for="productSelect" class="block text-sm font-medium text-gray-700 mb-1">Product *</label>
                     <div class="relative">
-                        <input type="text" autocomplete="off" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="text" autocomplete="off" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <input type="hidden" id="productSelect" name="product_id" required>
                         <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
                             <!-- Product options will be populated here -->
@@ -237,37 +237,37 @@
                 <div id="stockInputs" class="space-y-4">
                     <div id="availableStockSection">
                         <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
-                        <input type="number" id="availableStock" value="0"name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="availableStock" value="0"name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="availableStockHelp" class="text-xs text-gray-500 mt-1">Enter initial stock level for this product</div>
                         <div id="availableStockEditHelp" class="text-xs text-gray-500 mt-1 hidden">Stock levels can only be modified through purchases or stock adjustments</div>
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="costSection">
                         <label for="cost" class="block text-sm font-medium text-gray-700 mb-1">Cost</label>
-                        <input type="number" value="0" id="cost" name="cost" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" value="0" id="cost" name="cost" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="costError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="priceSection">
                         <label for="price" class="block text-sm font-medium text-gray-700 mb-1">Retail Price (Default)</label>
-                        <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"> 
+                        <input type="number" value="0" id="price" name="price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"> 
                         <div id="priceError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div id="wholesalePriceSection">
                         <label for="wholesalePrice" class="block text-sm font-medium text-gray-700 mb-1">Wholesale Price</label>
-                        <input type="number" value="0" id="wholesalePrice" name="wholesale_price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="number" value="0" id="wholesalePrice" name="wholesale_price" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="wholesale_priceError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 </div>
                 
                 <div>
                     <label for="reorderLevel" class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
-                    <input type="number" id="reorderLevel" name="reorder_level" value="10" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="number" id="reorderLevel" name="reorder_level" value="10" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="reorder_levelError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Item</button>
+                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Item</button>
                 </div>
             </form>
         </div>
@@ -348,17 +348,17 @@
                 
                 <div>
                     <label for="adjustmentQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                    <input type="number" id="adjustmentQuantity" name="quantity" min="0.01" step="0.01" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="number" id="adjustmentQuantity" name="quantity" min="0.01" step="0.01" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                 </div>
                 
                 <div>
                     <label for="adjustmentReason" class="block text-sm font-medium text-gray-700 mb-1">Reason *</label>
-                    <textarea id="adjustmentReason" name="reason" rows="3" required placeholder="Enter reason for stock adjustment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"></textarea>
+                    <textarea id="adjustmentReason" name="reason" rows="3" required placeholder="Enter reason for stock adjustment..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"></textarea>
                 </div>
                 
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="cancelStockAdjustmentBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitStockAdjustmentBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Adjust Stock</button>
+                    <button type="submit" id="submitStockAdjustmentBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Adjust Stock</button>
                 </div>
             </form>
         </div>
@@ -381,7 +381,7 @@
             <textarea id="discardReasonInput" class="w-full px-3 py-2 border rounded mb-4" placeholder="Reason for discarding..."></textarea>
             <div class="flex justify-end gap-2">
                 <button id="cancelDiscardBtn" class="px-4 py-2 bg-gray-200 text-gray-700 rounded">Cancel</button>
-                <button id="confirmDiscardBtn" class="px-4 py-2 bg-red-500 text-white rounded">Discard</button>
+                <button id="confirmDiscardBtn" class="px-4 py-2 bg-blue-500 text-white rounded">Discard</button>
             </div>
         </div>
     </div>
@@ -658,7 +658,7 @@ function renderInventoryPagination(totalPages, currentPage) {
     
     for (let i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
-            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-red-500 border border-red-500 rounded-md">${i}</span>`;
+            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-blue-500 border border-red-500 rounded-md">${i}</span>`;
     } else {
             paginationHtml += `<button onclick="goToInventoryPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">${i}</button>`;
         }
@@ -1153,7 +1153,7 @@ async function openAddModal() {
     const availableStockInput = document.getElementById('availableStock');
     availableStockInput.readOnly = false;
     availableStockInput.classList.remove('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
-    availableStockInput.classList.add('focus:outline-none', 'focus:ring-2', 'focus:ring-red-400', 'focus:border-transparent');
+    availableStockInput.classList.add('focus:outline-none', 'focus:ring-2', 'focus:ring-blue-400', 'focus:border-transparent');
     
     // Show appropriate help text
     document.getElementById('availableStockHelp').classList.remove('hidden');
@@ -1217,7 +1217,7 @@ function openEditModal(inventoryItem) {
     const availableStockInput = document.getElementById('availableStock');
     availableStockInput.readOnly = true;
     availableStockInput.classList.add('bg-gray-100', 'text-gray-600', 'cursor-not-allowed');
-    availableStockInput.classList.remove('focus:outline-none', 'focus:ring-2', 'focus:ring-red-400', 'focus:border-transparent');
+    availableStockInput.classList.remove('focus:outline-none', 'focus:ring-2', 'focus:ring-blue-400', 'focus:border-transparent');
     
     // Show appropriate help text
     document.getElementById('availableStockHelp').classList.add('hidden');

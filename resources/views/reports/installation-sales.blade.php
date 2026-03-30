@@ -24,7 +24,7 @@
             @if(auth()->user()->role === 'admin')
             <div>
                 <label for="branch_id" class="block text-sm font-medium text-gray-700 mb-1">Branch</label>
-                <select name="branch_id" id="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                <select name="branch_id" id="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                     <option value="">All Branches</option>
                     @foreach($branches as $branch)
                         <option value="{{ $branch->id }}" {{ $branchId == $branch->id ? 'selected' : '' }}>
@@ -39,15 +39,15 @@
             <div>
                 <label for="date_from" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
                 <input type="date" name="date_from" id="date_from" value="{{ $dateFrom }}" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             </div>
             <div>
                 <label for="date_to" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
                 <input type="date" name="date_to" id="date_to" value="{{ $dateTo }}" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             </div>
             <div class="flex items-end">
-                <button type="submit" class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition duration-200">
+                <button type="submit" class="w-full px-4 py-2 bg-blue-500 hover:bg-red-600 text-white font-medium rounded-lg transition duration-200">
                 Apply Filters
             </button>
         </div>
@@ -233,7 +233,7 @@
         <div class="space-y-4">
             <div class="mb-4">
                 <label for="productSearch" class="block text-sm font-medium text-gray-700 mb-1">Search Products</label>
-                <input type="text" id="productSearch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Type product name or SKU...">
+                <input type="text" id="productSearch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Type product name or SKU...">
                 <div id="productDropdown" class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
             </div>
 
@@ -242,11 +242,11 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity Used</label>
-                        <input type="number" id="productQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-red-400 focus:border-transparent">
+                        <input type="number" id="productQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-400 focus:border-transparent">
                     </div>
                     <div>
                         <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-                        <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" readonly>
+                        <input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" readonly>
                     </div>
                 </div>
                 <!-- Cut Fields -->
@@ -254,20 +254,20 @@
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div>
                             <label for="cutLength" class="block text-sm font-medium text-gray-700 mb-1">Cut Length</label>
-                            <input type="number" id="cutLength" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="cutLength" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         </div>
                         <div>
                             <label for="cutWidth" class="block text-sm font-medium text-gray-700 mb-1">Cut Width</label>
-                            <input type="number" id="cutWidth" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="cutWidth" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         </div>
                         <div>
                             <label for="cutHeight" class="block text-sm font-medium text-gray-700 mb-1">Cut Height</label>
-                            <input type="number" id="cutHeight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                            <input type="number" id="cutHeight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         </div>
                     </div>
                 </div>
                 <div class="flex justify-end">
-                    <button type="button" id="addProductBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Add Product</button>
+                    <button type="button" id="addProductBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Add Product</button>
                 </div>
             </div>
         

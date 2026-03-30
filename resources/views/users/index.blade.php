@@ -10,7 +10,7 @@
                     <h2 class="text-2xl font-bold text-gray-900">User Management</h2>
                     <p class="text-gray-600 mt-1">Manage users, roles, and branch assignments</p>
                 </div>
-                <button id="addUserBtn" class="flex items-center bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addUserBtn" class="flex items-center bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                     <span class="hidden sm:inline ml-1">Add User</span>
                 </button>
@@ -19,14 +19,14 @@
 
         <!-- Search & Filters -->
         <div class="flex flex-col sm:flex-row gap-2 mb-4">
-            <input id="searchInput" type="text" placeholder="Search by name or email..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
-            <select id="roleFilter" class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <input id="searchInput" type="text" placeholder="Search by name or email..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <select id="roleFilter" class="w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Roles</option>
                 <option value="admin">Admin</option>
                 <option value="manager">Manager</option>
                 <option value="staff">Staff</option>
             </select>
-            <select id="branchFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400">
+            <select id="branchFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Branches</option>
             </select>
         </div>
@@ -47,7 +47,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-red-800 mb-2">Failed to load users</h3>
                 <p class="text-red-600 mb-4">There was an error loading the users. Please try again.</p>
-                <button id="retryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="retryBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Retry
                 </button>
             </div>
@@ -82,7 +82,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No users found</h3>
                 <p class="text-gray-600 mb-6">Get started by adding your first user.</p>
-                <button id="addFirstUserBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addFirstUserBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Add Your First User
                 </button>
             </div>
@@ -112,23 +112,23 @@
                 <input type="hidden" id="userId" name="user_id">
                 <div>
                     <label for="userName" class="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                    <input type="text" id="userName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="text" id="userName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="nameError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
                     <label for="userEmail" class="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                    <input type="email" id="userEmail" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="email" id="userEmail" name="email" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="emailError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 <div id="passwordDiv">
                     <label for="userPassword" class="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                    <input type="password" id="userPassword" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <input type="password" id="userPassword" name="password" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="passwordError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 @if(auth()->user()->role === 'admin')
                 <div>
                     <label for="userRole" class="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                    <select id="userRole" name="role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="userRole" name="role" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="admin">Admin</option>
                         <option value="manager">Manager</option>
                         <option value="staff">Staff</option>
@@ -137,7 +137,7 @@
                     </div>
                 <div id="branchFieldDiv">
                     <label for="userBranch" class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                    <select id="userBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="userBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <option value="">Select branch</option>
                         </select>
                     <div id="branchError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -161,7 +161,7 @@
                 @endif
                 <div>
                     <label for="userStatus" class="block text-sm font-medium text-gray-700 mb-1">Status *</label>
-                    <select id="userStatus" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="userStatus" name="status" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
@@ -169,7 +169,7 @@
                     </div>
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save User</button>
+                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save User</button>
                     </div>
                 </form>
         </div>

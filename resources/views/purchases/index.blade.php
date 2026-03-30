@@ -11,7 +11,7 @@
                     <p class="mt-1 text-sm text-gray-600">Manage purchase orders and track inventory additions</p>
                 </div>
                 <div class="mt-4 sm:mt-0">
-                    <button id="addPurchaseBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                    <button id="addPurchaseBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                         + New Purchase Order
                     </button>
                 </div>
@@ -24,14 +24,14 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div class="flex-1">
                     <label for="branchSelector" class="block text-sm font-medium text-gray-700 mb-2">Select Branch</label>
-                    <select id="branchSelector" class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                    <select id="branchSelector" class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="">Choose a branch...</option>
                     </select>
                 </div>
                 <div class="mt-4 sm:mt-0 sm:ml-4">
                     <div class="flex space-x-2">
-                        <input type="text" id="searchInput" placeholder="Search purchases..." class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
-                        <select id="perPageFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="text" id="searchInput" placeholder="Search purchases..." class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                        <select id="perPageFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <option value="10">10 per page</option>
                             <option value="25">25 per page</option>
                             <option value="50">50 per page</option>
@@ -53,11 +53,11 @@
                 <div class="flex items-end space-x-4">
                     <div>
                         <label for="filterDateFrom" class="block text-sm font-medium text-gray-700 mb-1">Date From</label>
-                        <input type="date" id="filterDateFrom" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="date" id="filterDateFrom" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     </div>
                     <div>
                         <label for="filterDateTo" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
-                        <input type="date" id="filterDateTo" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="date" id="filterDateTo" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     </div>
                 </div>
                 <div class="text-sm text-gray-500">Changing dates will refresh the list</div>
@@ -77,7 +77,7 @@
             </svg>
             <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Purchase Orders</h3>
             <p class="text-gray-600 mb-4">There was a problem loading the purchase orders. Please try again.</p>
-            <button id="retryBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Retry</button>
+            <button id="retryBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">Retry</button>
         </div>
 
         <!-- Purchase Orders Table -->
@@ -115,7 +115,7 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No purchase orders found</h3>
                 <p class="text-gray-600 mb-6">Get started by creating your first purchase order for this branch.</p>
-                <button id="addFirstPurchaseBtn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                <button id="addFirstPurchaseBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
                     Create Your First Purchase Order
                 </button>
             </div>
@@ -143,17 +143,17 @@
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label for="supplierName" class="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
-                        <input type="text" id="supplierName" name="supplier_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="text" id="supplierName" name="supplier_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="supplier_nameError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div>
                         <label for="orderDate" class="block text-sm font-medium text-gray-700 mb-1">Order Date *</label>
-                        <input type="date" id="orderDate" name="order_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <input type="date" id="orderDate" name="order_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="order_dateError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div>
                         <label for="purchaseReceiptNo" class="block text-sm font-medium text-gray-700 mb-1">Purchase Receipt No. *</label>
-                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent" placeholder="Enter receipt number">
+                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter receipt number">
                         <div id="purchase_receipt_noError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                 </div>
@@ -162,7 +162,7 @@
                     @if(auth()->user()->role === 'admin')
                     <div>
                         <label for="selectedBranch" class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                        <select id="selectedBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent">
+                        <select id="selectedBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                             <option value="">Select branch...</option>
                         </select>
                         <div id="branch_idError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -175,7 +175,7 @@
                 
                 <div>
                     <label for="purchaseNote" class="block text-sm font-medium text-gray-700 mb-1">Note (Optional)</label>
-                    <textarea id="purchaseNote" name="note" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-400 focus:border-transparent"></textarea>
+                    <textarea id="purchaseNote" name="note" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"></textarea>
                     <div id="noteError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
@@ -200,7 +200,7 @@
                 
                 <div class="flex justify-end space-x-3 pt-4">
                     <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Purchase Order</button>
+                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Purchase Order</button>
                 </div>
             </form>
         </div>
@@ -478,7 +478,7 @@ function renderPagination(totalPages, currentPage) {
     
     for (let i = startPage; i <= endPage; i++) {
         if (i === currentPage) {
-            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-red-500 border border-red-500 rounded-md">${i}</span>`;
+            paginationHtml += `<span class="px-3 py-2 text-sm font-medium text-white bg-blue-500 border border-red-500 rounded-md">${i}</span>`;
         } else {
             paginationHtml += `<button onclick="goToPage(${i})" class="px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-md hover:bg-gray-50">${i}</button>`;
         }

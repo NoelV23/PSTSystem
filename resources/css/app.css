@@ -1,3 +1,120 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    :root {
+        --pst-primary: #0a2d9a;
+        --pst-primary-dark: #08247b;
+        --pst-accent: #f4c20d;
+        --pst-bg: #f8fafc;
+    }
+
+    /* Make focused form fields use PST blue theme */
+    input:focus,
+    textarea:focus,
+    select:focus {
+        border-color: var(--pst-primary) !important;
+        --tw-ring-color: var(--pst-primary) !important;
+    }
+
+    input:focus::placeholder,
+    textarea:focus::placeholder {
+        color: var(--pst-primary);
+        opacity: 0.7;
+    }
+}
+
+@layer components {
+    .pst-btn-primary {
+        background-color: var(--pst-primary);
+        color: #ffffff;
+    }
+
+    .pst-btn-primary:hover {
+        background-color: var(--pst-primary-dark);
+    }
+
+    .pst-btn-accent {
+        background-color: var(--pst-accent);
+        color: #111827;
+    }
+
+    /* Keep modal content within viewport and scroll internally */
+    [id$="Modal"].fixed.inset-0,
+    [id*="modal"].fixed.inset-0 {
+        padding: 1rem;
+        align-items: center;
+        justify-content: center;
+        overflow-y: auto;
+    }
+
+    [id$="Modal"].fixed.inset-0 > div,
+    [id*="modal"].fixed.inset-0 > div {
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        margin-top: 0 !important;
+        top: auto !important;
+    }
+}
+
+@layer utilities {
+    .bg-blue-500 {
+        background-color: var(--pst-primary) !important;
+        border-color: var(--pst-primary) !important;
+    }
+
+    .bg-red-600 {
+        background-color: var(--pst-primary) !important;
+        border-color: var(--pst-primary) !important;
+    }
+
+    .bg-red-700 {
+        background-color: var(--pst-primary-dark) !important;
+        border-color: var(--pst-primary-dark) !important;
+    }
+
+    .hover\:bg-blue-500:hover,
+    .hover\:bg-red-600:hover,
+    .hover\:bg-red-700:hover {
+        background-color: var(--pst-primary-dark) !important;
+        border-color: var(--pst-primary-dark) !important;
+    }
+
+    /* Global remap for legacy red button classes to PST blue palette */
+    button[class*="bg-red-"],
+    a[class*="bg-red-"],
+    input[type="submit"][class*="bg-red-"],
+    input[type="button"][class*="bg-red-"] {
+        background-color: var(--pst-primary) !important;
+        border-color: var(--pst-primary) !important;
+        color: #ffffff !important;
+    }
+
+    button[class*="bg-red-"]:hover,
+    a[class*="bg-red-"]:hover,
+    input[type="submit"][class*="bg-red-"]:hover,
+    input[type="button"][class*="bg-red-"]:hover {
+        background-color: var(--pst-primary-dark) !important;
+        border-color: var(--pst-primary-dark) !important;
+    }
+
+    button[class*="focus:ring-blue-"]:focus,
+    a[class*="focus:ring-blue-"]:focus,
+    input[type="submit"][class*="focus:ring-blue-"]:focus,
+    input[type="button"][class*="focus:ring-blue-"]:focus {
+        --tw-ring-color: var(--pst-primary) !important;
+    }
+
+    input[class*="focus:ring-blue-"]:focus,
+    textarea[class*="focus:ring-blue-"]:focus,
+    select[class*="focus:ring-blue-"]:focus {
+        --tw-ring-color: var(--pst-primary) !important;
+        border-color: var(--pst-primary) !important;
+    }
+
+    .hover\:text-red-600:hover {
+        color: var(--pst-primary) !important;
+    }
+}
