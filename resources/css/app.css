@@ -39,24 +39,6 @@
         background-color: var(--pst-accent);
         color: #111827;
     }
-
-    /* Keep modal content within viewport and scroll internally */
-    [id$="Modal"].fixed.inset-0,
-    [id*="modal"].fixed.inset-0 {
-        padding: 1rem;
-        align-items: center;
-        justify-content: center;
-        overflow-y: auto;
-    }
-
-    [id$="Modal"].fixed.inset-0 > div,
-    [id*="modal"].fixed.inset-0 > div {
-        width: 100%;
-        max-height: 90vh;
-        overflow-y: auto;
-        margin-top: 0 !important;
-        top: auto !important;
-    }
 }
 
 @layer utilities {
