@@ -7,6 +7,8 @@
         --pst-primary: #0a2d9a;
         --pst-primary-dark: #08247b;
         --pst-accent: #f4c20d;
+        --pst-danger: #c51d22;
+        --pst-text: #0f172a;
         --pst-bg: #f8fafc;
     }
 
@@ -38,6 +40,63 @@
     .pst-btn-accent {
         background-color: var(--pst-accent);
         color: #111827;
+    }
+
+    /* Logo hover shine / light sweep effect */
+    .logo-shine {
+        position: relative;
+        display: inline-block;
+        overflow: hidden;
+        border-radius: 1rem;
+    }
+
+    .logo-shine img {
+        transition: transform 0.45s ease, filter 0.45s ease;
+    }
+
+    .logo-shine::after {
+        content: "";
+        position: absolute;
+        top: -20%;
+        left: -150%;
+        width: 60%;
+        height: 140%;
+        background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.5) 45%, transparent 100%);
+        transform: skewX(-20deg);
+        transition: left 0.7s ease;
+        pointer-events: none;
+    }
+
+    .logo-shine:hover::after {
+        left: 160%;
+    }
+
+    .logo-shine:hover img {
+        transform: scale(1.06);
+        filter: drop-shadow(0 8px 22px rgba(250, 204, 21, 0.35));
+    }
+
+    /* Light sweep across the login left panel on hover */
+    .left-panel-sweep {
+        overflow: hidden;
+    }
+
+    .left-panel-sweep::after {
+        content: "";
+        position: absolute;
+        top: -15%;
+        left: -140%;
+        width: 55%;
+        height: 130%;
+        background: linear-gradient(110deg, transparent 0%, rgba(255, 255, 255, 0.28) 45%, transparent 100%);
+        transform: skewX(-20deg);
+        transition: left 0.8s ease;
+        pointer-events: none;
+        z-index: 5;
+    }
+
+    .left-panel-sweep:hover::after {
+        left: 155%;
     }
 }
 
