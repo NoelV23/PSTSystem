@@ -96,7 +96,7 @@
 
                     <div>
                         <div class="relative group">
-                            <input id="email" name="email" type="email" placeholder="name@company.com" required autofocus autocomplete="username"
+                            <input id="email" name="email" type="email" placeholder="Enter your email address" required autofocus autocomplete="username"
                                 class="w-full px-4 sm:px-6 py-3.5 sm:py-4 rounded-2xl bg-white border border-slate-300 text-[#0f172a] placeholder:text-slate-400 text-base sm:text-lg 
                                        focus:outline-none focus:ring-2 focus:ring-[#0a2d9a] focus:border-transparent transition duration-200 group-hover:border-white/30">
                             <label for="email" class="absolute -top-2.5 left-5 px-1 bg-[#f8fafc] text-xs font-semibold text-slate-500 uppercase tracking-wider">Email Address</label>
