@@ -130,7 +130,7 @@
 
                     <div class="flex items-center justify-between pt-2">
                         @if (Route::has('password.request'))
-                            <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#f4c20d] hover:text-white transition">Forgot password?</a>
+                            <a href="{{ route('password.request') }}" class="text-sm font-semibold text-[#f4c20d] hover:text-[#ffef00] hover:underline underline-offset-2 transition">Forgot password?</a>
                         @endif
                     </div>
 
