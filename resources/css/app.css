@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+    [x-cloak] {
+        display: none !important;
+    }
+
     :root {
         --pst-primary: #0a2d9a;
         --pst-primary-dark: #08247b;
@@ -157,5 +161,19 @@
 
     .hover\:text-red-600:hover {
         color: var(--pst-primary) !important;
+    }
+}
+
+@layer utilities {
+    /* Scroll still works; scrollbar hidden (Chrome, Firefox, Safari, Edge) */
+    .pst-scrollbar-none {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+
+    .pst-scrollbar-none::-webkit-scrollbar {
+        display: none;
+        width: 0;
+        height: 0;
     }
 }

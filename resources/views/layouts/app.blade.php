@@ -34,19 +34,20 @@
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans antialiased bg-gray-50 min-h-screen">
-        <x-navbar />
-        <div x-data="{ sidebarOpen: false }" class="flex min-h-screen">
-            <!-- Sidebar -->
-            <div>
-                <x-sidebar x-model="sidebarOpen" />
+        <div class="flex min-h-screen">
+            <div class="shrink-0">
+                <x-sidebar />
             </div>
-            <!-- Main Content -->
-            <main :class="sidebarOpen ? 'ml-64' : 'ml-16'" class="flex-1 p-2 transition-all duration-200 flex flex-col">
-                <div class="flex-1">
-                    @yield('content')
-                </div>
+            {{-- Header + main + footer sit only to the right of the fixed sidebar (never over it) --}}
+            <div id="pst-main" class="ml-0 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out md:ml-16">
+                <x-navbar />
+                <main class="flex min-h-0 flex-1 flex-col p-2">
+                    <div class="flex-1">
+                        @yield('content')
+                    </div>
+                </main>
                 <x-footer />
-            </main>
+            </div>
         </div>
         
         <!-- Include Expense Reminder Modal -->
@@ -63,13 +64,28 @@
                 }));
             });
             document.addEventListener('DOMContentLoaded', function() {
-                window.addEventListener('sidebar-toggled', function(e) {
-                    const main = document.querySelector('main');
-                    if (main) {
-                        main.classList.remove('ml-64', 'ml-16');
-                        main.classList.add(e.detail ? 'ml-64' : 'ml-16');
+                var sidebarExpanded = false;
+                try {
+                    sidebarExpanded = window.localStorage.getItem('pst-sidebar-open') === 'true';
+                } catch (err) {
+                    sidebarExpanded = false;
+                }
+                function syncMainMargin() {
+                    var main = document.getElementById('pst-main');
+                    if (!main) return;
+                    main.classList.remove('md:ml-64', 'md:ml-16');
+                    if (window.matchMedia('(min-width: 768px)').matches) {
+                        main.classList.add(sidebarExpanded ? 'md:ml-64' : 'md:ml-16');
                     }
+                }
+                window.addEventListener('sidebar-toggled', function(e) {
+                    sidebarExpanded = !!e.detail;
+                    syncMainMargin();
                 });
+                window.addEventListener('resize', function() {
+                    syncMainMargin();
+                });
+                syncMainMargin();
             });
 
             // Logout with expense check for managers

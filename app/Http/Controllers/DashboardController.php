@@ -6,10 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Sale;
 use App\Models\Inventory;
 use App\Models\Branch;
-use App\Models\Product;
-use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
@@ -22,30 +19,30 @@ class DashboardController extends Controller
         return view('dashboard');
     }
 
-    public function getDashboardData()
+    public function getDashboardData(Request $request)
     {
         $currentUser = auth()->user();
         $today = Carbon::today();
-        $startOfWeek = Carbon::now()->startOfWeek();
-        $startOfMonth = Carbon::now()->startOfMonth();
+        $period = $request->query('period', 'today');
+        if (! in_array($period, ['today', 'week', 'month'], true)) {
+            $period = 'today';
+        }
 
-        // Get summary data based on user role
         $summary = $this->getSummaryData($today, $currentUser);
-        
-        // Get branch performance data based on user role
-        $branches = $this->getBranchPerformanceData($today, $currentUser);
-        
-        // Get inventory alerts based on user role
+        $branches = $this->getBranchPerformanceData($currentUser, $period);
         $inventoryAlerts = $this->getInventoryAlerts($currentUser);
-        
-        // Get recent activity based on user role
+        $outOfStockItems = $this->getOutOfStockItems($currentUser);
+        $recentSales = $this->getRecentSalesList($currentUser);
         $activityLog = $this->getRecentActivity($currentUser);
 
         return response()->json([
             'summary' => $summary,
             'branches' => $branches,
             'inventoryAlerts' => $inventoryAlerts,
+            'outOfStockItems' => $outOfStockItems,
+            'recentSales' => $recentSales,
             'activityLog' => $activityLog,
+            'branchPeriod' => $period,
         ]);
     }
 
@@ -94,33 +91,81 @@ class DashboardController extends Controller
         }
         $lowStockCount = $lowStockQuery->count();
 
+        $outOfStockQuery = Inventory::where('available_stock', 0);
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $outOfStockQuery->where('branch_id', $user->branch_id);
+        }
+        $outOfStockCount = $outOfStockQuery->count();
+
+        $transactionsQuery = Sale::whereDate('created_at', $today);
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $transactionsQuery->where('branch_id', $user->branch_id);
+        }
+        $transactionsToday = $transactionsQuery->count();
+
+        $now = Carbon::now();
+        $salesWeekQuery = Sale::whereBetween('created_at', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $salesWeekQuery->where('branch_id', $user->branch_id);
+        }
+        $salesThisWeek = $salesWeekQuery->sum('total_amount') ?? 0;
+
+        $salesMonthQuery = Sale::whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $salesMonthQuery->where('branch_id', $user->branch_id);
+        }
+        $salesThisMonth = $salesMonthQuery->sum('total_amount') ?? 0;
+
+        $trackedQuery = Inventory::query();
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $trackedQuery->where('branch_id', $user->branch_id);
+        }
+        $productsTracked = $trackedQuery->count();
+
         return [
             'inventoryValue' => $totalInventoryValue,
             'salesToday' => $salesToday,
             'activeBranches' => $activeBranches,
             'lowStockCount' => $lowStockCount,
+            'outOfStockCount' => $outOfStockCount,
+            'transactionsToday' => $transactionsToday,
+            'salesThisWeek' => $salesThisWeek,
+            'salesThisMonth' => $salesThisMonth,
+            'productsTracked' => $productsTracked,
         ];
     }
 
-    private function getBranchPerformanceData($today, $user)
+    private function branchSalesForPeriod(int $branchId, string $period): float
+    {
+        $now = Carbon::now();
+
+        $query = Sale::where('branch_id', $branchId);
+
+        if ($period === 'week') {
+            $query->whereBetween('created_at', [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()]);
+        } elseif ($period === 'month') {
+            $query->whereBetween('created_at', [$now->copy()->startOfMonth(), $now->copy()->endOfMonth()]);
+        } else {
+            $query->whereDate('created_at', Carbon::today());
+        }
+
+        return (float) ($query->sum('total_amount') ?? 0);
+    }
+
+    private function getBranchPerformanceData($user, string $period = 'today')
     {
         if ($user->role === 'manager' || $user->role === 'staff') {
-            // Manager only sees their branch
             $branches = Branch::where('status', 'active')
                 ->where('id', $user->branch_id)
                 ->get();
         } else {
-            // Admin sees all branches
-        $branches = Branch::where('status', 'active')->get();
+            $branches = Branch::where('status', 'active')->get();
         }
-        
+
         $branchData = [];
 
         foreach ($branches as $branch) {
-            // Get sales for today
-            $sales = Sale::where('branch_id', $branch->id)
-                ->whereDate('created_at', $today)
-                ->sum('total_amount') ?? 0;
+            $sales = $this->branchSalesForPeriod($branch->id, $period);
 
             // Get inventory value for this branch
             $inventoryValue = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
@@ -156,13 +201,13 @@ class DashboardController extends Controller
 
             $lastActivity = 'No activity';
             if ($lastSale && $lastInventory) {
-                $lastActivity = $lastSale->created_at->gt($lastInventory->updated_at) 
-                    ? $lastSale->created_at->format('g:i A')
-                    : $lastInventory->updated_at->format('g:i A');
+                $lastActivity = $lastSale->created_at->gt($lastInventory->updated_at)
+                    ? $lastSale->created_at->format('M j, g:i A')
+                    : $lastInventory->updated_at->format('M j, g:i A');
             } elseif ($lastSale) {
-                $lastActivity = $lastSale->created_at->format('g:i A');
+                $lastActivity = $lastSale->created_at->format('M j, g:i A');
             } elseif ($lastInventory) {
-                $lastActivity = $lastInventory->updated_at->format('g:i A');
+                $lastActivity = $lastInventory->updated_at->format('M j, g:i A');
             }
 
             $branchData[] = [
@@ -215,9 +260,60 @@ class DashboardController extends Controller
         });
     }
 
+    private function getOutOfStockItems($user)
+    {
+        $query = Inventory::join('products', 'inventories.product_id', '=', 'products.id')
+            ->join('branches', 'inventories.branch_id', '=', 'branches.id')
+            ->where('inventories.available_stock', 0);
+
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $query->where('inventories.branch_id', $user->branch_id);
+        }
+
+        return $query
+            ->select([
+                'inventories.id',
+                'products.name as product_name',
+                'branches.name as branch_name',
+                'branches.id as branch_id',
+            ])
+            ->orderBy('products.name')
+            ->limit(12)
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'id' => $row->id,
+                    'product' => $row->product_name,
+                    'branch' => $row->branch_name,
+                    'branchId' => $row->branch_id,
+                ];
+            });
+    }
+
+    private function getRecentSalesList($user)
+    {
+        $salesQuery = Sale::with(['branch', 'user'])
+            ->latest('created_at')
+            ->limit(8);
+
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $salesQuery->where('branch_id', $user->branch_id);
+        }
+
+        return $salesQuery->get()->map(function ($sale) {
+            return [
+                'id' => $sale->id,
+                'reference' => $sale->reference_number ?? ('#'.$sale->id),
+                'branch' => $sale->branch?->name ?? '—',
+                'amount' => (float) $sale->total_amount,
+                'customer' => $sale->customer_name ?: 'Walk-in',
+                'time' => $sale->created_at->format('M j, g:i A'),
+            ];
+        });
+    }
+
     private function getRecentActivity($user)
     {
-        // This is a simplified activity log. In a real application, you might want to create an activity log table
         $salesQuery = Sale::with(['branch', 'user']);
         if ($user->role === 'manager' || $user->role === 'staff') {
             $salesQuery->where('branch_id', $user->branch_id);
@@ -229,9 +325,10 @@ class DashboardController extends Controller
             ->map(function ($sale) {
                 return [
                     'id' => $sale->id,
-                    'time' => $sale->created_at->format('g:i A'),
+                    'timestamp' => $sale->created_at->timestamp,
+                    'time' => $sale->created_at->format('M j, g:i A'),
                     'user' => $sale->user ? $sale->user->name : 'System',
-                    'action' => "Added new sale for {$sale->branch->name} branch",
+                    'action' => 'New sale — '.($sale->branch?->name ?? 'Unknown'),
                 ];
             })
             ->values()
@@ -244,22 +341,24 @@ class DashboardController extends Controller
         }
         $recentInventory = $inventoryQuery
             ->latest('updated_at')
-            ->limit(3)
+            ->limit(5)
             ->get()
             ->map(function ($inventory) {
                 return [
-                    'id' => 'inv_' . $inventory->id,
-                    'time' => $inventory->updated_at->format('g:i A'),
+                    'id' => 'inv_'.$inventory->id,
+                    'timestamp' => $inventory->updated_at->timestamp,
+                    'time' => $inventory->updated_at->format('M j, g:i A'),
                     'user' => 'System',
-                    'action' => "Updated inventory for {$inventory->branch->name} - {$inventory->product->name}",
+                    'action' => 'Inventory update — '.($inventory->branch?->name ?? '?').' · '.($inventory->product?->name ?? '?'),
                 ];
             })
             ->values()
             ->toBase();
 
         return $recentSales->merge($recentInventory)
-            ->sortByDesc('time')
-            ->take(5)
-            ->values();
+            ->sortByDesc('timestamp')
+            ->take(8)
+            ->values()
+            ->map(fn ($row) => collect($row)->except('timestamp')->all());
     }
 } 

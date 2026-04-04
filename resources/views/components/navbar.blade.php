@@ -1,4 +1,4 @@
-<nav x-data="{ userOpen: false }" class="w-full bg-white shadow px-4 py-3 flex justify-end items-center">
+<nav x-data="{ userOpen: false }" class="relative z-50 w-full bg-white shadow px-4 py-3 flex justify-end items-center">
     <div class="relative">
         <button @click="userOpen = !userOpen" class="flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-100 focus:outline-none">
             <span class="text-gray-600">{{ Auth::user()->name ?? 'User' }}</span>

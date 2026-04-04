@@ -1,63 +1,79 @@
-    <div x-data="{ open: false }" class="relative h-full">
-        <!-- Burger button (modern SVG) -->
-        <button 
-            @click="open = !open; window.dispatchEvent(new CustomEvent('sidebar-toggled', { detail: open }));"
-            :class="open ? 'left-40' : 'left-2'"
-            class="fixed top-16 z-50 bg-blue-700 text-white p-2 rounded-lg hover:bg-blue-800 focus:outline-none transition-all duration-300 ease-in-out ml-2">
-            
-            <!-- Modern Hamburger Icon -->
-            <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+    <div x-data="pstSidebar" class="relative h-full">
+        <!-- Mobile: dim background when drawer open -->
+        <div
+            x-show="open"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0"
+            x-transition:enter-end="opacity-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100"
+            x-transition:leave-end="opacity-0"
+            @click="open = false; window.dispatchEvent(new CustomEvent('sidebar-toggled', { detail: open }));"
+            class="fixed inset-0 z-30 bg-slate-900/55 backdrop-blur-sm md:hidden"
+            x-cloak
+        ></div>
 
-            <!-- Modern Close Icon -->
-            <svg x-show="open" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        <!-- Mobile only: open menu when drawer is closed (does not overlap sidebar logo) -->
+        <button
+            type="button"
+            x-show="!open"
+            x-cloak
+            @click="toggleSidebar()"
+            class="fixed bottom-6 left-4 z-[60] flex h-12 w-12 items-center justify-center rounded-xl bg-[#f4c20d] text-slate-900 shadow-lg shadow-amber-900/25 ring-2 ring-white/40 transition hover:bg-[#f5cc2f] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 md:hidden"
+            aria-label="Open menu"
+        >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
         </button>
 
-        <!-- Sidebar -->
-        <aside :class="open ? 'w-52' : 'w-16'" class="fixed left-0 top-0 h-full bg-blue-700 flex flex-col py-6 px-2 transition-all duration-300 ease-in-out z-40 overflow-x-hidden">
-            <!-- Logo/Title -->
-            <a href="/dashboard">
-                <div class="mb-10 flex flex-col items-center">
-                    <!-- When sidebar is open -->
-                    <span 
-                        x-show="open"
-                        class="flex flex-row items-center justify-center h-16"
-                        style="margin-top: -18px;"
-                    >
-                        <!-- Logo Image -->
-                        <img src="{{ asset('images/PSTLogo.jpg') }}" alt="PST Logo" class="h-8 w-8 rounded object-cover">
+        <aside
+            :class="open
+                ? 'translate-x-0 w-[min(17.5rem,88vw)] md:w-64 px-2'
+                : '-translate-x-full md:translate-x-0 md:w-16 w-[min(17.5rem,88vw)] px-2 md:px-0'"
+            class="pst-scrollbar-none fixed left-0 top-0 z-40 flex h-screen min-h-0 flex-col overflow-y-auto overflow-x-hidden border-r border-white/10 bg-gradient-to-b from-[#071225] via-[#0a2d6a] to-[#0a2d9a] pb-6 pt-0 shadow-2xl shadow-black/25 transition-all duration-300 ease-in-out md:shadow-none"
+        >
+            <div
+                class="flex shrink-0 flex-col gap-2 leading-none"
+                :class="open ? 'px-0.5' : 'px-0.5 md:px-0'"
+            >
+                <a
+                    href="{{ auth()->user()->role === 'staff' ? url('/sales') : url('/dashboard') }}"
+                    class="block outline-none focus-visible:ring-2 focus-visible:ring-[#f4c20d] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a2d9a] rounded-lg md:rounded-none"
+                >
+                    <img
+                        src="{{ asset('images/PSTLogoNoBG2.png') }}"
+                        alt="Polytech Steel Trading"
+                        :class="open
+                            ? 'h-[8.5rem] sm:h-[9.5rem] md:h-[10.5rem] w-full max-w-full object-contain object-center'
+                            : 'h-[3.5rem] w-full max-w-full object-contain object-center md:h-auto md:min-h-[4.5rem] md:max-h-[5.25rem]'"
+                        class="block drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)] transition-[height] duration-300"
+                        width="280"
+                        height="120"
+                        decoding="async"
+                    />
+                </a>
 
-                        <!-- Text beside logo -->
-                        <span class="flex flex-col justify-center h-full">
-                            <span class="text-white text-[11px] font-semibold leading-none" style="line-height: 1.1;">
-                                Polytech
-                            </span>
-                            <span class="text-white text-[11px] font-semibold uppercase leading-none" style="line-height: 1.1;">
-                                Steel Trading
-                            </span>
-                        </span>
-                    </span>
+                <!-- Toggle sits under the logo (never covers it) -->
+                <button
+                    type="button"
+                    @click="toggleSidebar()"
+                    class="mb-2 flex h-10 w-full shrink-0 items-center justify-center rounded-lg bg-[#f4c20d]/95 text-slate-900 shadow-md shadow-black/20 ring-1 ring-white/25 transition hover:bg-[#f5cc2f] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 md:mb-3 md:rounded-none md:rounded-b-sm"
+                    aria-label="Toggle sidebar"
+                >
+                    <svg x-show="!open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-5 md:w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                    <svg x-show="open" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
 
-                    <!-- When sidebar is closed -->
-                    <span 
-                        x-show="!open"
-                        class="text-center mb-4"
-                        style="margin-top: -6px;"
-                    >
-                        <img src="{{ asset('images/PSTLogo.jpg') }}" alt="PST Logo" class="h-8 w-8 mx-auto mt-1 rounded object-cover">
-                    </span>
-                </div>
-            </a>
-
-
-            <!-- Navigation Links -->
-            <nav class="flex-1 flex flex-col gap-2 mt-3">
+            <nav class="mt-0 flex flex-1 flex-col gap-0.5">
                 <!-- Dashboard, hidden if user is staff -->
                 @if(auth()->user()->role !== 'staff')
-                <a href="/dashboard" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('dashboard') ? 'bg-blue-800' : '' }}" 
+                <a href="/dashboard" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('dashboard') || request()->is('/') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}" 
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -85,7 +101,7 @@
                 @endif
 
                 <!-- Sales -->
-                <a href="/sales" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('sales') ? 'bg-blue-800' : '' }}"
+                <a href="/sales" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('sales') || request()->is('sales/*') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -112,7 +128,7 @@
                 </a>
                 @if(auth()->user()->role !== 'staff')
                 <!-- Purchases -->
-                <a href="/purchases" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('purchases') ? 'bg-blue-800' : '' }}"
+                <a href="/purchases" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('purchases') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -141,7 +157,7 @@
                 </a>
 
                 <!-- Inventory -->
-                <a href="/inventory" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('inventory') ? 'bg-blue-800' : '' }}"
+                <a href="/inventory" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('inventory') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -172,7 +188,7 @@
 
                 <!-- Reports (not accessible by staff) -->
                 @if(auth()->user()->role !== 'staff')
-                <a href="/reports" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('reports*') ? 'bg-blue-800' : '' }}"
+                <a href="/reports" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('reports*') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -201,7 +217,7 @@
 
                 <!-- Stock Adjustments (not accessible by staff) -->
                 @if(auth()->user()->role !== 'staff')
-                <a href="/stock-adjustments" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('stock-adjustments*') ? 'bg-blue-800' : '' }}"
+                <a href="/stock-adjustments" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('stock-adjustments*') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -229,7 +245,7 @@
                 @endif
 
                 <!-- Products -->
-                <a href="/products" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('products') ? 'bg-blue-800' : '' }}"
+                <a href="/products" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('products') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -258,7 +274,7 @@
 
                 <!-- Branches (only admin can see)-->
                 @if(auth()->user()->role === 'admin')
-                <a href="/branches" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('branches') ? 'bg-blue-800' : '' }}"
+                <a href="/branches" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('branches') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -287,7 +303,7 @@
                 @endif
 
                 <!-- Expenses (admin and manager only) -->
-                <a href="/expenses" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('expenses') ? 'bg-blue-800' : '' }}"
+                <a href="/expenses" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('expenses') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                    x-data="{ showTooltip: false }"
                    @mouseenter="if (!open) showTooltip = true"
                    @mouseleave="showTooltip = false">
@@ -313,7 +329,7 @@
                 </a>
                 <!-- Users (admin and manager can see) -->
                 @if(auth()->user()->role === 'admin' || auth()->user()->role === 'manager')
-                    <a href="/users" class="relative flex items-center justify-between py-3 px-2 rounded-lg text-white font-medium hover:bg-blue-800 transition {{ request()->is('users') ? 'bg-blue-800' : '' }}"
+                    <a href="/users" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('users') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
                        x-data="{ showTooltip: false }"
                        @mouseenter="if (!open) showTooltip = true"
                        @mouseleave="showTooltip = false">
