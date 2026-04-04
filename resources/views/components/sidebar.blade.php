@@ -8,8 +8,8 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100"
             x-transition:leave-end="opacity-0"
-            @click="open = false; window.dispatchEvent(new CustomEvent('sidebar-toggled', { detail: open }));"
-            class="fixed inset-0 z-30 bg-slate-900/55 backdrop-blur-sm md:hidden"
+            @click="closeSidebarDrawer()"
+            class="fixed inset-0 z-[55] bg-slate-900/55 backdrop-blur-sm md:hidden"
             x-cloak
         ></div>
 
@@ -19,7 +19,7 @@
             x-show="!open"
             x-cloak
             @click="toggleSidebar()"
-            class="fixed bottom-6 left-4 z-[60] flex h-12 w-12 items-center justify-center rounded-xl bg-[#f4c20d] text-slate-900 shadow-lg shadow-amber-900/25 ring-2 ring-white/40 transition hover:bg-[#f5cc2f] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 md:hidden"
+            class="fixed bottom-6 left-4 z-[70] flex h-12 w-12 items-center justify-center rounded-xl bg-[#f4c20d] text-slate-900 shadow-lg shadow-amber-900/25 ring-2 ring-white/40 transition hover:bg-[#f5cc2f] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200 md:hidden"
             aria-label="Open menu"
         >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -31,7 +31,7 @@
             :class="open
                 ? 'translate-x-0 w-[min(17.5rem,88vw)] md:w-64 px-2'
                 : '-translate-x-full md:translate-x-0 md:w-16 w-[min(17.5rem,88vw)] px-2 md:px-0'"
-            class="pst-scrollbar-none fixed left-0 top-0 z-40 flex h-screen min-h-0 flex-col overflow-y-auto overflow-x-hidden border-r border-white/10 bg-gradient-to-b from-[#071225] via-[#0a2d6a] to-[#0a2d9a] pb-6 pt-0 shadow-2xl shadow-black/25 transition-all duration-300 ease-in-out md:shadow-none"
+            class="pst-scrollbar-none fixed left-0 top-0 z-[60] flex h-screen min-h-0 flex-col overflow-y-auto overflow-x-hidden border-r border-white/10 bg-gradient-to-b from-[#071225] via-[#0a2d6a] to-[#0a2d9a] pb-6 pt-0 shadow-2xl shadow-black/25 transition-all duration-300 ease-in-out md:shadow-none"
         >
             <div
                 class="flex shrink-0 flex-col gap-2 leading-none"

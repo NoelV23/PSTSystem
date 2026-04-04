@@ -1,4 +1,4 @@
-<nav x-data="{ userOpen: false }" class="relative z-50 w-full bg-white shadow px-4 py-3 flex justify-end items-center">
+<nav x-data="{ userOpen: false }" class="relative z-40 w-full bg-white shadow px-4 py-3 flex justify-end items-center">
     <div class="relative">
         <button @click="userOpen = !userOpen" class="flex items-center gap-2 px-3 py-1 rounded hover:bg-gray-100 focus:outline-none">
             <span class="text-gray-600">{{ Auth::user()->name ?? 'User' }}</span>
@@ -11,7 +11,7 @@
             x-show="userOpen" 
             @click.away="userOpen = false" 
             x-transition 
-            class="absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-50"
+            class="absolute right-0 z-[80] mt-2 w-40 rounded border bg-white shadow-lg"
         >
             <a href="/profile" class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Profile</a>
             <form method="POST" action="{{ route('logout') }}" id="logoutForm">

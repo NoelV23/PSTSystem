@@ -40,6 +40,18 @@
             </div>
             {{-- Header + main + footer sit only to the right of the fixed sidebar (never over it) --}}
             <div id="pst-main" class="ml-0 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out md:ml-16">
+                <script>
+                    (function () {
+                        var el = document.getElementById('pst-main');
+                        if (!el) return;
+                        try {
+                            if (window.localStorage.getItem('pst-sidebar-open') === 'true' && window.matchMedia('(min-width: 768px)').matches) {
+                                el.classList.remove('md:ml-16');
+                                el.classList.add('md:ml-64');
+                            }
+                        } catch (e) {}
+                    })();
+                </script>
                 <x-navbar />
                 <main class="flex min-h-0 flex-1 flex-col p-2">
                     <div class="flex-1">
