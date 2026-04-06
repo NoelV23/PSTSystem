@@ -280,6 +280,7 @@ let pendingCutRemainder = null;
 let cutRemainderDiscardMode = false;
 let cutRemainderDiscardReason = '';
 let pendingDeliveryData = null;
+let isSubmittingSale = false;
 
 // Check if current user is a manager or staff
 const currentUserRole = '{{ Auth::user()->role }}';
@@ -399,13 +400,48 @@ function resetSaleForm() {
     referenceNumberSection.classList.remove('hidden');
 }
 
+function setCutRemainderActionsLoading(loading) {
+    if (saveCutRemainderBtn) {
+        saveCutRemainderBtn.disabled = loading;
+        saveCutRemainderBtn.classList.toggle('opacity-60', loading);
+        saveCutRemainderBtn.classList.toggle('cursor-not-allowed', loading);
+        saveCutRemainderBtn.textContent = loading ? 'Saving...' : 'Save Remainder';
+    }
+    if (discardCutRemainderBtn) {
+        discardCutRemainderBtn.disabled = loading;
+        discardCutRemainderBtn.classList.toggle('opacity-60', loading);
+        discardCutRemainderBtn.classList.toggle('cursor-not-allowed', loading);
+        discardCutRemainderBtn.textContent = loading ? 'Please wait...' : 'Mark as Discarded';
+    }
+    if (confirmDiscardCutBtn) {
+        confirmDiscardCutBtn.disabled = loading;
+        confirmDiscardCutBtn.classList.toggle('opacity-60', loading);
+        confirmDiscardCutBtn.classList.toggle('cursor-not-allowed', loading);
+        confirmDiscardCutBtn.textContent = loading ? 'Discarding...' : 'Discard';
+    }
+    if (cancelDiscardCutBtn) {
+        cancelDiscardCutBtn.disabled = loading;
+        cancelDiscardCutBtn.classList.toggle('opacity-60', loading);
+        cancelDiscardCutBtn.classList.toggle('cursor-not-allowed', loading);
+    }
+    if (closeCutRemainderModal) {
+        closeCutRemainderModal.disabled = loading;
+    }
+}
+
 // --- Branch Selector ---
 async function loadBranches() {
     const res = await fetch('/api/branches');
     branches = await res.json();
+    const activeBranches = branches.filter(b => b.status === 'active');
     branchSelector.innerHTML = '<option value="">Select Branch</option>' +
-        branches.filter(b => b.status === 'active').map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-    // Remove automatic branch selection - admin must select branch first
+        activeBranches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+
+    // Admin: auto-select the only branch when exactly one active branch exists.
+    if (currentUserRole === 'admin' && activeBranches.length === 1) {
+        branchSelector.value = String(activeBranches[0].id);
+        branchSelector.dispatchEvent(new Event('change'));
+    }
 }
 branchSelector.addEventListener('change', function() {
     currentBranchId = this.value;
@@ -1099,6 +1135,10 @@ addSaleForm.addEventListener('submit', async function(e) {
 });
 
 async function submitSale({ location_note, status, discard_reason, delivery_data = null }) {
+    if (isSubmittingSale) return;
+    isSubmittingSale = true;
+    setCutRemainderActionsLoading(true);
+
     const userId = document.getElementById('saleUserId')?.value;
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
     
@@ -1109,6 +1149,8 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
     
     if (!isNoInvoice && !isDelivered && !referenceNumber) {
         showToast('Reference number is required unless "No Invoice" or "Delivered" is checked', 'error');
+        isSubmittingSale = false;
+        setCutRemainderActionsLoading(false);
         return;
     }
     
@@ -1207,6 +1249,8 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
     } catch (err) {
         showToast(err.message || 'Failed to create sale', 'error');
     } finally {
+        isSubmittingSale = false;
+        setCutRemainderActionsLoading(false);
         document.getElementById('cutRemainderModal').classList.add('hidden');
         pendingCutRemainder = null;
         pendingDeliveryData = null;
@@ -1214,24 +1258,29 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
 }
 
 document.getElementById('saveCutRemainderBtn').addEventListener('click', async function() {
+    if (isSubmittingSale) return;
     cutRemainderDiscardMode = false;
     const note = document.getElementById('cutRemainderNote').value;
     await submitSale({ location_note: note, status: 'available', discard_reason: null, delivery_data: pendingDeliveryData });
 });
 document.getElementById('discardCutRemainderBtn').addEventListener('click', function() {
+    if (isSubmittingSale) return;
     cutRemainderDiscardMode = true;
     document.getElementById('discardCutReasonInput').value = '';
     document.getElementById('discardCutReasonModal').classList.remove('hidden');
 });
 document.getElementById('closeDiscardCutReasonModal').addEventListener('click', function() {
+    if (isSubmittingSale) return;
     document.getElementById('discardCutReasonModal').classList.add('hidden');
     cutRemainderDiscardMode = false;
 });
 document.getElementById('cancelDiscardCutBtn').addEventListener('click', function() {
+    if (isSubmittingSale) return;
     document.getElementById('discardCutReasonModal').classList.add('hidden');
     cutRemainderDiscardMode = false;
 });
 document.getElementById('confirmDiscardCutBtn').addEventListener('click', async function() {
+    if (isSubmittingSale) return;
     const reason = document.getElementById('discardCutReasonInput').value.trim();
     if (!reason) {
         alert('Please provide a reason for discarding.');

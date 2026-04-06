@@ -1634,9 +1634,24 @@ window.viewRemainders = async function(productId) {
         if (remainders.length === 0) {
             content.innerHTML = '<div class="text-gray-500">No remainders found.</div>';
         } else {
+            const formatRemainderDimensions = (r) => {
+                const parts = [];
+                if (r.length_remaining !== null && r.length_remaining !== undefined && r.length_remaining !== '') {
+                    parts.push(`<span class="font-medium">Length:</span> ${r.length_remaining}`);
+                }
+                if (r.width_remaining !== null && r.width_remaining !== undefined && r.width_remaining !== '') {
+                    parts.push(`<span class="font-medium">Width:</span> ${r.width_remaining}`);
+                }
+                if (r.height_remaining !== null && r.height_remaining !== undefined && r.height_remaining !== '') {
+                    parts.push(`<span class="font-medium">Height:</span> ${r.height_remaining}`);
+                }
+
+                return parts.length ? parts.join(' | ') : '<span class="text-gray-500">No dimensions</span>';
+            };
+
             content.innerHTML = remainders.map(r => `
                 <div class="border rounded-lg p-3 mb-2">
-                    <div><span class="font-medium">Length:</span> ${r.length_remaining ?? '-'} | <span class="font-medium">Width:</span> ${r.width_remaining ?? '-'} | <span class="font-medium">Height:</span> ${r.height_remaining ?? '-'} </div>
+                    <div>${formatRemainderDimensions(r)}</div>
                     <div><span class="font-medium">Location:</span> ${r.location_note ?? '-'}</div>
                     <div class="mt-2 flex justify-end">
                         <button class="text-red-600 hover:underline" onclick="openDiscardRemainderModal(${r.id})">Discard</button>

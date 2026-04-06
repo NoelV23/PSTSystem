@@ -245,6 +245,9 @@ class InstallationSaleController extends Controller
         if (!$sale->is_installation) {
             abort(404, 'This is not an installation sale');
         }
+        if ($sale->status === 'completed') {
+            return response()->json(['error' => 'This installation is locked. Admin must reopen it before editing.'], 422);
+        }
 
         $validated = $request->validate([
             'items' => 'required|array|min:1',
@@ -392,6 +395,9 @@ class InstallationSaleController extends Controller
         if (!$sale->is_installation) {
             abort(404, 'This is not an installation sale');
         }
+        if ($sale->status === 'completed') {
+            return response()->json(['error' => 'This installation is locked. Admin must reopen it before editing.'], 422);
+        }
 
         $validated = $request->validate([
             'usage_id' => 'required|exists:installation_product_usages,id',
@@ -445,5 +451,50 @@ class InstallationSaleController extends Controller
             \DB::rollBack();
             return response()->json(['error' => $e->getMessage()], 500);
         }
+    }
+
+    public function markCompleted($id)
+    {
+        // Staff users cannot access this
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access this feature');
+        }
+
+        $sale = Sale::with('installationProductUsages')->findOrFail($id);
+        if (!$sale->is_installation) {
+            abort(404, 'This is not an installation sale');
+        }
+        if ($sale->status === 'completed') {
+            return response()->json(['message' => 'Installation is already completed.']);
+        }
+        if ($sale->installationProductUsages->isEmpty()) {
+            return response()->json(['error' => 'Add at least one product usage before marking as completed.'], 422);
+        }
+
+        $sale->status = 'completed';
+        $sale->save();
+
+        return response()->json(['message' => 'Installation marked as completed successfully.']);
+    }
+
+    public function reopen($id)
+    {
+        // Only admin can reopen a completed installation
+        if (auth()->user()->role !== 'admin') {
+            abort(403, 'Only admin can reopen installation sales');
+        }
+
+        $sale = Sale::findOrFail($id);
+        if (!$sale->is_installation) {
+            abort(404, 'This is not an installation sale');
+        }
+        if ($sale->status !== 'completed') {
+            return response()->json(['message' => 'Installation is already open for editing.']);
+        }
+
+        $sale->status = 'pending';
+        $sale->save();
+
+        return response()->json(['message' => 'Installation reopened for editing successfully.']);
     }
 } 

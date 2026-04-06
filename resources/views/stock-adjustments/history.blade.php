@@ -18,7 +18,7 @@
                 <select id="branch_id" name="branch_id" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <option value="">All Branches</option>
                     @foreach($branches as $branch)
-                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id ? 'selected' : '' }}>
+                        <option value="{{ $branch->id }}" {{ request('branch_id') == $branch->id || (auth()->user()->role === 'admin' && !request()->has('branch_id') && $branches->count() === 1) ? 'selected' : '' }}>
                             {{ $branch->name }}
                         </option>
                     @endforeach

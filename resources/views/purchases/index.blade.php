@@ -255,6 +255,7 @@ let purchaseItems = [];
 let currentPurchaseId = null;
 let isEditMode = false;
 let selectedBranchId = null;
+const currentUserRole = '{{ auth()->user()->role }}';
 
 const loadingState = document.getElementById('loadingState');
 const errorState = document.getElementById('errorState');
@@ -346,7 +347,9 @@ async function loadBranches() {
         const branchSelector = document.getElementById('branchSelector');
         const selectedBranch = document.getElementById('selectedBranch');
         
-        const options = branches.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+        const activeBranches = branches.filter(b => b.status === 'active');
+        const branchOptionsSource = activeBranches.length ? activeBranches : branches;
+        const options = branchOptionsSource.map(b => `<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
         
         // Only update branch selectors if they exist (admin users)
         if (branchSelector) {
@@ -363,6 +366,22 @@ async function loadBranches() {
                 branchSelector.value = selectedBranchId;
             }
             // Load purchases immediately for non-admin users
+            loadPurchases();
+        }
+
+        // Admin: auto-select the only branch when exactly one active branch exists.
+        if (!window.currentUserBranchId && currentUserRole === 'admin' && branchOptionsSource.length === 1) {
+            selectedBranchId = String(branchOptionsSource[0].id);
+            if (branchSelector) {
+                branchSelector.value = selectedBranchId;
+            }
+            if (selectedBranch) {
+                selectedBranch.value = selectedBranchId;
+            }
+            const selectedBranchIdInput = document.getElementById('selectedBranchId');
+            if (selectedBranchIdInput) {
+                selectedBranchIdInput.value = selectedBranchId;
+            }
             loadPurchases();
         }
     } catch (error) {

@@ -273,7 +273,7 @@ class ReportsController extends Controller
         $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
         $branches = Branch::where('status', 'active')->get();
 
-        $query = Sale::with(['user', 'branch', 'saleItems.product'])
+        $query = Sale::with(['user', 'branch', 'installationProductUsages'])
             ->where('is_installation', true)
             ->whereBetween('created_at', [$dateFrom . ' 00:00:00', $dateTo . ' 23:59:59']);
 
@@ -283,9 +283,18 @@ class ReportsController extends Controller
 
         $installationSales = $query->orderBy('created_at', 'desc')->get();
 
+        // Compute material cost and profit per installation
+        $installationSales->each(function ($sale) {
+            $usageCost = (float) $sale->installationProductUsages->sum('total_cost');
+            $sale->usage_cost = $usageCost;
+            $sale->profit = (float) $sale->total_amount - $usageCost;
+        });
+
         // Calculate totals
         $totalInstallations = $installationSales->count();
         $totalRevenue = $installationSales->sum('total_amount');
+        $totalUsageCost = $installationSales->sum('usage_cost');
+        $totalProfit = $installationSales->sum('profit');
         $pendingInstallations = $installationSales->where('status', 'pending')->count();
         $completedInstallations = $installationSales->where('status', 'completed')->count();
 
@@ -306,6 +315,8 @@ class ReportsController extends Controller
             'dateTo',
             'totalInstallations',
             'totalRevenue',
+            'totalUsageCost',
+            'totalProfit',
             'pendingInstallations',
             'completedInstallations',
             'statusStats'

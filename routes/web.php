@@ -60,6 +60,8 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/installation-sales/{id}/edit', [\App\Http\Controllers\InstallationSaleController::class, 'edit'])->name('installation-sales.edit')->middleware('role:admin,manager');
     Route::post('/api/installation-sales/{id}/add-usage', [\App\Http\Controllers\InstallationSaleController::class, 'addUsage'])->name('api.installation-sales.add-usage');
     Route::post('/api/installation-sales/{id}/remove-usage', [\App\Http\Controllers\InstallationSaleController::class, 'removeUsage'])->name('api.installation-sales.remove-usage');
+    Route::post('/api/installation-sales/{id}/complete', [\App\Http\Controllers\InstallationSaleController::class, 'markCompleted'])->name('api.installation-sales.complete');
+    Route::post('/api/installation-sales/{id}/reopen', [\App\Http\Controllers\InstallationSaleController::class, 'reopen'])->name('api.installation-sales.reopen');
     
     // Export routes
     Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export')->middleware('role:admin,manager');

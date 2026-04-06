@@ -3,6 +3,10 @@
 @section('content')
 <div class="py-6">
 	<div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
+		@php
+			$isCompleted = $sale->status === 'completed';
+			$isAdmin = auth()->user()->role === 'admin';
+		@endphp
 		<!-- Header -->
 		<div class="bg-white overflow-hidden shadow-sm sm:rounded-lg mb-6">
 			<div class="p-6 text-gray-900 flex items-center justify-between">
@@ -16,21 +20,68 @@
 
 		<!-- Sale Details -->
 		<div class="bg-white rounded-lg shadow-md p-6 mb-6">
-			<h3 class="text-lg font-semibold text-gray-900 mb-4">Installation Information</h3>
-			<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+				<h3 class="text-lg font-semibold text-gray-900">Installation Information</h3>
+				<div class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-2 text-sm text-gray-700 min-w-[220px]">
+					<div><span class="font-semibold">Created:</span> {{ $sale->user->name ?? 'N/A' }}</div>
+					<div><span class="font-semibold">Branch:</span> {{ $sale->branch->name ?? 'N/A' }}</div>
+				</div>
+			</div>
+			@if($isCompleted)
+			<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+				This installation is locked because it is completed.
+				@if($isAdmin)
+					Use "Reopen for Edit" to allow updates.
+				@else
+					Ask an admin to reopen it if changes are needed.
+				@endif
+			</div>
+			@endif
+			@php
+				$totalUsageCost = (float) $sale->installationProductUsages->sum('total_cost');
+				$installationProfit = (float) $sale->total_amount - $totalUsageCost;
+			@endphp
+			<div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Customer</label>
-					<p class="text-sm text-gray-900">{{ $sale->user->name ?? 'N/A' }}</p>
+					<label class="block text-sm font-medium text-gray-700">Description</label>
+					<p class="text-sm text-gray-900">{{ $sale->description ?: 'N/A' }}</p>
 				</div>
 				<div>
-					<label class="block text-sm font-medium text-gray-700">Branch</label>
-					<p class="text-sm text-gray-900">{{ $sale->branch->name ?? 'N/A' }}</p>
+					<label class="block text-sm font-medium text-gray-700">Status</label>
+					<p class="text-sm">
+						@if($sale->status === 'completed')
+							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
+						@else
+							<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
+						@endif
+					</p>
 				</div>
 				<div>
 					<label class="block text-sm font-medium text-gray-700">Original Amount</label>
 					<p class="text-sm text-gray-900">₱{{ number_format($sale->total_amount, 2) }}</p>
 				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700">Usage Cost</label>
+					<p class="text-sm text-red-600 font-semibold">₱{{ number_format($totalUsageCost, 2) }}</p>
+				</div>
+				<div>
+					<label class="block text-sm font-medium text-gray-700">Profit</label>
+					<p class="text-sm font-semibold {{ $installationProfit >= 0 ? 'text-emerald-600' : 'text-red-600' }}">₱{{ number_format($installationProfit, 2) }}</p>
+				</div>
 			</div>
+			@if(!$isCompleted)
+			<div class="mt-4 flex justify-end">
+				<button id="markCompletedBtn" type="button" class="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition duration-200">
+					Mark as Completed
+				</button>
+			</div>
+			@elseif($isAdmin)
+			<div class="mt-4 flex justify-end">
+				<button id="reopenSaleBtn" type="button" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition duration-200">
+					Reopen for Edit
+				</button>
+			</div>
+			@endif
 		</div>
 
 		<!-- Current Usages -->
@@ -78,7 +129,11 @@
 							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($usage->unit_cost, 2) }}</td>
 							<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($usage->total_cost, 2) }}</td>
 							<td class="px-6 py-4 whitespace-nowrap">
+								@if(!$isCompleted)
 								<button data-usage-id="{{ $usage->id }}" class="remove-usage-btn inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200">Remove</button>
+								@else
+								<span class="text-xs text-gray-400">Locked</span>
+								@endif
 							</td>
 						</tr>
 						@empty
@@ -92,6 +147,7 @@
 		</div>
 
 		<!-- Add Usage -->
+		@if(!$isCompleted)
 		<div class="bg-white rounded-lg shadow-md p-6">
 			<h3 class="text-lg font-semibold text-gray-900 mb-4">Add Product Used</h3>
 			<div class="mb-4">
@@ -134,6 +190,12 @@
 				</div>
 			</div>
 		</div>
+		@else
+		<div class="bg-white rounded-lg shadow-md p-6">
+			<h3 class="text-lg font-semibold text-gray-900 mb-2">Add Product Used</h3>
+			<p class="text-sm text-gray-500">This section is locked after completion. @if($isAdmin)Click "Reopen for Edit" above to enable changes.@else Ask admin to reopen this installation to allow updates.@endif</p>
+		</div>
+		@endif
 	</div>
 </div>
 
@@ -142,6 +204,30 @@ const saleId = {{ $sale->id }};
 let selectedProduct = null;
 let inventory = [];
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+function resetProductSelection() {
+    selectedProduct = null;
+    const searchInput = document.getElementById('productSearch');
+    const dropdown = document.getElementById('productDropdown');
+    const detailsSection = document.getElementById('productDetailsSection');
+    const productName = document.getElementById('productName');
+    const productQty = document.getElementById('productQuantity');
+    const cutLength = document.getElementById('cutLength');
+    const cutWidth = document.getElementById('cutWidth');
+    const cutHeight = document.getElementById('cutHeight');
+
+    if (searchInput) searchInput.value = '';
+    if (dropdown) {
+        dropdown.innerHTML = '';
+        dropdown.classList.add('hidden');
+    }
+    if (detailsSection) detailsSection.classList.add('hidden');
+    if (productName) productName.value = '';
+    if (productQty) productQty.value = '';
+    if (cutLength) cutLength.value = '';
+    if (cutWidth) cutWidth.value = '';
+    if (cutHeight) cutHeight.value = '';
+}
 
 // Load available inventory for branch
 async function loadInventory() {
@@ -156,25 +242,81 @@ async function loadInventory() {
 
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInventory();
+    resetProductSelection();
 });
 
+const markCompletedBtn = document.getElementById('markCompletedBtn');
+if (markCompletedBtn) {
+    markCompletedBtn.addEventListener('click', async function () {
+        if (!confirm('Mark this installation as completed?')) return;
+        markCompletedBtn.disabled = true;
+        markCompletedBtn.textContent = 'Completing...';
+        try {
+            const res = await fetch(`/api/installation-sales/${saleId}/complete`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to mark as completed');
+            alert(data.message || 'Installation marked as completed.');
+            window.location.reload();
+        } catch (e) {
+            alert(e.message || 'Failed to mark as completed');
+            markCompletedBtn.disabled = false;
+            markCompletedBtn.textContent = 'Mark as Completed';
+        }
+    });
+}
+
+const reopenSaleBtn = document.getElementById('reopenSaleBtn');
+if (reopenSaleBtn) {
+    reopenSaleBtn.addEventListener('click', async function () {
+        if (!confirm('Reopen this installation for editing?')) return;
+        reopenSaleBtn.disabled = true;
+        reopenSaleBtn.textContent = 'Reopening...';
+        try {
+            const res = await fetch(`/api/installation-sales/${saleId}/reopen`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json',
+                }
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Failed to reopen installation');
+            alert(data.message || 'Installation reopened for editing.');
+            window.location.reload();
+        } catch (e) {
+            alert(e.message || 'Failed to reopen installation');
+            reopenSaleBtn.disabled = false;
+            reopenSaleBtn.textContent = 'Reopen for Edit';
+        }
+    });
+}
+
 // Search
-document.getElementById('productSearch').addEventListener('input', function() {
-    const query = this.value.trim().toLowerCase();
-    const dropdown = document.getElementById('productDropdown');
-    if (!query) { dropdown.classList.add('hidden'); return; }
-    const list = Array.isArray(inventory) ? inventory : [];
-    const filtered = list.filter(item => (item.product?.name||'').toLowerCase().includes(query) || (item.product?.sku||'').toLowerCase().includes(query));
-    dropdown.innerHTML = filtered.map(item => `
-        <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectProduct(${item.id})">
-            <div class="font-medium">
-                ${(() => { const p=item.product||{}; let name=p.name||''; if(p.color) name+=' '+p.color; let m=''; if(p.measurement_unit==='sq ft'&&p.default_width&&p.default_height){m=`${p.default_width}×${p.default_height} sq ft`;} else if(p.default_length){const u=p.measurement_unit||((p.base_unit||'').replace('per ','')); m=`${p.default_length} ${u}`;} return m?`${name} (${m})`:name; })()}
+const productSearchInput = document.getElementById('productSearch');
+if (productSearchInput) {
+    productSearchInput.addEventListener('input', function() {
+        const query = this.value.trim().toLowerCase();
+        const dropdown = document.getElementById('productDropdown');
+        if (!query) { dropdown.classList.add('hidden'); return; }
+        const list = Array.isArray(inventory) ? inventory : [];
+        const filtered = list.filter(item => (item.product?.name||'').toLowerCase().includes(query) || (item.product?.sku||'').toLowerCase().includes(query));
+        dropdown.innerHTML = filtered.map(item => `
+            <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectProduct(${item.id})">
+                <div class="font-medium">
+                    ${(() => { const p=item.product||{}; let name=p.name||''; if(p.color) name+=' '+p.color; let m=''; if(p.measurement_unit==='sq ft'&&p.default_width&&p.default_height){m=`${p.default_width}×${p.default_height} sq ft`;} else if(p.default_length){const u=p.measurement_unit||((p.base_unit||'').replace('per ','')); m=`${p.default_length} ${u}`;} return m?`${name} (${m})`:name; })()}
+                </div>
+                <div class="text-sm text-gray-500">SKU: ${item.product?.sku||'No SKU'} | Available: ${item.available_stock}</div>
             </div>
-            <div class="text-sm text-gray-500">SKU: ${item.product?.sku||'No SKU'} | Available: ${item.available_stock}</div>
-        </div>
-    `).join('');
-    dropdown.classList.remove('hidden');
-});
+        `).join('');
+        dropdown.classList.remove('hidden');
+    });
+}
 
 window.selectProduct = function(id) {
     const item = inventory.find(i => i.id === id);
@@ -207,28 +349,31 @@ window.selectProduct = function(id) {
     }
 }
 
-document.getElementById('addUsageBtn').addEventListener('click', async function() {
-    if (!selectedProduct) { alert('Select a product'); return; }
-    const qty = parseFloat(document.getElementById('productQuantity').value);
-    if (!(qty>0)) { alert('Enter valid quantity'); return; }
-    if (qty > (parseFloat(selectedProduct.available_stock)||0)) { alert('Insufficient stock'); return; }
+const addUsageBtn = document.getElementById('addUsageBtn');
+if (addUsageBtn) {
+    addUsageBtn.addEventListener('click', async function() {
+        if (!selectedProduct) { alert('Select a product'); return; }
+        const qty = parseFloat(document.getElementById('productQuantity').value);
+        if (!(qty>0)) { alert('Enter valid quantity'); return; }
+        if (qty > (parseFloat(selectedProduct.available_stock)||0)) { alert('Insufficient stock'); return; }
 
-    const payload = {
-        items: [{
-            inventory_id: selectedProduct.id,
-            quantity_used: qty,
-            cut_length: document.getElementById('cutLength').value || null,
-            cut_width: document.getElementById('cutWidth').value || null,
-            cut_height: document.getElementById('cutHeight').value || null,
-        }]
-    };
+        const payload = {
+            items: [{
+                inventory_id: selectedProduct.id,
+                quantity_used: qty,
+                cut_length: document.getElementById('cutLength').value || null,
+                cut_width: document.getElementById('cutWidth').value || null,
+                cut_height: document.getElementById('cutHeight').value || null,
+            }]
+        };
 
-    const res = await fetch(`/api/installation-sales/${saleId}/add-usage`, {
-        method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json' }, body: JSON.stringify(payload)
+        const res = await fetch(`/api/installation-sales/${saleId}/add-usage`, {
+            method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json' }, body: JSON.stringify(payload)
+        });
+        if (!res.ok) { const err = await res.json(); alert(err.error||'Failed'); return; }
+        location.reload();
     });
-    if (!res.ok) { const err = await res.json(); alert(err.error||'Failed'); return; }
-    location.reload();
-});
+}
 
 document.addEventListener('click', async (e) => {
     if (e.target.closest('.remove-usage-btn')) {
@@ -241,6 +386,8 @@ document.addEventListener('click', async (e) => {
         const data = await res.json();
         if (!res.ok) { alert(data.error||'Failed'); return; }
         document.getElementById(`usage-${usageId}`)?.remove();
+        await loadInventory();
+        resetProductSelection();
     }
 });
 </script>
