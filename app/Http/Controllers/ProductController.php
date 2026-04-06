@@ -255,7 +255,7 @@ class ProductController extends Controller
                             \App\Models\Inventory::create([
                                 'product_id' => $product->id,
                                 'branch_id' => $branch->id,
-                                'available_stock' => null, // Set products don't have direct stock
+                                'available_stock' => 0, // Set products are derived; keep DB not-null safe
                                 'cost' => null, // Set products don't have direct cost
                                 'reorder_level' => 0, // Default reorder level
                             ]);

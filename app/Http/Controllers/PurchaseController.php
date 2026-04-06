@@ -296,6 +296,8 @@ class PurchaseController extends Controller
                 $inventory->update(['cost' => $costPrice]);
             }
         }
+
+        $this->syncSetProductsForComponent($productId, $branchId);
     }
 
     // Helper method to add stock to set components
@@ -380,6 +382,8 @@ class PurchaseController extends Controller
                     'new_total' => $componentInventory->fresh()->available_stock
                 ]);
             }
+
+            $this->syncSetProductsForComponent($componentProduct->id, $branchId);
         }
     }
 
@@ -415,6 +419,8 @@ class PurchaseController extends Controller
                 $inventory->decrement('available_stock', $quantity);
             }
         }
+
+        $this->syncSetProductsForComponent($productId, $branchId);
     }
 
     // Helper method to remove stock from set components
@@ -445,6 +451,39 @@ class PurchaseController extends Controller
                     $componentInventory->decrement('available_stock', $componentQuantity);
                 }
             }
+
+            $this->syncSetProductsForComponent($componentProduct->id, $branchId);
+        }
+    }
+
+    private function syncSetProductsForComponent($componentProductId, $branchId): void
+    {
+        $setProducts = Product::where('base_unit', 'per set')
+            ->whereHas('setComponents', function ($query) use ($componentProductId) {
+                $query->where('component_product_id', $componentProductId);
+            })
+            ->with(['setComponents.componentProduct'])
+            ->get();
+
+        foreach ($setProducts as $setProduct) {
+            $setInventory = Inventory::firstOrCreate(
+                [
+                    'product_id' => $setProduct->id,
+                    'branch_id' => $branchId,
+                ],
+                [
+                    'available_stock' => 0,
+                    'cost' => null,
+                    'price' => null,
+                    'wholesale_price' => null,
+                    'reorder_level' => 0,
+                ]
+            );
+
+            $setInventory->loadMissing(['product.setComponents.componentProduct']);
+            $setInventory->calculated_stock = $setInventory->calculateSetStock();
+            $setInventory->calculated_price = $setInventory->calculateSetPrice();
+            $setInventory->saveQuietly();
         }
     }
 } 

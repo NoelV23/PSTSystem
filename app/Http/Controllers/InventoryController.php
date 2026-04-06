@@ -254,7 +254,7 @@ class InventoryController extends Controller
 
         // For set products WITH components, stock and prices are derived; for set WITHOUT components, treat like regular
         if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
-            $validated['available_stock'] = null;
+            $validated['available_stock'] = 0;
             $validated['cost'] = null;
             $validated['price'] = null;
             $validated['wholesale_price'] = null;
@@ -294,7 +294,7 @@ class InventoryController extends Controller
         
         // For set products WITH components, stock and prices are derived; for set WITHOUT components, treat like regular
         if ($product->base_unit === 'per set' && $product->setComponents()->exists()) {
-            $validated['available_stock'] = null;
+            $validated['available_stock'] = 0;
             $validated['cost'] = null;
             $validated['price'] = null;
             $validated['wholesale_price'] = null;
