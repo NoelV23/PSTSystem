@@ -39,15 +39,15 @@
                 <x-sidebar />
             </div>
             {{-- Header + main + footer sit only to the right of the fixed sidebar (never over it) --}}
-            <div id="pst-main" class="ml-0 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out md:ml-16">
+            <div id="pst-main" class="ml-0 flex min-h-screen min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out md:ml-64">
                 <script>
                     (function () {
                         var el = document.getElementById('pst-main');
                         if (!el) return;
                         try {
-                            if (window.localStorage.getItem('pst-sidebar-open') === 'true' && window.matchMedia('(min-width: 768px)').matches) {
-                                el.classList.remove('md:ml-16');
-                                el.classList.add('md:ml-64');
+                            if (window.matchMedia('(min-width: 768px)').matches && window.localStorage.getItem('pst-sidebar-open') === 'false') {
+                                el.classList.remove('md:ml-64');
+                                el.classList.add('md:ml-16');
                             }
                         } catch (e) {}
                     })();
@@ -76,11 +76,18 @@
                 }));
             });
             document.addEventListener('DOMContentLoaded', function() {
-                var sidebarExpanded = false;
+                var sidebarExpanded = true;
                 try {
-                    sidebarExpanded = window.localStorage.getItem('pst-sidebar-open') === 'true';
+                    var stored = window.localStorage.getItem('pst-sidebar-open');
+                    if (stored === 'false') {
+                        sidebarExpanded = false;
+                    } else if (stored === 'true') {
+                        sidebarExpanded = true;
+                    } else {
+                        sidebarExpanded = window.matchMedia('(min-width: 768px)').matches;
+                    }
                 } catch (err) {
-                    sidebarExpanded = false;
+                    sidebarExpanded = window.matchMedia('(min-width: 768px)').matches;
                 }
                 function syncMainMargin() {
                     var main = document.getElementById('pst-main');
