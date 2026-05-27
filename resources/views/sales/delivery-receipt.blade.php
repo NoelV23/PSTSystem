@@ -5,261 +5,342 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Delivery Receipt - {{ $sale->id }}</title>
     <style>
+        * { box-sizing: border-box; }
         body {
-            font-family: Arial, sans-serif;
+            font-family: Arial, Helvetica, sans-serif;
             margin: 0;
             padding: 0;
-            background: white;
-        }
-        .page-wrapper {
-            display: flex;
-            flex-direction: row;
-            width: 100%;
-            height: 100%;
-        }
-        .left-half {
-            width: 50%;
-            padding: 10mm;
-            box-sizing: border-box;
-        }
-        .right-half {
-            width: 50%;
-            padding: 20mm;
-            box-sizing: border-box;
-        }
-        .receipt {
-            width: 100%;
-            background: white;
-            border: 1px solid #ccc;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        .header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
-        .company-info {
-            flex: 1;
-        }
-        .company-name {
-            font-size: 18px;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .company-address {
+            background: #fff;
+            color: #111;
             font-size: 12px;
-            color: #666;
         }
-        .ref-number {
-            font-size: 13px;
-            color: #333;
+        .sheet {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 10mm 12mm 12mm;
         }
-        .title {
+        .brand-top {
             text-align: center;
-            font-size: 20px;
-            font-weight: bold;
-            margin: 12px 0;
-            text-transform: uppercase;
+            margin-bottom: 6px;
         }
-        .delivery-info {
-            margin-bottom: 20px;
+        .brand-top img {
+            max-height: 52px;
+            width: auto;
         }
-        .delivery-row {
-            display: flex;
-            margin-bottom: 8px;
+        .company-line {
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
         }
-        .delivery-label {
-            font-weight: bold;
-            width: 100px;
-            font-size: 13px;
+        .accent-p { color: #c41e3a; }
+        .accent-t { color: #1a56a8; }
+        .slogan {
+            font-size: 11px;
+            margin-top: 2px;
+            font-style: italic;
         }
-        .delivery-value {
-            flex: 1;
-            font-size: 13px;
+        .doc-title-bar {
+            background: #1a56a8;
+            color: #fff;
+            text-align: center;
+            font-size: 15px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            padding: 8px 6px;
+            margin: 12px 0 10px;
         }
-        table {
+        .info-grid {
+            display: table;
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
-            font-size: 12px;
+            margin-bottom: 10px;
         }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 6px;
-            text-align: left;
+        .info-grid-row {
+            display: table-row;
         }
-        th {
-            background-color: #f5f5f5;
-            font-weight: bold;
+        .info-grid-cell {
+            display: table-cell;
+            vertical-align: top;
+            padding: 0;
         }
-        .total-row {
-            font-weight: bold;
-            text-align: right;
+        .info-left {
+            width: 58%;
+            padding-right: 8px;
         }
-        .signatures {
-            margin-top: 20px;
-            display: flex;
-            justify-content: space-between;
+        .kv {
+            display: table;
+            width: 100%;
+            border: 1px solid #000;
+            border-bottom: none;
         }
-        .signature-box {
+        .kv:last-of-type { border-bottom: 1px solid #000; }
+        .kv-row { display: table-row; }
+        .kv-label, .kv-val {
+            display: table-cell;
+            border-bottom: 1px solid #000;
+            padding: 5px 8px;
+            vertical-align: top;
+        }
+        .kv-row:last-child .kv-label,
+        .kv-row:last-child .kv-val { border-bottom: none; }
+        .kv-label {
+            font-weight: 700;
+            width: 118px;
+            border-right: 1px solid #000;
+            background: #fafafa;
+        }
+        .note-box-wrap {
+            border: 1px solid #000;
+            height: 100%;
+            min-height: 132px;
+        }
+        .note-label {
+            font-weight: 700;
+            padding: 5px 8px;
+            border-bottom: 1px solid #000;
+            background: #fafafa;
+        }
+        .note-body {
+            padding: 10px 8px;
             text-align: center;
-            width: 30%;
         }
-        .signature-line {
-            border-top: 1px solid #000;
-            margin-top: 20px;
-            padding-top: 5px;
-            font-size: 12px;
+        .note-banner {
+            font-size: 15px;
+            font-weight: 700;
+            color: #c00000;
+            letter-spacing: 0.5px;
         }
+        table.items {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 14px;
+        }
+        table.items th,
+        table.items td {
+            border: 1px solid #000;
+            padding: 5px 6px;
+            vertical-align: top;
+        }
+        table.items th {
+            background: #e8e8e8;
+            font-weight: 700;
+            text-align: center;
+            font-size: 11px;
+        }
+        table.items td:nth-child(1) { text-align: center; width: 36px; }
+        table.items td:nth-child(2) { text-align: center; width: 44px; }
+        table.items td:nth-child(3) { text-align: center; width: 52px; }
+        table.items td.desc { text-align: left; }
+        table.items td.color-col { text-align: left; width: 88px; font-weight: 600; }
+        .tone-green { color: #0d6e3b; }
+        .tone-brown { color: #5c3d1e; }
+        .tone-free { color: #c00000; }
+        tr.row-free td {
+            color: #c00000;
+            font-weight: 600;
+        }
+        .sign-grid {
+            display: table;
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 6px;
+        }
+        .sign-cell {
+            display: table-cell;
+            width: 25%;
+            border: 1px solid #000;
+            vertical-align: bottom;
+            padding: 8px 6px 10px;
+            text-align: center;
+            min-height: 72px;
+        }
+        .sign-title { font-weight: 700; font-size: 11px; margin-bottom: 28px; }
+        .sign-name { font-size: 11px; min-height: 32px; }
+        .sign-role { font-size: 10px; color: #333; margin-top: 2px; }
+        .sign-line { font-size: 10px; margin-top: 6px; border-top: 1px solid #000; padding-top: 4px; }
 
         @media print {
-            @page {
-                size: A4 landscape;
-                margin: 0;
-            }
-            body {
-                margin: 0;
-                padding: 0;
-            }
-            .page-wrapper {
-                width: 100%;
-                height: 100%;
-            }
-            .left-half {
-                width: 50%;
-                padding: 10mm;
-            }
-            .right-half {
-                width: 50%;
-            }
-            .receipt {
-                border: none;
-                width: 100%;
-                padding: 0;
-            }
+            @page { size: A4 portrait; margin: 10mm; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .sheet { padding: 0; max-width: none; }
         }
     </style>
 </head>
 <body>
-    <div class="page-wrapper">
-        <div class="left-half"></div>
-        <div class="right-half">
-            <div class="receipt">
-                <div class="header">
-                    <div class="company-info">
-                        <div class="company-name">{{ $sale->branch->name ?? 'PSTSystem' }}</div>
-                        <div class="company-address">{{ $sale->branch->location ?? 'National Highway Mabua, Tandag City' }}</div>
-                        <div class="company-address">TEL.No. {{ $sale->branch->phone ?? '09399277927' }}</div>
+@php
+    $receiptNote = ($sale->customer_pickup ?? false) ? 'PICK UP BY CLIENT' : 'DELIVERY TO CLIENT';
+    $soRef = $sale->reference_number ? trim($sale->reference_number) : 'INHOUSE';
+    $contact = trim((string) ($sale->delivery_contact_phone ?? ''));
+    $deliveryWhen = $sale->delivery_date ? date('F j, Y', strtotime($sale->delivery_date)) : '—';
+
+    $unitLabel = function ($product) {
+        $u = $product->base_unit ?? 'PCS';
+        $u = preg_replace('/^per\s+/i', '', $u);
+        return strtoupper(trim($u)) ?: 'PCS';
+    };
+
+    $colorToneClass = function (?string $color) {
+        $c = strtoupper(trim((string) $color));
+        if ($c === '') {
+            return '';
+        }
+        if (str_contains($c, 'FREE')) {
+            return 'tone-free';
+        }
+        if (str_contains($c, 'GREEN')) {
+            return 'tone-green';
+        }
+        if (str_contains($c, 'BROWN')) {
+            return 'tone-brown';
+        }
+        return '';
+    };
+
+    $describeLine = function ($item) {
+        $p = $item->product;
+        $name = $p->name ?? '';
+        $suffix = '';
+
+        if (! is_null($item->cut_length)) {
+            $cutUnit = $p->measurement_unit ?: 'm';
+            $suffix = ' @ ' . number_format((float) $item->cut_length, 2) . ($cutUnit ? ' ' . $cutUnit : '');
+        } elseif (($p->measurement_unit ?? '') === 'sq ft' && $p->default_width && $p->default_height) {
+            $suffix = ' ' . $p->default_width . '×' . $p->default_height . ' sq ft';
+        } elseif ($p->default_length) {
+            $unit = $p->measurement_unit ?: preg_replace('/^per\s+/i', '', $p->base_unit ?? '');
+            $suffix = ' @ ' . rtrim(rtrim(number_format((float) $p->default_length, 2), '0'), '.') . ($unit ? ' ' . $unit : '');
+        }
+
+        return trim($name . $suffix);
+    };
+
+    $itemsList = $sale->saleItems;
+    $minRows = 10;
+    $pad = max(0, $minRows - $itemsList->count());
+@endphp
+
+<div class="sheet">
+    <div class="brand-top">
+        <img src="{{ asset('images/PSTLogoDoc.png') }}" alt="Polytech Steel Trading">
+        <div class="company-line">
+            <span class="accent-p">P</span>OLYTECH STEEL <span class="accent-t">T</span>RADING
+        </div>
+        <div class="slogan">"We've got you COVERED"</div>
+    </div>
+
+    <div class="doc-title-bar">DELIVERY RECEIPT</div>
+
+    <div class="info-grid">
+        <div class="info-grid-row">
+            <div class="info-grid-cell info-left">
+                <div class="kv">
+                    <div class="kv-row">
+                        <div class="kv-label">Customer:</div>
+                        <div class="kv-val">{{ $sale->delivered_to ?? '—' }}</div>
                     </div>
-                    <div class="ref-number">
-                        REF: {{ str_pad($sale->id, 7, '0', STR_PAD_LEFT) }}
+                    <div class="kv-row">
+                        <div class="kv-label">Address:</div>
+                        <div class="kv-val">{{ $sale->delivery_address ?? '—' }}</div>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-label">Delivery Date:</div>
+                        <div class="kv-val">{{ $deliveryWhen }}</div>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-label">Contact Number:</div>
+                        <div class="kv-val">{{ $contact !== '' ? $contact : '—' }}</div>
+                    </div>
+                    <div class="kv-row">
+                        <div class="kv-label">SO:</div>
+                        <div class="kv-val">{{ $soRef }}</div>
                     </div>
                 </div>
-
-                <div class="title">DELIVERY RECEIPT</div>
-
-                <div class="delivery-info">
-                    <div class="delivery-row">
-                        <div class="delivery-label">DELIVERED TO:</div>
-                        <div class="delivery-value">{{ $sale->delivered_to ?? 'N/A' }}</div>
-                    </div>
-                    <div class="delivery-row">
-                        <div class="delivery-label">ADDRESS:</div>
-                        <div class="delivery-value">{{ $sale->delivery_address ?? 'N/A' }}</div>
-                    </div>
-                    <div class="delivery-row">
-                        <div class="delivery-label">DATE:</div>
-                        <div class="delivery-value">{{ date('F j, Y', strtotime($sale->delivery_date)) }}</div>
-                    </div>
-                    <div class="delivery-row">
-                        <div class="delivery-label">SALE DATE:</div>
-                        <div class="delivery-value">{{ date('F j, Y', strtotime($sale->created_at)) }}</div>
-                    </div>
-                    <div class="delivery-row">
-                        <div class="delivery-label">SOLD BY:</div>
-                        <div class="delivery-value">{{ $sale->user->name ?? 'N/A' }}</div>
-                    </div>
-                </div>
-
-                <table>
-                    <thead>
-                        <tr>
-                            <th>QTY</th>
-                            <th>UNIT</th>
-                            <th>DESCRIPTION</th>
-                            <th>UNIT PRICE</th>
-                            <th>PRICE</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($sale->saleItems as $item)
-                            <tr>
-                                <td>{{ $item->quantity }}</td>
-                                <td>{{ $item->product->base_unit }}</td>
-                                <td>
-                                    @php
-                                        $p = $item->product;
-                                        $measurementText = '';
-                                        if (($p->measurement_unit === 'sq ft') && $p->default_width && $p->default_height) {
-                                            $measurementText = $p->default_width . '×' . $p->default_height . ' sq ft';
-                                        } elseif ($p->default_length) {
-                                            $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
-                                            $measurementText = $p->default_length . ' ' . $unit;
-                                        }
-                                        $cutText = '';
-                                        if (!is_null($item->cut_length)) {
-                                            $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
-                                            $cutText = number_format($item->cut_length, 2) . ($unit ? ' ' . $unit : '');
-                                        } elseif (!is_null($item->cut_width) && !is_null($item->cut_height)) {
-                                            $unit = ($p->measurement_unit === 'sq ft') ? 'sq ft' : ($p->measurement_unit ?: '');
-                                            $cutText = number_format($item->cut_width, 2) . '×' . number_format($item->cut_height, 2) . ($unit ? ' ' . $unit : '');
-                                        }
-                                    @endphp
-                                    {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif @if($measurementText) ({{ $measurementText }})@endif
-                                    @if($cutText)
-                                        <br><span style="font-size: 11px; color: #666;">Cut: {{ $cutText }}</span>
-                                    @endif
-                                </td>
-                                <td>₱{{ number_format($item->unit_price, 2) }}</td>
-                                <td>₱{{ number_format($item->total_price, 2) }}</td>
-                            </tr>
-                        @endforeach
-                        @if(($sale->delivery_fee ?? 0) > 0)
-                            <tr>
-                                <td>1</td>
-                                <td>fee</td>
-                                <td>Delivery Fee</td>
-                                <td>₱{{ number_format($sale->delivery_fee, 2) }}</td>
-                                <td>₱{{ number_format($sale->delivery_fee, 2) }}</td>
-                            </tr>
+            </div>
+            <div class="info-grid-cell">
+                <div class="note-box-wrap">
+                    <div class="note-label">Note:</div>
+                    <div class="note-body">
+                        <div class="note-banner">{{ $receiptNote }}</div>
+                        @if(trim((string) ($sale->delivery_note ?? '')))
+                            <div style="margin-top:10px;font-size:11px;color:#222;text-align:left;white-space:pre-wrap;">{{ $sale->delivery_note }}</div>
                         @endif
-                        <tr class="total-row">
-                            <td colspan="4">TOTAL</td>
-                            <td>₱{{ number_format($sale->total_amount, 2) }}</td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="signatures">
-                    <div class="signature-box">
-                        <div class="signature-line">Prepared by</div>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-line">Approved by</div>
-                    </div>
-                    <div class="signature-box">
-                        <div class="signature-line">Checked by</div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        window.onload = function() {
-            window.print();
-        };
-    </script>
+    <table class="items">
+        <thead>
+            <tr>
+                <th>Item #</th>
+                <th>Qty</th>
+                <th>Unit</th>
+                <th>DESCRIPTION</th>
+                <th>Color</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach($itemsList as $idx => $item)
+            @php
+                $p = $item->product;
+                $isFree = (float) $item->unit_price <= 0 && (float) $item->total_price <= 0;
+                $colorRaw = $p->color ?? '';
+                $desc = $describeLine($item);
+                if ($isFree && $desc === '') {
+                    $desc = $p->name ?? '';
+                }
+            @endphp
+            <tr class="{{ $isFree ? 'row-free' : '' }}">
+                <td>{{ $idx + 1 }}</td>
+                <td>{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td>
+                <td>{{ $unitLabel($p) }}</td>
+                <td class="desc">{{ $desc }}</td>
+                <td class="color-col {{ $colorToneClass($colorRaw) }}">{{ $colorRaw !== '' ? $colorRaw : ($isFree ? 'FREE' : '—') }}</td>
+            </tr>
+        @endforeach
+        @for($i = 0; $i < $pad; $i++)
+            <tr>
+                <td>&nbsp;</td>
+                <td></td>
+                <td></td>
+                <td class="desc"></td>
+                <td class="color-col"></td>
+            </tr>
+        @endfor
+        </tbody>
+    </table>
+
+    <div class="sign-grid">
+        <div class="sign-cell">
+            <div class="sign-title">Prepared By:</div>
+            <div class="sign-name">Dhanril V. Bacasmot</div>
+            <div class="sign-role">Office Engineer</div>
+            <div class="sign-line">Name &amp; Signature</div>
+        </div>
+        <div class="sign-cell">
+            <div class="sign-title">Driver:</div>
+            <div class="sign-name">&nbsp;</div>
+            <div class="sign-line">Name &amp; Signature</div>
+        </div>
+        <div class="sign-cell">
+            <div class="sign-title">Helper:</div>
+            <div class="sign-name">&nbsp;</div>
+            <div class="sign-line">Name &amp; Signature</div>
+        </div>
+        <div class="sign-cell">
+            <div class="sign-title">Receive By:</div>
+            <div class="sign-name">&nbsp;</div>
+            <div class="sign-line">Name &amp; Signature</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.onload = function () {
+        window.print();
+    };
+</script>
 </body>
 </html>

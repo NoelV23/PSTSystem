@@ -20,12 +20,18 @@ class Sale extends Model
         'delivery_address',
         'delivery_date',
         'delivery_note',
+        'customer_pickup',
+        'delivery_contact_phone',
         'delivery_fee',
         'is_installation',
         'installation_address',
         'description',
         'status',
         'customer_name',
+    ];
+
+    protected $casts = [
+        'customer_pickup' => 'boolean',
     ];
 
     public function branch()

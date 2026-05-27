@@ -241,12 +241,29 @@
                     <input type="date" id="deliveryDate" name="delivery_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                 </div>
                 <div>
-                    <label for="deliveredTo" class="block text-sm font-medium text-gray-700 mb-1">Delivered To *</label>
-                    <input type="text" id="deliveredTo" name="delivered_to" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter recipient name">
+                    <span class="block text-sm font-medium text-gray-700 mb-2">Receipt type *</span>
+                    <div class="flex flex-col gap-2">
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                            <input type="radio" name="delivery_receipt_type" id="drTypeDelivery" value="delivery" class="text-blue-600" checked>
+                            Delivery to client
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-800">
+                            <input type="radio" name="delivery_receipt_type" id="drTypePickup" value="pickup" class="text-blue-600">
+                            Pick up by client
+                        </label>
+                    </div>
                 </div>
                 <div>
-                    <label for="deliveryAddress" class="block text-sm font-medium text-gray-700 mb-1">Delivery Address (Optional)</label>
-                    <textarea id="deliveryAddress" name="delivery_address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter delivery address..."></textarea>
+                    <label for="deliveredTo" class="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+                    <input type="text" id="deliveredTo" name="delivered_to" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Customer name">
+                </div>
+                <div>
+                    <label for="deliveryAddress" class="block text-sm font-medium text-gray-700 mb-1">Address (Optional)</label>
+                    <textarea id="deliveryAddress" name="delivery_address" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Delivery or pickup address"></textarea>
+                </div>
+                <div>
+                    <label for="deliveryContactPhone" class="block text-sm font-medium text-gray-700 mb-1">Contact number (Optional)</label>
+                    <input type="text" id="deliveryContactPhone" name="delivery_contact_phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="e.g. 0926-597-3537">
                 </div>
                 <div>
                     <label for="deliveryNote" class="block text-sm font-medium text-gray-700 mb-1">Delivery Note (Optional)</label>
@@ -319,9 +336,6 @@ const productDetailsSection = document.getElementById('productDetailsSection');
 const productPrice = document.getElementById('productPrice');
 const saleQuantity = document.getElementById('saleQuantity');
 const cutFields = document.getElementById('cutFields');
-const cutLength = document.getElementById('cutLength');
-const cutWidth = document.getElementById('cutWidth');
-const cutHeight = document.getElementById('cutHeight');
 const addSaleItemBtn = document.getElementById('addSaleItemBtn');
 const saleItemsTableBody = document.getElementById('saleItemsTableBody');
 const saleTotalAmount = document.getElementById('saleTotalAmount');
@@ -803,6 +817,23 @@ productSearch.addEventListener('input', function() {
     }).join('');
     productDropdown.classList.remove('hidden');
 });
+
+/** Measurement label for cut-size fields and line-item display (matches product setup). */
+function productCutMeasurementLabel(product) {
+    if (!product) return '';
+    const m = product.measurement_unit;
+    if (m === 'inch') return 'inches';
+    if (m && String(m).trim()) return String(m).trim();
+    return '';
+}
+
+/** One labeled cut input with unit in the label. */
+function cutSizeInputGroup(product, id, labelText, inputAttrsHtml) {
+    const u = productCutMeasurementLabel(product);
+    const unitHtml = u ? `<span class="text-gray-500 font-normal">(${u})</span>` : '';
+    return `<div class="flex flex-col gap-0.5 min-w-0"><label for="${id}" class="text-xs font-medium text-gray-600 whitespace-nowrap">${labelText}${unitHtml ? ' ' + unitHtml : ''}</label><input id="${id}" ${inputAttrsHtml}></div>`;
+}
+
 window.selectProduct = function(type, id) {
     let item;
     if (type === 'inventory') {
@@ -866,8 +897,9 @@ window.selectProduct = function(type, id) {
     
     productDetailsSection.classList.remove('hidden');
     
-    // Show measurement unit in meta
-    let unit = item.product.measurement_unit ? ` (${item.product.measurement_unit})` : '';
+    // Show measurement unit in meta (same rules as cut-size labels)
+    const muLabel = productCutMeasurementLabel(item.product);
+    let unit = muLabel ? ` (${muLabel})` : '';
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
     let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' && item.product.set_components_count > 0 ? (item.calculated_stock || 0) : item.available_stock);
     
@@ -898,7 +930,8 @@ window.selectProduct = function(type, id) {
     const wholesaleInfo = item.wholesale_price ? 
         ` &nbsp; | &nbsp; Wholesale: <span class='font-semibold'>₱${Number(item.wholesale_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>` : '';
     
-    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}`;
+    const dimUnitHtml = muLabel ? ` &nbsp; | &nbsp; <span class="text-gray-600">Dim. unit:</span> <span class="font-semibold">${muLabel}</span>` : '';
+    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}${dimUnitHtml}`;
     
     // Set default price from inventory if available, otherwise leave empty
     if (item.type === 'inventory') {
@@ -941,34 +974,34 @@ window.selectProduct = function(type, id) {
     const cutFieldsDiv = document.getElementById('cutFields');
     const cutFieldsInputs = document.getElementById('cutFieldsInputs');
     cutFieldsInputs.innerHTML = '';
-    
+    const maxTitleSuffix = muLabel ? ` ${muLabel}` : '';
+
     // Show cut fields for remainders or products with default dimensions (but not for sets)
     if ((isRemainder || hasLength || hasWidth || hasHeight) && !isSet) {
         cutFieldsDiv.classList.remove('hidden');
-        
+
         if (isRemainder) {
-            // For remainder items, show the available dimensions and allow cutting
             if (item.length_remaining) {
-                cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" max="${item.length_remaining}" step="0.01" class="w-24 px-2 py-1 border rounded" placeholder="Cut Length${unit}" title="Max: ${item.length_remaining}${unit}">`;
+                cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${cutSizeInputGroup(item.product, 'cutLength', 'Cut length', `type="number" min="0" max="${item.length_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max: ${item.length_remaining}${maxTitleSuffix}"`)}</div>`;
             } else if (item.width_remaining && item.height_remaining) {
-                cutFieldsInputs.innerHTML = `<input id="cutWidth" type="number" min="0" max="${item.width_remaining}" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Cut Width${unit}" title="Max: ${item.width_remaining}${unit}">`;
-                cutFieldsInputs.innerHTML += `<input id="cutHeight" type="number" min="0" max="${item.height_remaining}" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Cut Height${unit}" title="Max: ${item.height_remaining}${unit}">`;
+                cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${
+                    cutSizeInputGroup(item.product, 'cutWidth', 'Width', `type="number" min="0" max="${item.width_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max width: ${item.width_remaining}${maxTitleSuffix}"`)
+                }${
+                    cutSizeInputGroup(item.product, 'cutHeight', 'Height', `type="number" min="0" max="${item.height_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max height: ${item.height_remaining}${maxTitleSuffix}"`)
+                }</div>`;
             }
         } else {
-            // For regular inventory items, show default dimension fields
-        if (hasLength && !hasWidth && !hasHeight) {
-            cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-24 px-2 py-1 border rounded" placeholder="Length${unit}">`;
-        } else {
+            const parts = [];
+            if (hasLength) {
+                parts.push(cutSizeInputGroup(item.product, 'cutLength', 'Length', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
+            }
             if (hasWidth) {
-                cutFieldsInputs.innerHTML += `<input id="cutWidth" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Width${unit}">`;
+                parts.push(cutSizeInputGroup(item.product, 'cutWidth', 'Width', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
             }
             if (hasHeight) {
-                cutFieldsInputs.innerHTML += `<input id="cutHeight" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Height${unit}">`;
+                parts.push(cutSizeInputGroup(item.product, 'cutHeight', 'Height', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
             }
-            if (hasLength) {
-                cutFieldsInputs.innerHTML = `<input id="cutLength" type="number" min="0" step="0.01" class="w-20 px-2 py-1 border rounded" placeholder="Length${unit}">` + cutFieldsInputs.innerHTML;
-                }
-            }
+            cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${parts.join('')}</div>`;
         }
     } else {
         cutFieldsDiv.classList.add('hidden');
@@ -1057,6 +1090,7 @@ addSaleItemBtn.addEventListener('click', function(e) {
     }
     
     const totalPrice = unitPrice * qty;
+    const cutMeasurementLabel = productCutMeasurementLabel(selectedProduct.product);
     saleItems.push({
         inventoryId: selectedProduct.id,
         type: selectedProduct.type,
@@ -1064,6 +1098,7 @@ addSaleItemBtn.addEventListener('click', function(e) {
         sku: selectedProduct.product.sku,
         qty,
         cutSize,
+        cutMeasurementLabel,
         unitPrice,
         totalPrice,
         remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null,
@@ -1087,7 +1122,7 @@ function renderSaleItems() {
                 ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
             </td>
             <td class="px-4 py-2 text-sm">${item.qty}</td>
-            <td class="px-4 py-2 text-sm">${item.cutSize || '-'}</td>
+            <td class="px-4 py-2 text-sm">${item.cutSize ? `${item.cutSize}${item.cutMeasurementLabel ? ` <span class="text-gray-500">(${item.cutMeasurementLabel})</span>` : ''}` : '-'}</td>
             <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
             <td class="px-4 py-2 text-sm">₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
             <td class="px-4 py-2 text-sm"><button type="button" class="text-red-500 hover:underline" onclick="removeSaleItem(${idx})">Remove</button></td>
@@ -1114,8 +1149,9 @@ addSaleForm.addEventListener('submit', async function(e) {
     
     // Check if delivery is selected
     if (isDeliveredCheckbox.checked) {
-        // Set default delivery date to today
         deliveryDate.value = new Date().toISOString().slice(0, 10);
+        document.getElementById('drTypeDelivery').checked = true;
+        document.getElementById('drTypePickup').checked = false;
         deliveryDetailsModal.classList.remove('hidden');
         return;
     }
@@ -1208,7 +1244,9 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
                 delivery_date: delivery_data.delivery_date,
                 delivery_note: delivery_data.delivery_note,
                 delivery_address: delivery_data.delivery_address,
-                delivery_fee: delivery_data.delivery_fee
+                delivery_fee: delivery_data.delivery_fee,
+                customer_pickup: !!delivery_data.customer_pickup,
+                delivery_contact_phone: delivery_data.delivery_contact_phone
             })
         };
         
@@ -1334,6 +1372,26 @@ window.viewSaleDetails = async function(saleId) {
                                 <span class="font-medium">Payment Method:</span>
                                 <span>${sale.payment_method || '-'}</span>
                             </div>
+                            ${sale.is_delivered ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Receipt:</span>
+                                <span>${sale.customer_pickup ? 'Pick up by client' : 'Delivery to client'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Customer:</span>
+                                <span>${sale.delivered_to || '—'}</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="font-medium">Delivery date:</span>
+                                <span>${sale.delivery_date ? new Date(sale.delivery_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'}</span>
+                            </div>
+                            ${sale.delivery_contact_phone ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Contact:</span>
+                                <span>${sale.delivery_contact_phone}</span>
+                            </div>
+                            ` : ''}
+                            ` : ''}
                             ${sale.delivery_address ? `
                             <div class="flex justify-between">
                                 <span class="font-medium">Delivery Address:</span>
@@ -1416,12 +1474,20 @@ closeDeliveryDetailsModal.addEventListener('click', function() {
     deliveryDetailsModal.classList.add('hidden');
     isDeliveredCheckbox.checked = false;
     pendingDeliveryData = null;
+    document.getElementById('drTypeDelivery').checked = true;
+    document.getElementById('drTypePickup').checked = false;
+    const dcp = document.getElementById('deliveryContactPhone');
+    if (dcp) dcp.value = '';
 });
 
 cancelDeliveryBtn.addEventListener('click', function() {
     deliveryDetailsModal.classList.add('hidden');
     isDeliveredCheckbox.checked = false;
     pendingDeliveryData = null;
+    document.getElementById('drTypeDelivery').checked = true;
+    document.getElementById('drTypePickup').checked = false;
+    const dcp = document.getElementById('deliveryContactPhone');
+    if (dcp) dcp.value = '';
 });
 
 deliveryDetailsForm.addEventListener('submit', async function(e) {
@@ -1432,7 +1498,9 @@ deliveryDetailsForm.addEventListener('submit', async function(e) {
         delivered_to: deliveredTo.value,
         delivery_address: deliveryAddress.value,
         delivery_note: deliveryNote.value,
-        delivery_fee: deliveryFee.value ? Number(deliveryFee.value) : 0
+        delivery_fee: deliveryFee.value ? Number(deliveryFee.value) : 0,
+        customer_pickup: document.getElementById('drTypePickup').checked,
+        delivery_contact_phone: (document.getElementById('deliveryContactPhone')?.value || '').trim() || null
     };
     
     // Validate required fields

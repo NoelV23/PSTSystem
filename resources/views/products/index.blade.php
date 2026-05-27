@@ -144,6 +144,7 @@
                         <option value="per ft">Per ft</option>
                         <option value="per sq ft">Per sq ft</option>
                         <option value="per kg">Per kg</option>
+                        <option value="per liter">Per liter</option>
                         <option value="per roll">Per roll</option>
                         <option value="per set">Per set</option>
                     </select>
@@ -154,11 +155,16 @@
                     <label for="productMeasurementUnit" class="block text-sm font-medium text-gray-700 mb-1">Measurement Unit</label>
                     <select id="productMeasurementUnit" name="measurement_unit" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <option value="">None</option>
+                        <option value="mm">Millimeters (mm)</option>
+                        <option value="cm">Centimeters (cm)</option>
+                        <option value="m">Meters (m)</option>
                         <option value="ft">Feet (ft)</option>
+                        <option value="inches">Inches</option>
                         <option value="sq ft">Square Feet (sq ft)</option>
                         <option value="kg">Kilograms (kg)</option>
-                        <option value="m">Meters (m)</option>
-                        <option value="inch">Inches (in)</option>
+                        <option value="g">Grams (g)</option>
+                        <option value="liter">Liter (L)</option>
+                        <option value="ml">Milliliter (ml)</option>
                     </select>
                     <div id="measurement_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
@@ -569,8 +575,8 @@ function handleBaseUnitChange() {
     measurementUnitSection.classList.add('hidden');
     setComponentsSection.classList.add('hidden');
     
-    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet' || baseUnit === 'per roll') {
-        // Show measurement section for per pc, per length, per sheet, and per roll products
+    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet' || baseUnit === 'per roll' || baseUnit === 'per kg' || baseUnit === 'per liter') {
+        // Show measurement section for countable / dimensioned / weight / volume products
         measurementSection.classList.remove('hidden');
         measurementUnitSection.classList.remove('hidden');
         updateMeasurementLabels();
@@ -614,13 +620,27 @@ function updateMeasurementLabels() {
     }
     let unitLabel = measurementUnit;
     if (baseUnit === 'per kg') {
-        unitLabel = measurementUnit === 'kg' ? '(kg)' : '(g)';
+        if (measurementUnit === 'kg') unitLabel = '(kg)';
+        else if (measurementUnit === 'g') unitLabel = '(g)';
+        else if (measurementUnit) unitLabel = `(${measurementUnit})`;
+        else unitLabel = '(kg)';
     } else if (baseUnit === 'per liter') {
-        unitLabel = measurementUnit === 'liter' ? '(L)' : '(ml)';
+        if (measurementUnit === 'liter') unitLabel = '(L)';
+        else if (measurementUnit === 'ml') unitLabel = '(ml)';
+        else if (measurementUnit) unitLabel = `(${measurementUnit})`;
+        else unitLabel = '(L)';
     } else if (measurementUnit === 'sq ft') {
         unitLabel = '(sq ft)';
-    } else {
+    } else if (measurementUnit === 'inches' || measurementUnit === 'inch') {
+        unitLabel = '(inches)';
+    } else if (measurementUnit === 'liter') {
+        unitLabel = '(L)';
+    } else if (measurementUnit === 'ml') {
+        unitLabel = '(ml)';
+    } else if (measurementUnit) {
         unitLabel = `(${measurementUnit})`;
+    } else {
+        unitLabel = '(ft)';
     }
     document.getElementById('lengthUnit').textContent = unitLabel;
     document.getElementById('widthUnit').textContent = unitLabel;
@@ -755,7 +775,13 @@ function openEditModal(product) {
     document.getElementById('productCategory').value = product.category_id || '';
     document.getElementById('productBaseUnit').value = product.base_unit || '';
     document.getElementById('productColor').value = product.color || '';
-    document.getElementById('productMeasurementUnit').value = product.measurement_unit || 'ft';
+    {
+        let mu = product.measurement_unit || '';
+        if (mu === 'inch') {
+            mu = 'inches';
+        }
+        document.getElementById('productMeasurementUnit').value = mu;
+    }
     document.getElementById('productLength').value = product.default_length || '';
     document.getElementById('productWidth').value = product.default_width || '';
     document.getElementById('productHeight').value = product.default_height || '';

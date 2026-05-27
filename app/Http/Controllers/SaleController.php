@@ -226,6 +226,8 @@ class SaleController extends Controller
             'delivery_note' => 'nullable|string',
             'delivery_address' => 'nullable|string',
             'delivery_fee' => 'nullable|numeric|min:0',
+            'customer_pickup' => 'nullable|boolean',
+            'delivery_contact_phone' => 'nullable|string|max:64',
         ]);
         
         // Custom validation for inventory_id based on item_type
@@ -265,6 +267,8 @@ class SaleController extends Controller
                 'delivery_note' => $validated['delivery_note'] ?? null,
                 'delivery_address' => $validated['delivery_address'] ?? null,
                 'delivery_fee' => $validated['delivery_fee'] ?? 0,
+                'customer_pickup' => $validated['customer_pickup'] ?? false,
+                'delivery_contact_phone' => $validated['delivery_contact_phone'] ?? null,
             ]);
             
             // Only process items if this is not an installation sale or if items are provided
