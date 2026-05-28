@@ -15,6 +15,7 @@ class CutRemainder extends Model
         'length_remaining',
         'height_remaining',
         'width_remaining',
+        'cut_measurement_unit',
         'area_remaining',
         'location_note',
         'status',

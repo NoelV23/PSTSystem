@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
+use App\Support\MeasurementUnit;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 
@@ -209,6 +210,8 @@ class SaleController extends Controller
             'reference_number' => 'nullable|string|max:255',
             'is_installation' => 'nullable|boolean',
             'installation_address' => 'nullable|string',
+            'installer_name' => 'required_if:is_installation,true|nullable|string|max:255',
+            'installer_phone' => 'nullable|string|max:64',
             'description' => 'nullable|string',
             'status' => 'nullable|string',
             'items' => 'nullable|array',
@@ -219,6 +222,7 @@ class SaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
             'is_delivered' => 'nullable|boolean',
             'delivered_to' => 'nullable|string',
@@ -259,6 +263,8 @@ class SaleController extends Controller
                 'reference_number' => $validated['reference_number'] ?? null,
                 'is_installation' => $validated['is_installation'] ?? false,
                 'installation_address' => $validated['installation_address'] ?? null,
+                'installer_name' => ($validated['is_installation'] ?? false) ? ($validated['installer_name'] ?? null) : null,
+                'installer_phone' => ($validated['is_installation'] ?? false) ? ($validated['installer_phone'] ?? null) : null,
                 'description' => $validated['description'] ?? null,
                 'status' => $validated['status'] ?? 'completed',
                 'is_delivered' => $validated['is_delivered'] ?? false,
@@ -291,6 +297,7 @@ class SaleController extends Controller
                     'cut_length' => $item['cut_length'] ?? null,
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
+                    'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                     'total_price' => $item['total_price'],
                 ]);
                 
@@ -376,23 +383,36 @@ class SaleController extends Controller
     /**
      * Try to use available remainders for a sale
      */
+    private function filterRemaindersByCutUnit($remainders, $product, array $item)
+    {
+        $cutUnit = $this->resolveCutMeasurementUnit($product, $item);
+
+        return $remainders->filter(function ($remainder) use ($product, $cutUnit) {
+            return MeasurementUnit::normalize(MeasurementUnit::remainderUnit($remainder, $product))
+                === MeasurementUnit::normalize($cutUnit);
+        });
+    }
+
     private function useRemaindersForSale($product, $branchId, $quantity, $item)
     {
         $remaindersUsed = false;
-        
+
         // Check for length-based remainders
         if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length) {
             $cutLength = $item['cut_length'];
             $totalLengthNeeded = $cutLength * $quantity;
-            
-            // Find remainders with sufficient length
-            $availableRemainders = \App\Models\CutRemainder::where('product_id', $product->id)
-                ->where('branch_id', $branchId)
-                ->where('status', 'available')
-                ->whereNotNull('length_remaining')
-                ->where('length_remaining', '>=', $cutLength)
-                ->orderBy('length_remaining', 'desc')
-                ->get();
+
+            $availableRemainders = $this->filterRemaindersByCutUnit(
+                \App\Models\CutRemainder::where('product_id', $product->id)
+                    ->where('branch_id', $branchId)
+                    ->where('status', 'available')
+                    ->whereNotNull('length_remaining')
+                    ->where('length_remaining', '>=', $cutLength)
+                    ->orderBy('length_remaining', 'desc')
+                    ->get(),
+                $product,
+                $item
+            );
             
             $lengthUsed = 0;
             foreach ($availableRemainders as $remainder) {
@@ -423,16 +443,19 @@ class SaleController extends Controller
             $cutHeight = $item['cut_height'];
             $totalAreaNeeded = ($cutWidth * $cutHeight) * $quantity;
             
-            // Find remainders with sufficient area
-            $availableRemainders = \App\Models\CutRemainder::where('product_id', $product->id)
-                ->where('branch_id', $branchId)
-                ->where('status', 'available')
-                ->whereNotNull('width_remaining')
-                ->whereNotNull('height_remaining')
-                ->where('width_remaining', '>=', $cutWidth)
-                ->where('height_remaining', '>=', $cutHeight)
-                ->orderByRaw('(width_remaining * height_remaining) desc')
-                ->get();
+            $availableRemainders = $this->filterRemaindersByCutUnit(
+                \App\Models\CutRemainder::where('product_id', $product->id)
+                    ->where('branch_id', $branchId)
+                    ->where('status', 'available')
+                    ->whereNotNull('width_remaining')
+                    ->whereNotNull('height_remaining')
+                    ->where('width_remaining', '>=', $cutWidth)
+                    ->where('height_remaining', '>=', $cutHeight)
+                    ->orderByRaw('(width_remaining * height_remaining) desc')
+                    ->get(),
+                $product,
+                $item
+            );
             
             $areaUsed = 0;
             foreach ($availableRemainders as $remainder) {
@@ -474,6 +497,8 @@ class SaleController extends Controller
             'branch_id' => $remainder->branch_id,
             'location_note' => $item['location_note'] ?? $remainder->location_note,
             'status' => $item['status'] ?? 'available',
+            'cut_measurement_unit' => $remainder->cut_measurement_unit
+                ?? $this->resolveCutMeasurementUnit($product, $item),
         ];
         $consumedId = $remainder->id;
         $beforeJson = $remainder->toArray();
@@ -572,44 +597,67 @@ class SaleController extends Controller
     /**
      * Create new remainder if this is a new cut
      */
+    private function resolveCutMeasurementUnit($product, array $item): string
+    {
+        if (! empty($item['cut_measurement_unit'])) {
+            return (string) MeasurementUnit::normalize($item['cut_measurement_unit']);
+        }
+
+        $allowed = MeasurementUnit::allowedCutUnitsForProduct($product);
+
+        return $allowed[0] ?? MeasurementUnit::productLinearStorageUnit($product);
+    }
+
     private function createNewRemainderIfNeeded($product, $branchId, $item)
     {
+        $cutUnit = $this->resolveCutMeasurementUnit($product, $item);
+        $storageUnit = MeasurementUnit::productLinearStorageUnit($product);
+
         $remainderData = [
             'product_id' => $product->id,
             'branch_id' => $branchId,
             'location_note' => $item['location_note'] ?? null,
             'status' => $item['status'] ?? 'available',
+            'cut_measurement_unit' => $cutUnit,
         ];
-        
-        // Length remainder logic
-        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length && $item['cut_length'] < $product->default_length) {
-            $cutLength = $item['cut_length'];
-            $lengthRemaining = $product->default_length - $cutLength;
-            $remainderData['length_remaining'] = $lengthRemaining;
+
+        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length) {
+            $cutLength = (float) $item['cut_length'];
+            $defaultLength = MeasurementUnit::convertLinear(
+                (float) $product->default_length,
+                $storageUnit,
+                $cutUnit
+            );
+
+            if ($cutLength < $defaultLength) {
+                $remainderData['length_remaining'] = round($defaultLength - $cutLength, 2);
+            }
         }
-        
-        // Area (width/height) remainder logic
-        if ((isset($item['cut_width']) && $item['cut_width'] > 0) && 
-            (isset($item['cut_height']) && $item['cut_height'] > 0) && 
-            $product->default_width && $product->default_height && 
-            ($item['cut_width'] < $product->default_width || $item['cut_height'] < $product->default_height)) {
-            
-            $cutWidth = $item['cut_width'];
-            $cutHeight = $item['cut_height'];
-            $widthRemaining = $product->default_width - $cutWidth;
-            $heightRemaining = $product->default_height - $cutHeight;
-            $remainderData['width_remaining'] = $widthRemaining;
-            $remainderData['height_remaining'] = $heightRemaining;
+
+        if ((isset($item['cut_width']) && $item['cut_width'] > 0) &&
+            (isset($item['cut_height']) && $item['cut_height'] > 0) &&
+            $product->default_width && $product->default_height) {
+
+            $cutWidth = (float) $item['cut_width'];
+            $cutHeight = (float) $item['cut_height'];
+            $defaultWidth = MeasurementUnit::convertLinear((float) $product->default_width, $storageUnit, $cutUnit);
+            $defaultHeight = MeasurementUnit::convertLinear((float) $product->default_height, $storageUnit, $cutUnit);
+
+            if ($cutWidth < $defaultWidth || $cutHeight < $defaultHeight) {
+                $remainderData['width_remaining'] = round(max(0, $defaultWidth - $cutWidth), 2);
+                $remainderData['height_remaining'] = round(max(0, $defaultHeight - $cutHeight), 2);
+            }
         }
-        
-        // Only create remainder if we have remaining dimensions
+
         if (isset($remainderData['length_remaining']) || isset($remainderData['width_remaining'])) {
             if ($remainderData['status'] === 'discarded') {
                 $remainderData['discard_reason'] = $item['discard_reason'] ?? null;
                 $remainderData['discarded_at'] = now();
             }
+
             return \App\Models\CutRemainder::create($remainderData);
         }
+
         return null;
     }
 
@@ -650,6 +698,7 @@ class SaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
         ]);
         
@@ -712,6 +761,7 @@ class SaleController extends Controller
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
+                        'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                     ];
                     
                     // Add fulfillment_source only if column exists
@@ -746,6 +796,7 @@ class SaleController extends Controller
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
+                        'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                         'remainder_before_json' => isset($remTrack['remainder_before_json']) ? json_encode($remTrack['remainder_before_json']) : null,
                         'remainder_after_id' => $remTrack['remainder_after_id'] ?? null,
                     ];

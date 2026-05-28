@@ -19,6 +19,7 @@ class InstallationProductUsage extends Model
         'cut_length',
         'cut_width',
         'cut_height',
+        'cut_measurement_unit',
     ];
 
     protected $casts = [

@@ -8,11 +8,17 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Purchase Management</h2>
-                    <p class="mt-1 text-sm text-gray-600">Manage purchase orders and track inventory additions</p>
+                    <p class="mt-1 text-sm text-gray-600">Create draft POs for suppliers, print them, then record delivery and supplier invoice to add stock.</p>
                 </div>
-                <div class="mt-4 sm:mt-0">
-                    <button id="addPurchaseBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                        + New Purchase Order
+                <div class="mt-4 sm:mt-0 flex flex-wrap gap-2 justify-end">
+                    <button type="button" id="addDraftPoBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        + New PO (draft)
+                    </button>
+                    <button type="button" id="receivePurchaseBtn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                        Receive / record invoice
+                    </button>
+                    <button type="button" id="addQuickPurchaseBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                        Quick purchase
                     </button>
                 </div>
             </div>
@@ -43,9 +49,12 @@
         @else
         <!-- Auto-set branch for non-admin users -->
         <script>
-            window.currentUserBranchId = {{ auth()->user()->branch_id }};
+            window.currentUserBranchId = {{ auth()->user()->branch_id ? (int) auth()->user()->branch_id : 'null' }};
         </script>
         @endif
+        <script>
+            window.currentUserRole = @json(auth()->user()->role);
+        </script>
 
         <!-- Date Range Filters (visible to all roles) -->
         <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-6">
@@ -58,6 +67,14 @@
                     <div>
                         <label for="filterDateTo" class="block text-sm font-medium text-gray-700 mb-1">Date To</label>
                         <input type="date" id="filterDateTo" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                    </div>
+                    <div>
+                        <label for="statusFilter" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select id="statusFilter" class="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                            <option value="">All</option>
+                            <option value="draft">Draft PO</option>
+                            <option value="received">Received</option>
+                        </select>
                     </div>
                 </div>
                 <div class="text-sm text-gray-500">Changing dates will refresh the list</div>
@@ -86,9 +103,11 @@
                 <table class="w-full text-sm text-left text-gray-500">
                     <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                         <tr>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">PO #</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Order Date</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Receipt No.</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Supplier inv.</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Total Cost</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Note</th>
@@ -115,8 +134,8 @@
                 </svg>
                 <h3 class="text-lg font-medium text-gray-900 mb-2">No purchase orders found</h3>
                 <p class="text-gray-600 mb-6">Get started by creating your first purchase order for this branch.</p>
-                <button id="addFirstPurchaseBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
-                    Create Your First Purchase Order
+                <button type="button" id="addFirstPurchaseBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
+                    Create your first draft PO
                 </button>
             </div>
         </div>
@@ -140,6 +159,12 @@
                 <input type="hidden" id="selectedBranchId" name="branch_id">
                 
                 <!-- Purchase Order Details -->
+                <div class="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
+                    <label class="flex items-start gap-2 cursor-pointer text-sm text-gray-800">
+                        <input type="checkbox" id="isDraftPo" class="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                        <span><strong>Draft PO</strong> — save for printing and emailing the supplier. <span class="text-gray-600">No stock is added until you use “Receive / record invoice”.</span></span>
+                    </label>
+                </div>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label for="supplierName" class="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
@@ -152,9 +177,20 @@
                         <div id="order_dateError" class="text-red-500 text-sm mt-1 hidden"></div>
                     </div>
                     <div>
-                        <label for="purchaseReceiptNo" class="block text-sm font-medium text-gray-700 mb-1">Purchase Receipt No. *</label>
-                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter receipt number">
+                        <label for="purchaseReceiptNo" class="block text-sm font-medium text-gray-700 mb-1">Supplier invoice / DR no.</label>
+                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Required when adding stock (not for draft)">
                         <div id="purchase_receipt_noError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                    <div>
+                        <label for="shipTo" class="block text-sm font-medium text-gray-700 mb-1">Ship to / site (optional)</label>
+                        <textarea id="shipTo" name="ship_to" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Project site, delivery notes…"></textarea>
+                    </div>
+                    <div>
+                        <label for="paymentTerms" class="block text-sm font-medium text-gray-700 mb-1">Payment terms (optional)</label>
+                        <input type="text" id="paymentTerms" name="payment_terms" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="e.g. COD, 30 days">
                     </div>
                 </div>
                 
@@ -186,13 +222,20 @@
                         <button type="button" id="addItemBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">+ Add Item</button>
                     </div>
                     
+                    <div class="hidden sm:grid sm:grid-cols-12 gap-2 px-3 pb-1 text-xs font-medium text-gray-500 uppercase">
+                        <div class="sm:col-span-5">Product</div>
+                        <div class="sm:col-span-2">Qty</div>
+                        <div class="sm:col-span-2">Unit cost</div>
+                        <div class="sm:col-span-2 text-right">Line total</div>
+                        <div class="sm:col-span-1"></div>
+                    </div>
                     <div id="purchaseItemsList" class="space-y-3">
                         <!-- Purchase items will be added here -->
                     </div>
                     
                     <div class="mt-4 pt-4 border-t">
                         <div class="flex justify-between items-center">
-                            <span class="text-lg font-medium text-gray-900">Total Cost:</span>
+                            <span class="text-lg font-medium text-gray-900">PO total</span>
                             <span id="totalCost" class="text-2xl font-bold text-red-600">₱0.00</span>
                         </div>
                     </div>
@@ -203,6 +246,43 @@
                     <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Purchase Order</button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Receive draft PO → record invoice & stock -->
+<div id="receivePurchaseModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-12 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white mb-12">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Receive / record invoice</h3>
+            <button type="button" id="closeReceiveModal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">Select a <strong>draft</strong> PO, enter the supplier’s invoice or DR number, confirm quantities and costs, then save to add items to inventory.</p>
+        <div class="space-y-4">
+            <div>
+                <label for="receivePoSelect" class="block text-sm font-medium text-gray-700 mb-1">Draft PO *</label>
+                <select id="receivePoSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <option value="">— Load draft POs —</option>
+                </select>
+            </div>
+            <div id="receivePoSummary" class="hidden text-sm bg-gray-50 rounded p-3 border text-gray-700"></div>
+            <div>
+                <label for="receiveInvoiceNo" class="block text-sm font-medium text-gray-700 mb-1">Supplier invoice / DR no. *</label>
+                <input type="text" id="receiveInvoiceNo" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="From supplier’s sales invoice">
+            </div>
+            <div>
+                <label for="receiveNote" class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
+                <textarea id="receiveNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+            </div>
+            <div id="receiveItemsSection" class="hidden border rounded-lg p-3 bg-gray-50">
+                <h4 class="font-medium text-gray-900 mb-2">Line items</h4>
+                <div id="receiveItemsList" class="space-y-2"></div>
+                <div class="mt-3 text-right font-semibold text-gray-900">PO total: <span id="receiveTotalCost">₱0.00</span></div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button type="button" id="cancelReceiveBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg">Cancel</button>
+                <button type="button" id="submitReceiveBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50" disabled>Save &amp; add to stock</button>
+            </div>
         </div>
     </div>
 </div>
@@ -251,11 +331,37 @@ const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute
 let purchases = [];
 let products = [];
 let branches = [];
-let purchaseItems = [];
-let currentPurchaseId = null;
+let purchaseModalMode = 'quick'; // 'quick' | 'draft'
+let receiveLoadedPo = null;
+let receiveLineItems = [];
+let selectedBranchId = '';
 let isEditMode = false;
-let selectedBranchId = null;
-const currentUserRole = '{{ auth()->user()->role }}';
+let currentPurchaseId = null;
+let purchaseItems = [];
+
+function setSelectedBranch(branchId, options = {}) {
+    const { loadList = false } = options;
+    selectedBranchId = branchId ? String(branchId) : '';
+
+    const branchSelector = document.getElementById('branchSelector');
+    if (branchSelector && branchSelector.value !== selectedBranchId) {
+        branchSelector.value = selectedBranchId;
+    }
+
+    const selectedBranch = document.getElementById('selectedBranch');
+    if (selectedBranch && selectedBranch.tagName === 'SELECT' && selectedBranch.value !== selectedBranchId) {
+        selectedBranch.value = selectedBranchId;
+    }
+
+    const selectedBranchIdInput = document.getElementById('selectedBranchId');
+    if (selectedBranchIdInput) {
+        selectedBranchIdInput.value = selectedBranchId;
+    }
+
+    if (loadList && selectedBranchId) {
+        loadPurchases();
+    }
+}
 
 const loadingState = document.getElementById('loadingState');
 const errorState = document.getElementById('errorState');
@@ -273,8 +379,15 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function setupEventListeners() {
-    document.getElementById('addPurchaseBtn').addEventListener('click', openAddModal);
-    document.getElementById('addFirstPurchaseBtn').addEventListener('click', openAddModal);
+    const addDraft = document.getElementById('addDraftPoBtn');
+    if (addDraft) addDraft.addEventListener('click', () => openAddModal('draft'));
+    const addQuick = document.getElementById('addQuickPurchaseBtn');
+    if (addQuick) addQuick.addEventListener('click', () => openAddModal('quick'));
+    document.getElementById('addFirstPurchaseBtn').addEventListener('click', () => openAddModal('draft'));
+
+    const receiveBtn = document.getElementById('receivePurchaseBtn');
+    if (receiveBtn) receiveBtn.addEventListener('click', openReceiveModal);
+
     document.getElementById('closeModal').addEventListener('click', closeModal);
     document.getElementById('cancelBtn').addEventListener('click', closeModal);
     document.getElementById('purchaseForm').addEventListener('submit', handleFormSubmit);
@@ -283,37 +396,52 @@ function setupEventListeners() {
     document.getElementById('closeViewModal').addEventListener('click', closeViewModal);
     document.getElementById('closeViewBtn').addEventListener('click', closeViewModal);
     document.getElementById('addItemBtn').addEventListener('click', addPurchaseItem);
-    
-    // Branch selector
-    document.getElementById('branchSelector').addEventListener('change', function() {
-        selectedBranchId = this.value;
-        if (selectedBranchId) {
-            loadPurchases();
-        } else {
-            hidePurchasesTable();
-        }
-    });
-    
-    // Selected branch in modal (only for admin users)
-    const selectedBranchElement = document.getElementById('selectedBranch');
-    if (selectedBranchElement) {
-        selectedBranchElement.addEventListener('change', function() {
-            const branchId = this.value;
-            document.getElementById('selectedBranchId').value = branchId;
+
+    const isDraftEl = document.getElementById('isDraftPo');
+    if (isDraftEl) {
+        isDraftEl.addEventListener('change', () => {
+            if (!isEditMode) {
+                purchaseModalMode = isDraftEl.checked ? 'draft' : 'quick';
+                document.getElementById('modalTitle').textContent = purchaseModalMode === 'draft' ? 'New draft purchase order' : 'Quick purchase (add stock now)';
+                document.getElementById('submitBtn').textContent = purchaseModalMode === 'draft' ? 'Save draft PO' : 'Save & add to stock';
+            }
+            syncReceiptFieldRequirement();
+            if (purchaseItems.length) {
+                renderPurchaseItems();
+            }
         });
     }
-    
-    // Filter event listeners with pagination reset
+
+    const branchSelector = document.getElementById('branchSelector');
+    if (branchSelector) {
+        branchSelector.addEventListener('change', function() {
+            if (this.value) {
+                setSelectedBranch(this.value, { loadList: true });
+            } else {
+                setSelectedBranch('');
+                hidePurchasesTable();
+            }
+        });
+    }
+
+    const selectedBranchElement = document.getElementById('selectedBranch');
+    if (selectedBranchElement && selectedBranchElement.tagName === 'SELECT') {
+        selectedBranchElement.addEventListener('change', function() {
+            setSelectedBranch(this.value);
+        });
+    }
+
     const searchInput = document.getElementById('searchInput');
     const perPageFilter = document.getElementById('perPageFilter');
-    
+    const statusFilter = document.getElementById('statusFilter');
+
     if (searchInput) {
         searchInput.addEventListener('input', function() {
             document.getElementById('purchasesTable').dataset.currentPage = 1;
             loadPurchases();
         });
     }
-    
+
     if (perPageFilter) {
         perPageFilter.addEventListener('change', function() {
             document.getElementById('purchasesTable').dataset.currentPage = 1;
@@ -321,7 +449,13 @@ function setupEventListeners() {
         });
     }
 
-    // Date range filters
+    if (statusFilter) {
+        statusFilter.addEventListener('change', function() {
+            document.getElementById('purchasesTable').dataset.currentPage = 1;
+            loadPurchases();
+        });
+    }
+
     const dateFromInput = document.getElementById('filterDateFrom');
     const dateToInput = document.getElementById('filterDateTo');
     if (dateFromInput) {
@@ -335,6 +469,26 @@ function setupEventListeners() {
             document.getElementById('purchasesTable').dataset.currentPage = 1;
             loadPurchases();
         });
+    }
+
+    const closeReceive = document.getElementById('closeReceiveModal');
+    if (closeReceive) closeReceive.addEventListener('click', closeReceiveModal);
+    const cancelReceive = document.getElementById('cancelReceiveBtn');
+    if (cancelReceive) cancelReceive.addEventListener('click', closeReceiveModal);
+    const receiveSelect = document.getElementById('receivePoSelect');
+    if (receiveSelect) receiveSelect.addEventListener('change', onReceivePoSelected);
+    const submitReceive = document.getElementById('submitReceiveBtn');
+    if (submitReceive) submitReceive.addEventListener('click', submitReceivePurchase);
+}
+
+function syncReceiptFieldRequirement() {
+    const isDraft = document.getElementById('isDraftPo')?.checked;
+    const receipt = document.getElementById('purchaseReceiptNo');
+    if (!receipt) return;
+    if (isDraft) {
+        receipt.removeAttribute('required');
+    } else {
+        receipt.setAttribute('required', 'required');
     }
 }
 
@@ -355,34 +509,16 @@ async function loadBranches() {
         if (branchSelector) {
             branchSelector.innerHTML = '<option value="">Choose a branch...</option>' + options;
         }
-        if (selectedBranch) {
+        if (selectedBranch && selectedBranch.tagName === 'SELECT') {
             selectedBranch.innerHTML = '<option value="">Select branch...</option>' + options;
         }
         
-        // Auto-set branch for non-admin users
+        // Non-admin: use assigned branch from profile.
         if (window.currentUserBranchId) {
-            selectedBranchId = window.currentUserBranchId;
-            if (branchSelector) {
-                branchSelector.value = selectedBranchId;
-            }
-            // Load purchases immediately for non-admin users
-            loadPurchases();
-        }
-
-        // Admin: auto-select the only branch when exactly one active branch exists.
-        if (!window.currentUserBranchId && currentUserRole === 'admin' && branchOptionsSource.length === 1) {
-            selectedBranchId = String(branchOptionsSource[0].id);
-            if (branchSelector) {
-                branchSelector.value = selectedBranchId;
-            }
-            if (selectedBranch) {
-                selectedBranch.value = selectedBranchId;
-            }
-            const selectedBranchIdInput = document.getElementById('selectedBranchId');
-            if (selectedBranchIdInput) {
-                selectedBranchIdInput.value = selectedBranchId;
-            }
-            loadPurchases();
+            setSelectedBranch(window.currentUserBranchId, { loadList: true });
+        } else if (branchOptionsSource.length === 1) {
+            // Admin (or user without branch): auto-select when only one branch exists.
+            setSelectedBranch(branchOptionsSource[0].id, { loadList: true });
         }
     } catch (error) {
         console.error('Error loading branches:', error);
@@ -396,6 +532,18 @@ async function loadProducts() {
         products = await response.json();
     } catch (error) {
         console.error('Error loading products:', error);
+        products = [];
+    }
+}
+
+/** Full product catalog (includes SKUs with no inventory row yet — needed for draft POs). */
+async function ensureProductsLoaded() {
+    if (products.length > 0) {
+        return;
+    }
+    await loadProducts();
+    if (products.length === 0) {
+        showToast('Could not load products. Check your connection and try again.', 'error');
     }
 }
 
@@ -414,6 +562,8 @@ async function loadPurchases() {
         const searchTerm = searchInput ? searchInput.value : '';
         const dateFrom = dateFromInput ? dateFromInput.value : '';
         const dateTo = dateToInput ? dateToInput.value : '';
+        const statusFilter = document.getElementById('statusFilter');
+        const statusVal = statusFilter ? statusFilter.value : '';
 
         const params = new URLSearchParams({
             page: page,
@@ -422,6 +572,7 @@ async function loadPurchases() {
             date_from: dateFrom,
             date_to: dateTo,
         });
+        if (statusVal) params.set('status', statusVal);
 
         const response = await fetch(`/api/purchases/branch/${selectedBranchId}?${params.toString()}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load purchases');
@@ -452,20 +603,36 @@ function createPurchaseRow(purchase) {
     const itemCount = purchase.purchase_items ? purchase.purchase_items.length : 0;
     const formattedDate = new Date(purchase.order_date).toLocaleDateString();
     const formattedCost = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(purchase.total_cost);
-    
+    const st = purchase.status || 'received';
+    const badge = st === 'draft'
+        ? '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-900">Draft</span>'
+        : '<span class="inline-flex px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">Received</span>';
+    const poRef = escapeHtml(purchase.po_number || ('#' + purchase.id));
+    const printBtn = `<button type="button" onclick="printPo(${purchase.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">Print PO</button>`;
+    const receiveBtn = st === 'draft'
+        ? `<button type="button" onclick="openReceiveModal(${purchase.id})" class="text-emerald-600 hover:text-emerald-900 mr-2">Receive</button>`
+        : '';
+    const editBtn = st === 'draft'
+        ? `<button onclick="editPurchase(${purchase.id})" class="text-green-600 hover:text-green-900 mr-3">Edit</button>`
+        : '';
+
     return `
         <tr class="bg-white border-b hover:bg-gray-50">
+            <td class="px-6 py-4 text-sm font-mono text-gray-800">${poRef}</td>
+            <td class="px-6 py-4 text-sm">${badge}</td>
             <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">${escapeHtml(purchase.supplier_name)}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${formattedDate}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(purchase.purchase_receipt_no || '-')}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(purchase.purchase_receipt_no || '—')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${itemCount} items</td>
             <td class="px-6 py-4 text-sm font-medium text-gray-900">${formattedCost}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(purchase.note || '-')}</td>
-            <td class="px-6 py-4 text-right">
-                <button onclick="viewPurchase(${purchase.id})" class="text-blue-600 hover:text-blue-900 mr-3">View</button>
-                <button onclick="editPurchase(${purchase.id})" class="text-green-600 hover:text-green-900 mr-3">Edit</button>
+            <td class="px-6 py-4 text-right whitespace-nowrap">
+                <button onclick="viewPurchase(${purchase.id})" class="text-blue-600 hover:text-blue-900 mr-2">View</button>
+                ${printBtn}
+                ${receiveBtn}
+                ${editBtn}
                 @if(auth()->user()->role !== 'staff')
-                <button onclick="deletePurchase(${purchase.id})" class="text-red-600 hover:text-red-900">Delete</button>
+                <button onclick="deletePurchase(${purchase.id}, '${st}')" class="text-red-600 hover:text-red-900">Delete</button>
                 @endif
             </td>
         </tr>
@@ -517,25 +684,27 @@ function goToPage(page) {
     loadPurchases();
 }
 
-function openAddModal() {
+async function openAddModal(mode = 'quick') {
+    await ensureProductsLoaded();
     isEditMode = false;
     currentPurchaseId = null;
     purchaseItems = [];
-    document.getElementById('modalTitle').textContent = 'New Purchase Order';
-    document.getElementById('submitBtn').textContent = 'Save Purchase Order';
+    purchaseModalMode = mode === 'draft' ? 'draft' : 'quick';
+    document.getElementById('modalTitle').textContent = purchaseModalMode === 'draft' ? 'New draft purchase order' : 'Quick purchase (add stock now)';
+    document.getElementById('submitBtn').textContent = purchaseModalMode === 'draft' ? 'Save draft PO' : 'Save & add to stock';
     document.getElementById('purchaseForm').reset();
+    const isDraftEl = document.getElementById('isDraftPo');
+    if (isDraftEl) isDraftEl.checked = purchaseModalMode === 'draft';
+    syncReceiptFieldRequirement();
     clearFormErrors();
     purchaseModal.classList.remove('hidden');
-    
-    // Set default date to today
+
     document.getElementById('orderDate').value = new Date().toISOString().split('T')[0];
-    
-    // Set selected branch if available
+
     if (selectedBranchId) {
-        document.getElementById('selectedBranch').value = selectedBranchId;
-        document.getElementById('selectedBranchId').value = selectedBranchId;
+        setSelectedBranch(selectedBranchId);
     }
-    
+
     renderPurchaseItems();
     updateTotalCost();
 }
@@ -543,6 +712,8 @@ function openAddModal() {
 function closeModal() {
     purchaseModal.classList.add('hidden');
     clearFormErrors();
+    isEditMode = false;
+    currentPurchaseId = null;
 }
 
 function closeViewModal() {
@@ -551,19 +722,38 @@ function closeViewModal() {
 
 async function handleFormSubmit(e) {
     e.preventDefault();
-    
+
     if (purchaseItems.length === 0) {
         showToast('Please add at least one item to the purchase order.', 'error');
         return;
     }
-    
+
+    const isDraft = !!document.getElementById('isDraftPo')?.checked;
     const formData = new FormData(e.target);
+    const receipt = (formData.get('purchase_receipt_no') || '').trim();
+
+    if (!isDraft && !receipt) {
+        showToast('Supplier invoice / DR number is required when adding stock.', 'error');
+        return;
+    }
+
+    if (!isDraft) {
+        const badCost = purchaseItems.some(it => !it.product_id || Number(it.cost_price) <= 0);
+        if (badCost) {
+            showToast('Each line needs a product and cost price greater than 0 when recording stock.', 'error');
+            return;
+        }
+    }
+
     const purchaseData = {
         supplier_name: formData.get('supplier_name'),
         branch_id: document.getElementById('selectedBranchId').value,
         order_date: formData.get('order_date'),
-        purchase_receipt_no: formData.get('purchase_receipt_no'),
+        purchase_receipt_no: receipt || null,
         note: formData.get('note'),
+        ship_to: formData.get('ship_to') || null,
+        payment_terms: formData.get('payment_terms') || null,
+        is_draft: isDraft,
         items: purchaseItems.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
@@ -596,7 +786,8 @@ async function handleFormSubmit(e) {
         
         const result = await response.json();
         closeModal();
-        showToast(isEditMode ? 'Purchase order updated successfully!' : 'Purchase order created successfully!', 'success');
+        const wasDraft = !!document.getElementById('isDraftPo')?.checked;
+        showToast(isEditMode ? 'Draft PO updated.' : (wasDraft ? 'Draft PO saved. You can print it and send to the supplier.' : 'Purchase recorded and stock updated.'), 'success');
         loadPurchases();
         
     } catch (error) {
@@ -622,35 +813,39 @@ function removePurchaseItem(index) {
 
 function renderPurchaseItems() {
     const container = document.getElementById('purchaseItemsList');
-    
+
     if (purchaseItems.length === 0) {
         container.innerHTML = '<div class="text-gray-500 text-center py-4">No items added yet. Click "Add Item" to start.</div>';
         return;
     }
-    
+
+    const costMin = (isEditMode || purchaseModalMode === 'draft') ? '0' : '0.01';
+
+    const lineTotal = (item) => (Number(item.quantity) || 0) * (Number(item.cost_price) || 0);
+
     container.innerHTML = purchaseItems.map((item, index) => `
-        <div class="flex items-center space-x-3 p-3 bg-white rounded border">
-                            <div class="flex-1">
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                    <div class="relative">
-                        <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? getProductDisplayName(item.product_id) : ''}">
-                        <div class="item-product-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
-                    </div>
-                    <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-end p-3 bg-white rounded border">
+            <div class="sm:col-span-5">
+                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Product</label>
+                <div class="relative">
+                    <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? getProductDisplayName(item.product_id) : ''}">
+                    <div class="item-product-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
                 </div>
-            <div class="w-24">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
-                <input type="number" class="item-quantity w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.quantity}" min="1">
+                <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
             </div>
-            <div class="w-32">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Cost Price</label>
-                <input type="number" class="item-cost w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.cost_price}" min="0.01" step="0.01">
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Qty</label>
+                <input type="number" class="item-quantity w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.quantity}" min="1" step="1">
             </div>
-            <div class="w-24">
-                <label class="block text-sm font-medium text-gray-700 mb-1">Subtotal</label>
-                <div class="item-subtotal text-sm font-medium text-gray-900">₱${(item.quantity * item.cost_price).toFixed(2)}</div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Unit cost</label>
+                <input type="number" class="item-cost w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="0.00">
             </div>
-            <div class="pt-6">
+            <div class="sm:col-span-2 sm:text-right">
+                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Line total</label>
+                <div class="item-subtotal text-sm font-semibold text-gray-900" data-index="${index}">₱${lineTotal(item).toFixed(2)}</div>
+            </div>
+            <div class="sm:col-span-1 flex sm:justify-end pb-1">
                 <button type="button" onclick="removePurchaseItem(${index})" class="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
             </div>
         </div>
@@ -713,16 +908,177 @@ function renderPurchaseItems() {
 
 function updateItemSubtotal(index) {
     const item = purchaseItems[index];
-    const subtotal = item.quantity * item.cost_price;
+    const subtotal = item.quantity * (Number(item.cost_price) || 0);
     const subtotalElement = document.querySelector(`.item-subtotal[data-index="${index}"]`);
     if (subtotalElement) {
-                    subtotalElement.textContent = `₱${subtotal.toFixed(2)}`;
+        subtotalElement.textContent = `₱${subtotal.toFixed(2)}`;
     }
 }
 
 function updateTotalCost() {
-    const total = purchaseItems.reduce((sum, item) => sum + (item.quantity * item.cost_price), 0);
+    const total = purchaseItems.reduce((sum, item) => sum + (item.quantity * (Number(item.cost_price) || 0)), 0);
     document.getElementById('totalCost').textContent = `₱${total.toFixed(2)}`;
+}
+
+window.printPo = function(id) {
+    window.open(`/purchases/${id}/print-po`, '_blank');
+};
+
+async function openReceiveModal(preselectId = null) {
+    if (!selectedBranchId) {
+        showToast('Select a branch first.', 'error');
+        return;
+    }
+    receiveLoadedPo = null;
+    receiveLineItems = [];
+    document.getElementById('receiveInvoiceNo').value = '';
+    document.getElementById('receiveNote').value = '';
+    document.getElementById('receivePoSummary').classList.add('hidden');
+    document.getElementById('receiveItemsSection').classList.add('hidden');
+    document.getElementById('submitReceiveBtn').disabled = true;
+    const sel = document.getElementById('receivePoSelect');
+    sel.innerHTML = '<option value="">— Loading —</option>';
+    document.getElementById('receivePurchaseModal').classList.remove('hidden');
+
+    try {
+        const res = await fetch(`/api/purchases/branch/${selectedBranchId}?status=draft&per_page=200&date_from=2000-01-01`, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken } });
+        const data = await res.json();
+        const list = data.data || [];
+        sel.innerHTML = '<option value="">— Select draft PO —</option>' + list.map(p => `<option value="${p.id}">${escapeHtml(p.po_number || ('#' + p.id))} — ${escapeHtml(p.supplier_name)} (${new Date(p.order_date).toLocaleDateString()})</option>`).join('');
+        if (preselectId) {
+            sel.value = String(preselectId);
+            await onReceivePoSelected();
+        }
+    } catch (e) {
+        sel.innerHTML = '<option value="">Failed to load</option>';
+        showToast('Could not load draft POs', 'error');
+    }
+}
+
+function closeReceiveModal() {
+    document.getElementById('receivePurchaseModal').classList.add('hidden');
+}
+
+async function onReceivePoSelected() {
+    const id = document.getElementById('receivePoSelect').value;
+    receiveLoadedPo = null;
+    receiveLineItems = [];
+    document.getElementById('receivePoSummary').classList.add('hidden');
+    document.getElementById('receiveItemsSection').classList.add('hidden');
+    document.getElementById('submitReceiveBtn').disabled = true;
+    if (!id) return;
+
+    try {
+        const res = await fetch(`/api/purchases/${id}`, { headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken } });
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        if (p.status !== 'draft') {
+            showToast('This PO is not a draft.', 'error');
+            return;
+        }
+        receiveLoadedPo = p;
+        receiveLineItems = (p.purchase_items || []).map(it => ({
+            product_id: it.product_id,
+            product_name: it.product?.name || '',
+            sku: it.product?.sku || '',
+            quantity: Number(it.quantity),
+            cost_price: Number(it.cost_price) > 0 ? Number(it.cost_price) : ''
+        }));
+        document.getElementById('receivePoSummary').innerHTML = `
+            <strong>PO:</strong> ${escapeHtml(p.po_number || ('#' + p.id))}<br>
+            <strong>Supplier:</strong> ${escapeHtml(p.supplier_name)}<br>
+            <strong>Date:</strong> ${new Date(p.order_date).toLocaleDateString()}
+        `;
+        document.getElementById('receivePoSummary').classList.remove('hidden');
+        renderReceiveItems();
+        document.getElementById('receiveItemsSection').classList.remove('hidden');
+        document.getElementById('submitReceiveBtn').disabled = false;
+    } catch {
+        showToast('Failed to load PO', 'error');
+    }
+}
+
+function renderReceiveItems() {
+    const container = document.getElementById('receiveItemsList');
+    container.innerHTML = receiveLineItems.map((row, idx) => `
+        <div class="flex flex-wrap gap-2 items-end p-2 bg-white rounded border">
+            <div class="flex-1 min-w-[180px]">
+                <div class="text-xs text-gray-500">${escapeHtml(row.sku || 'SKU')}</div>
+                <div class="font-medium text-gray-900">${escapeHtml(row.product_name)}</div>
+            </div>
+            <div class="w-24">
+                <label class="text-xs text-gray-600">Qty</label>
+                <input type="number" class="recv-qty w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="1" step="1" value="${row.quantity}">
+            </div>
+            <div class="w-28">
+                <label class="text-xs text-gray-600">Unit cost *</label>
+                <input type="number" class="recv-cost w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="0.01" step="0.01" value="${row.cost_price}">
+            </div>
+            <div class="w-28 text-right">
+                <label class="text-xs text-gray-600">Line total</label>
+                <div class="recv-line-total text-sm font-semibold text-gray-900" data-idx="${idx}">₱${((Number(row.quantity) || 0) * (Number(row.cost_price) || 0)).toFixed(2)}</div>
+            </div>
+        </div>
+    `).join('');
+
+    container.querySelectorAll('.recv-qty, .recv-cost').forEach(inp => {
+        inp.addEventListener('input', () => {
+            const i = parseInt(inp.dataset.idx, 10);
+            if (inp.classList.contains('recv-qty')) receiveLineItems[i].quantity = parseFloat(inp.value) || 0;
+            else receiveLineItems[i].cost_price = inp.value === '' ? '' : parseFloat(inp.value);
+            updateReceiveTotal();
+        });
+    });
+    updateReceiveTotal();
+}
+
+function updateReceiveTotal() {
+    const t = receiveLineItems.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.cost_price) || 0), 0);
+    document.getElementById('receiveTotalCost').textContent = `₱${t.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    receiveLineItems.forEach((r, i) => {
+        const el = document.querySelector(`.recv-line-total[data-idx="${i}"]`);
+        if (el) {
+            const line = (Number(r.quantity) || 0) * (Number(r.cost_price) || 0);
+            el.textContent = `₱${line.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+    });
+}
+
+async function submitReceivePurchase() {
+    if (!receiveLoadedPo) return;
+    const inv = document.getElementById('receiveInvoiceNo').value.trim();
+    if (!inv) {
+        showToast('Enter supplier invoice / DR number.', 'error');
+        return;
+    }
+    const bad = receiveLineItems.some(r => !r.product_id || r.quantity <= 0 || !r.cost_price || Number(r.cost_price) <= 0);
+    if (bad) {
+        showToast('Each line needs quantity and unit cost greater than 0.', 'error');
+        return;
+    }
+    const body = {
+        purchase_receipt_no: inv,
+        note: document.getElementById('receiveNote').value.trim() || null,
+        items: receiveLineItems.map(r => ({
+            product_id: r.product_id,
+            quantity: r.quantity,
+            cost_price: Number(r.cost_price)
+        }))
+    };
+    try {
+        const res = await fetch(`/api/purchases/${receiveLoadedPo.id}/receive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Receive failed');
+        showToast('Stock updated from supplier delivery.', 'success');
+        closeReceiveModal();
+        loadPurchases();
+    } catch (e) {
+        showToast(e.message || 'Receive failed', 'error');
+    }
 }
 
 async function viewPurchase(id) {
@@ -731,16 +1087,25 @@ async function viewPurchase(id) {
         if (!response.ok) throw new Error('Failed to load purchase details');
         const purchase = await response.json();
         
-        document.getElementById('viewModalTitle').textContent = `Purchase Order #${purchase.id}`;
+        document.getElementById('viewModalTitle').textContent = `${purchase.po_number || ('PO #' + purchase.id)}`;
         
         const formattedDate = new Date(purchase.order_date).toLocaleDateString();
         const formattedCost = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(purchase.total_cost);
+        const st = purchase.status || 'received';
         
         document.getElementById('purchaseDetails').innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <h4 class="text-lg font-medium text-gray-900 mb-4">Order Information</h4>
                     <div class="space-y-3">
+                        <div>
+                            <span class="font-medium text-gray-700">Status:</span>
+                            <span class="ml-2 text-gray-600">${escapeHtml(st)}</span>
+                        </div>
+                        <div>
+                            <span class="font-medium text-gray-700">PO number:</span>
+                            <span class="ml-2 text-gray-600 font-mono">${escapeHtml(purchase.po_number || '—')}</span>
+                        </div>
                         <div>
                             <span class="font-medium text-gray-700">Supplier:</span>
                             <span class="ml-2 text-gray-600">${escapeHtml(purchase.supplier_name)}</span>
@@ -754,13 +1119,21 @@ async function viewPurchase(id) {
                             <span class="ml-2 text-gray-600">${formattedDate}</span>
                         </div>
                         <div>
-                            <span class="font-medium text-gray-700">Receipt No.:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.purchase_receipt_no || '-')}</span>
+                            <span class="font-medium text-gray-700">Supplier invoice / DR:</span>
+                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.purchase_receipt_no || '—')}</span>
                         </div>
                         <div>
                             <span class="font-medium text-gray-700">Total Cost:</span>
                             <span class="ml-2 text-gray-600 font-bold text-red-600">${formattedCost}</span>
                         </div>
+                        ${purchase.ship_to ? `<div>
+                            <span class="font-medium text-gray-700">Ship to / site:</span>
+                            <span class="ml-2 text-gray-600 whitespace-pre-wrap">${escapeHtml(purchase.ship_to)}</span>
+                        </div>` : ''}
+                        ${purchase.payment_terms ? `<div>
+                            <span class="font-medium text-gray-700">Payment terms:</span>
+                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.payment_terms)}</span>
+                        </div>` : ''}
                         ${purchase.note ? `<div>
                             <span class="font-medium text-gray-700">Note:</span>
                             <span class="ml-2 text-gray-600">${escapeHtml(purchase.note)}</span>
@@ -778,7 +1151,7 @@ async function viewPurchase(id) {
                                 </div>
                                 <div class="text-right">
                                     <div class="font-medium text-gray-900">${item.quantity} × ₱${parseFloat(item.cost_price).toFixed(2)}</div>
-                                    <div class="text-sm text-gray-600">₱${(item.quantity * item.cost_price).toFixed(2)}</div>
+                                    <div class="text-sm font-semibold text-gray-900">Line total: ₱${(item.quantity * item.cost_price).toFixed(2)}</div>
                                 </div>
                             </div>
                         `).join('')}
@@ -800,41 +1173,60 @@ async function editPurchase(id) {
         const response = await fetch(`/api/purchases/${id}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load purchase details');
         const purchase = await response.json();
-        
+
+        if (purchase.status !== 'draft') {
+            showToast('Only draft POs can be edited. Received orders are locked.', 'info');
+            return;
+        }
+
         isEditMode = true;
         currentPurchaseId = id;
-        
-        document.getElementById('modalTitle').textContent = 'Edit Purchase Order';
-        document.getElementById('submitBtn').textContent = 'Update Purchase Order';
-        
-        // Fill form fields
+        purchaseModalMode = 'draft';
+
+        document.getElementById('modalTitle').textContent = 'Edit draft PO';
+        document.getElementById('submitBtn').textContent = 'Update draft PO';
+
         document.getElementById('supplierName').value = purchase.supplier_name;
-        document.getElementById('orderDate').value = purchase.order_date;
+        document.getElementById('orderDate').value = (purchase.order_date || '').toString().split('T')[0];
         document.getElementById('purchaseReceiptNo').value = purchase.purchase_receipt_no || '';
         document.getElementById('purchaseNote').value = purchase.note || '';
-        document.getElementById('selectedBranch').value = purchase.branch_id;
-        document.getElementById('selectedBranchId').value = purchase.branch_id;
-        
-        // Load purchase items
+        const shipEl = document.getElementById('shipTo');
+        if (shipEl) shipEl.value = purchase.ship_to || '';
+        const payEl = document.getElementById('paymentTerms');
+        if (payEl) payEl.value = purchase.payment_terms || '';
+        const sb = document.getElementById('selectedBranch');
+        if (sb) sb.value = purchase.branch_id;
+        const sbid = document.getElementById('selectedBranchId');
+        if (sbid) sbid.value = purchase.branch_id;
+
+        const isDraftEl = document.getElementById('isDraftPo');
+        if (isDraftEl) isDraftEl.checked = true;
+        syncReceiptFieldRequirement();
+
+        await ensureProductsLoaded();
+
         purchaseItems = purchase.purchase_items.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
             cost_price: item.cost_price
         }));
-        
+
         renderPurchaseItems();
         updateTotalCost();
-        
+
         purchaseModal.classList.remove('hidden');
-        
+
     } catch (error) {
         console.error('Error loading purchase for edit:', error);
         showToast('Failed to load purchase details', 'error');
     }
 }
 
-async function deletePurchase(id) {
-    if (!confirm('Are you sure you want to delete this purchase order? This will also remove the inventory that was added from this purchase.')) {
+async function deletePurchase(id, status = 'received') {
+    const msg = status === 'draft'
+        ? 'Delete this draft PO? Nothing will be removed from inventory.'
+        : 'Delete this purchase and reverse inventory for all items?';
+    if (!confirm(msg)) {
         return;
     }
     
@@ -1005,11 +1397,5 @@ window.selectProduct = function(index, productId) {
     dropdown.classList.add('hidden');
 };
 
-// Load products when modal opens
-document.getElementById('addPurchaseBtn').addEventListener('click', function() {
-    if (products.length === 0) {
-        loadProducts();
-    }
-});
 </script>
 @endsection 

@@ -237,7 +237,7 @@
                 <div id="stockInputs" class="space-y-4">
                     <div id="availableStockSection">
                         <label for="availableStock" class="block text-sm font-medium text-gray-700 mb-1">Available Stock *</label>
-                        <input type="number" id="availableStock" value="0"name="available_stock" min="0" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                        <input type="number" id="availableStock" value="0" name="available_stock" min="0" step="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                         <div id="availableStockHelp" class="text-xs text-gray-500 mt-1">Enter initial stock level for this product</div>
                         <div id="availableStockEditHelp" class="text-xs text-gray-500 mt-1 hidden">Stock levels can only be modified through purchases or stock adjustments</div>
                         <div id="available_stockError" class="text-red-500 text-sm mt-1 hidden"></div>
@@ -261,7 +261,7 @@
                 
                 <div>
                     <label for="reorderLevel" class="block text-sm font-medium text-gray-700 mb-1">Reorder Level</label>
-                    <input type="number" id="reorderLevel" name="reorder_level" value="10" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                    <input type="number" id="reorderLevel" name="reorder_level" value="10" min="0" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="reorder_levelError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 
@@ -348,7 +348,7 @@
                 
                 <div>
                     <label for="adjustmentQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity *</label>
-                    <input type="number" id="adjustmentQuantity" name="quantity" min="0.01" step="0.01" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                    <input type="number" id="adjustmentQuantity" name="quantity" min="1" step="1" value="1" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                 </div>
                 
                 <div>
@@ -1635,15 +1635,19 @@ window.viewRemainders = async function(productId) {
             content.innerHTML = '<div class="text-gray-500">No remainders found.</div>';
         } else {
             const formatRemainderDimensions = (r) => {
+                const unit = (r.cut_measurement_unit && String(r.cut_measurement_unit).trim())
+                    ? String(r.cut_measurement_unit).trim()
+                    : '';
+                const suffix = unit ? ` ${unit}` : '';
                 const parts = [];
                 if (r.length_remaining !== null && r.length_remaining !== undefined && r.length_remaining !== '') {
-                    parts.push(`<span class="font-medium">Length:</span> ${r.length_remaining}`);
+                    parts.push(`<span class="font-medium">Length:</span> ${r.length_remaining}${suffix}`);
                 }
                 if (r.width_remaining !== null && r.width_remaining !== undefined && r.width_remaining !== '') {
-                    parts.push(`<span class="font-medium">Width:</span> ${r.width_remaining}`);
+                    parts.push(`<span class="font-medium">Width:</span> ${r.width_remaining}${suffix}`);
                 }
                 if (r.height_remaining !== null && r.height_remaining !== undefined && r.height_remaining !== '') {
-                    parts.push(`<span class="font-medium">Height:</span> ${r.height_remaining}`);
+                    parts.push(`<span class="font-medium">Height:</span> ${r.height_remaining}${suffix}`);
                 }
 
                 return parts.length ? parts.join(' | ') : '<span class="text-gray-500">No dimensions</span>';

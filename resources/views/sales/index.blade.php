@@ -134,23 +134,25 @@
                     <div class="mb-2">
                         <span id="productMeta" class="text-xs text-gray-500"></span>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                        <div>
-                            <x-input-label for="productPrice" value="Unit Price (₱)" />
-                            <input id="productPrice" type="number" class="w-full px-3 py-2 border rounded" min="0" step="0.01" placeholder="Enter price" />
-                        </div>
-                        <div>
-                            <x-input-label for="saleQuantity" value="Quantity" />
-                            <input id="saleQuantity" type="number" min="1" class="w-full px-3 py-2 border rounded" />
-                        </div>
-                        <div id="cutFields" class="hidden">
-                            <x-input-label value="Cut Size (if applicable)" />
-                            <div class="flex gap-2" id="cutFieldsInputs">
-                                <!-- JS will render cut fields here -->
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                            <div>
+                                <x-input-label for="productPrice" value="Unit Price (₱)" />
+                                <input id="productPrice" type="number" class="w-full px-3 py-2 border rounded" min="0" step="0.01" placeholder="Enter price" />
+                            </div>
+                            <div>
+                                <x-input-label for="saleQuantity" value="Quantity" />
+                                <input id="saleQuantity" type="number" min="1" step="1" class="w-full px-3 py-2 border rounded" />
+                            </div>
+                            <div class="sm:col-span-2 lg:col-span-1 flex items-end">
+                                <button type="button" id="addSaleItemBtn" class="w-full sm:w-auto px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition duration-200">Add to List</button>
                             </div>
                         </div>
-                        <div>
-                            <button type="button" id="addSaleItemBtn" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition duration-200">Add to List</button>
+                        <div id="cutFields" class="hidden rounded-lg border border-gray-200 bg-gray-50 p-4">
+                            <x-input-label value="Cut size (if applicable)" class="mb-2" />
+                            <div id="cutFieldsInputs" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+                                <!-- JS renders unit + dimension inputs here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -386,18 +388,15 @@ function formatCurrency(amount) {
 }
 function resetProductFields() {
     selectedProduct = null;
+    selectedCutMeasurementUnit = null;
     productDetailsSection.classList.add('hidden');
     if (document.getElementById('productMeta')) document.getElementById('productMeta').innerHTML = '';
     productPrice.value = '';
     saleQuantity.value = '';
-    productSearch.value = ''; // Clear the product search input
+    productSearch.value = '';
     cutFields.classList.add('hidden');
-    const cutLengthInput = document.getElementById('cutLength');
-    const cutWidthInput = document.getElementById('cutWidth');
-    const cutHeightInput = document.getElementById('cutHeight');
-    if (cutLengthInput) cutLengthInput.value = '';
-    if (cutWidthInput) cutWidthInput.value = '';
-    if (cutHeightInput) cutHeightInput.value = '';
+    const cutFieldsInputs = document.getElementById('cutFieldsInputs');
+    if (cutFieldsInputs) cutFieldsInputs.innerHTML = '';
 }
 function resetSaleForm() {
     saleItems = [];
@@ -444,25 +443,8 @@ function setCutRemainderActionsLoading(loading) {
 }
 
 // --- Branch Selector ---
-async function loadBranches() {
-    const res = await fetch('/api/branches');
-    branches = await res.json();
-    const activeBranches = branches.filter(b => b.status === 'active');
-    branchSelector.innerHTML = '<option value="">Select Branch</option>' +
-        activeBranches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
-
-    // Admin: auto-select the only branch when exactly one active branch exists.
-    if (currentUserRole === 'admin' && activeBranches.length === 1) {
-        branchSelector.value = String(activeBranches[0].id);
-        branchSelector.dispatchEvent(new Event('change'));
-    }
-}
-branchSelector.addEventListener('change', function() {
-    currentBranchId = this.value;
-    
-    // Enable/disable Add New Sale button based on branch selection
-    const addSaleBtn = document.getElementById('addSaleBtn');
-    const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
+function updateAddSaleButtonsForBranch() {
+    if (!addSaleBtn || !addInstallationSaleBtn) return;
     if (currentBranchId) {
         addSaleBtn.disabled = false;
         addSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
@@ -474,11 +456,54 @@ branchSelector.addEventListener('change', function() {
         addInstallationSaleBtn.disabled = true;
         addInstallationSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
     }
-    
-    loadSales();
-    loadInventory();
-    resetSaleForm();
-});
+}
+
+async function loadBranches() {
+    // /api/branches is admin-only; managers/staff already have currentBranchId from their profile.
+    if (currentUserRole !== 'admin' || !branchSelector) {
+        return;
+    }
+    let res;
+    try {
+        res = await fetch('/api/branches', {
+            headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        });
+    } catch (e) {
+        console.error(e);
+        return;
+    }
+    if (!res.ok) {
+        showToast('Could not load branches.', 'error');
+        return;
+    }
+    let data;
+    try {
+        data = await res.json();
+    } catch (e) {
+        return;
+    }
+    if (!Array.isArray(data)) {
+        return;
+    }
+    branches = data;
+    const activeBranches = branches.filter(b => b.status == null || b.status === 'active');
+    branchSelector.innerHTML = '<option value="">Select Branch</option>' +
+        activeBranches.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+
+    if (activeBranches.length === 1) {
+        branchSelector.value = String(activeBranches[0].id);
+        branchSelector.dispatchEvent(new Event('change'));
+    }
+}
+if (branchSelector) {
+    branchSelector.addEventListener('change', function() {
+        currentBranchId = this.value;
+        updateAddSaleButtonsForBranch();
+        loadSales();
+        loadInventory();
+        resetSaleForm();
+    });
+}
 
 // --- Tabs ---
 function switchTab(tab) {
@@ -818,20 +843,246 @@ productSearch.addEventListener('input', function() {
     productDropdown.classList.remove('hidden');
 });
 
-/** Measurement label for cut-size fields and line-item display (matches product setup). */
-function productCutMeasurementLabel(product) {
-    if (!product) return '';
-    const m = product.measurement_unit;
-    if (m === 'inch') return 'inches';
-    if (m && String(m).trim()) return String(m).trim();
-    return '';
+let selectedCutMeasurementUnit = null;
+
+function normalizeCutUnit(u) {
+    if (!u) return null;
+    const s = String(u).toLowerCase().trim();
+    if (s === 'inch' || s === 'inches' || s === 'in') return 'inches';
+    if (s === 'foot' || s === 'feet' || s === 'ft') return 'ft';
+    if (s === 'millimeter' || s === 'millimeters' || s === 'mm') return 'mm';
+    if (s === 'centimeter' || s === 'centimeters' || s === 'cm') return 'cm';
+    if (s === 'meter' || s === 'meters' || s === 'm') return 'm';
+    if (s === 'sq ft' || s === 'sqft') return 'sq ft';
+    return String(u).trim();
 }
 
-/** One labeled cut input with unit in the label. */
-function cutSizeInputGroup(product, id, labelText, inputAttrsHtml) {
-    const u = productCutMeasurementLabel(product);
-    const unitHtml = u ? `<span class="text-gray-500 font-normal">(${u})</span>` : '';
-    return `<div class="flex flex-col gap-0.5 min-w-0"><label for="${id}" class="text-xs font-medium text-gray-600 whitespace-nowrap">${labelText}${unitHtml ? ' ' + unitHtml : ''}</label><input id="${id}" ${inputAttrsHtml}></div>`;
+function linearToInches(value, from) {
+    const f = normalizeCutUnit(from);
+    if (f === 'inches') return value;
+    if (f === 'ft') return value * 12;
+    if (f === 'mm') return value / 25.4;
+    if (f === 'cm') return value / 2.54;
+    if (f === 'm') return value * 39.3700787;
+    return value;
+}
+
+function inchesToLinear(inches, to) {
+    const t = normalizeCutUnit(to);
+    if (t === 'inches') return inches;
+    if (t === 'ft') return inches / 12;
+    if (t === 'mm') return inches * 25.4;
+    if (t === 'cm') return inches * 2.54;
+    if (t === 'm') return inches / 39.3700787;
+    return inches;
+}
+
+function convertLinear(value, from, to) {
+    return inchesToLinear(linearToInches(Number(value), from), to);
+}
+
+function productLinearStorageUnit(product) {
+    const mu = normalizeCutUnit(product?.measurement_unit);
+    if (mu === 'sq ft') return 'ft';
+    if (mu && !['kg', 'g', 'liter', 'ml', 'pail', 'gallon'].includes(mu)) return mu;
+    return 'ft';
+}
+
+function allowedCutUnitsForProduct(product) {
+    const storage = productLinearStorageUnit(product);
+    const mu = normalizeCutUnit(product?.measurement_unit);
+    let units = [storage];
+    if (mu && mu !== storage && mu !== 'sq ft') units.push(mu);
+    if (mu === 'sq ft' || storage === 'ft') {
+        units.push('inches', 'ft');
+    } else if (storage === 'inches' || mu === 'inches') {
+        units.push('ft');
+    } else if (['mm', 'cm', 'm'].includes(storage)) {
+        units.push('inches', 'ft');
+    }
+    return [...new Set(units.map(normalizeCutUnit).filter(u => u && u !== 'sq ft'))];
+}
+
+function productCutMeasurementLabel(unit) {
+    const n = normalizeCutUnit(unit);
+    if (n === 'inches') return 'inches';
+    if (n === 'ft') return 'ft';
+    if (n === 'mm') return 'mm';
+    if (n === 'cm') return 'cm';
+    if (n === 'm') return 'm';
+    return unit ? String(unit).trim() : '';
+}
+
+function getActiveCutMeasurementUnit(product) {
+    const sel = document.getElementById('cutMeasurementUnit');
+    if (sel && sel.value) return sel.value;
+    return selectedCutMeasurementUnit || productLinearStorageUnit(product);
+}
+
+function productDimensionInCutUnit(product, dim, cutUnit) {
+    const storage = productLinearStorageUnit(product);
+    const key = dim === 'length' ? 'default_length' : (dim === 'width' ? 'default_width' : 'default_height');
+    const val = product[key];
+    if (val == null || val === '') return null;
+    return convertLinear(Number(val), storage, cutUnit);
+}
+
+function remainderDisplayUnit(item, product) {
+    if (item.cut_measurement_unit) return normalizeCutUnit(item.cut_measurement_unit);
+    return productLinearStorageUnit(product);
+}
+
+function roundDim(n) {
+    return Math.round(Number(n) * 100) / 100;
+}
+
+/** Full product dimensions converted into the active cut unit (for display + max validation). */
+function formatProductSizeInCutUnit(product, cutUnit) {
+    const storage = productLinearStorageUnit(product);
+    const label = productCutMeasurementLabel(cutUnit);
+    const storageLabel = productCutMeasurementLabel(storage);
+    const parts = [];
+
+    if (product.default_length) {
+        const v = convertLinear(Number(product.default_length), storage, cutUnit);
+        parts.push(`Length ${roundDim(v)} ${label}`);
+    }
+    if (product.default_width && product.default_height) {
+        const w = convertLinear(Number(product.default_width), storage, cutUnit);
+        const h = convertLinear(Number(product.default_height), storage, cutUnit);
+        parts.push(`${roundDim(w)} × ${roundDim(h)} ${label}`);
+    } else if (product.default_width) {
+        parts.push(`Width ${roundDim(convertLinear(Number(product.default_width), storage, cutUnit))} ${label}`);
+    } else if (product.default_height) {
+        parts.push(`Height ${roundDim(convertLinear(Number(product.default_height), storage, cutUnit))} ${label}`);
+    }
+
+    let catalogNote = '';
+    if (storage !== normalizeCutUnit(cutUnit) && (product.default_width || product.default_height || product.default_length)) {
+        const catParts = [];
+        if (product.default_length) catParts.push(`${product.default_length} L`);
+        if (product.default_width && product.default_height) {
+            catParts.push(`${product.default_width}×${product.default_height}`);
+        }
+        catalogNote = ` <span class="text-gray-500 font-normal">(stored as ${catParts.join(', ')} ${storageLabel})</span>`;
+    }
+
+    return { text: parts.join(' · '), catalogNote };
+}
+
+function refreshProductMetaCutInfo(item) {
+    const el = document.getElementById('productMetaCutInfo');
+    if (!el || !item) return;
+
+    const cutUnit = item.type === 'remainder'
+        ? remainderDisplayUnit(item, item.product)
+        : getActiveCutMeasurementUnit(item.product);
+    const cutLabel = productCutMeasurementLabel(cutUnit);
+
+    let html = ` &nbsp; | &nbsp; <span class="text-gray-600">Cut in:</span> <span class="font-semibold">${cutLabel}</span>`;
+
+    if (item.type === 'inventory') {
+        const fmt = formatProductSizeInCutUnit(item.product, cutUnit);
+        if (fmt.text) {
+            html += ` &nbsp; | &nbsp; <span class="text-gray-600">Full piece:</span> <span class="font-semibold">${fmt.text}</span>${fmt.catalogNote || ''}`;
+        }
+    }
+
+    el.innerHTML = html;
+}
+
+const cutFieldInputClass = 'w-full px-3 py-2 border border-gray-300 rounded text-sm';
+
+/** One labeled cut input; unit shown in label when provided. */
+function cutSizeInputGroup(product, id, labelText, inputAttrsHtml, unitOverride) {
+    const u = productCutMeasurementLabel(unitOverride || getActiveCutMeasurementUnit(product));
+    const unitHtml = u ? ` <span class="text-gray-500 font-normal">(${u})</span>` : '';
+    return `<div class="min-w-0">
+        <label for="${id}" class="block text-sm font-medium text-gray-700 mb-1">${labelText}${unitHtml}</label>
+        <input id="${id}" class="${cutFieldInputClass}" ${inputAttrsHtml}>
+    </div>`;
+}
+
+function renderCutFields(item) {
+    const cutFieldsDiv = document.getElementById('cutFields');
+    const cutFieldsInputs = document.getElementById('cutFieldsInputs');
+    const product = item.product;
+    const isRemainder = item.type === 'remainder';
+    const hasLength = !!product.default_length;
+    const hasWidth = !!product.default_width;
+    const hasHeight = !!product.default_height;
+    const isSet = product.base_unit === 'per set';
+
+    if (!((isRemainder || hasLength || hasWidth || hasHeight) && !isSet)) {
+        cutFieldsDiv.classList.add('hidden');
+        cutFieldsInputs.innerHTML = '';
+        return;
+    }
+
+    cutFieldsDiv.classList.remove('hidden');
+    const units = allowedCutUnitsForProduct(product);
+    if (isRemainder) {
+        selectedCutMeasurementUnit = remainderDisplayUnit(item, product);
+    } else if (!selectedCutMeasurementUnit || !units.includes(selectedCutMeasurementUnit)) {
+        selectedCutMeasurementUnit = (normalizeCutUnit(product.measurement_unit) === 'sq ft' && units.includes('inches'))
+            ? 'inches'
+            : (units[0] || 'ft');
+    }
+    const cutUnit = isRemainder ? remainderDisplayUnit(item, product) : getActiveCutMeasurementUnit(product);
+    const unitLabel = productCutMeasurementLabel(cutUnit);
+    const unitOptions = (isRemainder ? [cutUnit] : units).map(u =>
+        `<option value="${u}" ${u === cutUnit ? 'selected' : ''}>${productCutMeasurementLabel(u)}</option>`
+    ).join('');
+
+    let inputsHtml = '';
+    if (isRemainder) {
+        const remUnit = remainderDisplayUnit(item, product);
+        if (item.length_remaining) {
+            inputsHtml = cutSizeInputGroup(product, 'cutLength', 'Cut length', `type="number" min="0" max="${item.length_remaining}" step="0.01" title="Max: ${item.length_remaining} ${unitLabel}"`, remUnit);
+        } else if (item.width_remaining && item.height_remaining) {
+            inputsHtml = cutSizeInputGroup(product, 'cutWidth', 'Width', `type="number" min="0" max="${item.width_remaining}" step="0.01" title="Max width: ${item.width_remaining} ${unitLabel}"`, remUnit)
+                + cutSizeInputGroup(product, 'cutHeight', 'Height', `type="number" min="0" max="${item.height_remaining}" step="0.01" title="Max height: ${item.height_remaining} ${unitLabel}"`, remUnit);
+        }
+    } else {
+        const parts = [];
+        if (hasLength) {
+            const maxLen = productDimensionInCutUnit(product, 'length', cutUnit);
+            const maxAttr = maxLen != null ? ` max="${maxLen}" title="Max: ${maxLen} ${unitLabel}"` : '';
+            parts.push(cutSizeInputGroup(product, 'cutLength', 'Length', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
+        }
+        if (hasWidth) {
+            const maxW = productDimensionInCutUnit(product, 'width', cutUnit);
+            const maxAttr = maxW != null ? ` max="${maxW}" title="Max width: ${maxW} ${unitLabel}"` : '';
+            parts.push(cutSizeInputGroup(product, 'cutWidth', 'Width', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
+        }
+        if (hasHeight) {
+            const maxH = productDimensionInCutUnit(product, 'height', cutUnit);
+            const maxAttr = maxH != null ? ` max="${maxH}" title="Max height: ${maxH} ${unitLabel}"` : '';
+            parts.push(cutSizeInputGroup(product, 'cutHeight', 'Height', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
+        }
+        inputsHtml = parts.join('');
+    }
+
+    cutFieldsInputs.innerHTML = `
+        <div class="min-w-0">
+            <label for="cutMeasurementUnit" class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+            <select id="cutMeasurementUnit" class="${cutFieldInputClass} bg-white" ${isRemainder ? 'disabled' : ''}>${unitOptions}</select>
+        </div>
+        ${inputsHtml}
+    `;
+
+    const unitSel = document.getElementById('cutMeasurementUnit');
+    if (unitSel && !isRemainder) {
+        unitSel.addEventListener('change', function() {
+            selectedCutMeasurementUnit = this.value;
+            if (selectedProduct) {
+                renderCutFields(selectedProduct);
+                refreshProductMetaCutInfo(selectedProduct);
+            }
+        });
+    }
+
+    refreshProductMetaCutInfo(item);
 }
 
 window.selectProduct = function(type, id) {
@@ -897,9 +1148,6 @@ window.selectProduct = function(type, id) {
     
     productDetailsSection.classList.remove('hidden');
     
-    // Show measurement unit in meta (same rules as cut-size labels)
-    const muLabel = productCutMeasurementLabel(item.product);
-    let unit = muLabel ? ` (${muLabel})` : '';
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
     let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' && item.product.set_components_count > 0 ? (item.calculated_stock || 0) : item.available_stock);
     
@@ -914,11 +1162,12 @@ window.selectProduct = function(type, id) {
     // For remainder items, show the available dimensions
     let remainderInfo = '';
     if (item.type === 'remainder') {
-        // For remainder items, the item itself contains the remainder data
+        const remUnit = productCutMeasurementLabel(remainderDisplayUnit(item, item.product));
+        const remSuffix = remUnit ? ` ${remUnit}` : '';
         if (item.length_remaining) {
-            remainderInfo = `Available Length: ${item.length_remaining}${unit}`;
+            remainderInfo = `Available Length: ${item.length_remaining}${remSuffix}`;
         } else if (item.width_remaining && item.height_remaining) {
-            remainderInfo = `Available Size: ${item.width_remaining} x ${item.height_remaining}${unit}`;
+            remainderInfo = `Available Size: ${item.width_remaining} x ${item.height_remaining}${remSuffix}`;
         }
     }
     
@@ -930,8 +1179,7 @@ window.selectProduct = function(type, id) {
     const wholesaleInfo = item.wholesale_price ? 
         ` &nbsp; | &nbsp; Wholesale: <span class='font-semibold'>₱${Number(item.wholesale_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>` : '';
     
-    const dimUnitHtml = muLabel ? ` &nbsp; | &nbsp; <span class="text-gray-600">Dim. unit:</span> <span class="font-semibold">${muLabel}</span>` : '';
-    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}${dimUnitHtml}`;
+    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}<span id="productMetaCutInfo"></span>`;
     
     // Set default price from inventory if available, otherwise leave empty
     if (item.type === 'inventory') {
@@ -965,47 +1213,8 @@ window.selectProduct = function(type, id) {
         saleQuantity.title = '';
     }
     
-    // Show cut fields for remainder items or if product has default dimensions
-    const hasLength = !!item.product.default_length;
-    const hasWidth = !!item.product.default_width;
-    const hasHeight = !!item.product.default_height;
-    const isRemainder = item.type === 'remainder';
-    const isSet = item.product.base_unit === 'per set';
-    const cutFieldsDiv = document.getElementById('cutFields');
-    const cutFieldsInputs = document.getElementById('cutFieldsInputs');
-    cutFieldsInputs.innerHTML = '';
-    const maxTitleSuffix = muLabel ? ` ${muLabel}` : '';
-
-    // Show cut fields for remainders or products with default dimensions (but not for sets)
-    if ((isRemainder || hasLength || hasWidth || hasHeight) && !isSet) {
-        cutFieldsDiv.classList.remove('hidden');
-
-        if (isRemainder) {
-            if (item.length_remaining) {
-                cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${cutSizeInputGroup(item.product, 'cutLength', 'Cut length', `type="number" min="0" max="${item.length_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max: ${item.length_remaining}${maxTitleSuffix}"`)}</div>`;
-            } else if (item.width_remaining && item.height_remaining) {
-                cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${
-                    cutSizeInputGroup(item.product, 'cutWidth', 'Width', `type="number" min="0" max="${item.width_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max width: ${item.width_remaining}${maxTitleSuffix}"`)
-                }${
-                    cutSizeInputGroup(item.product, 'cutHeight', 'Height', `type="number" min="0" max="${item.height_remaining}" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded" title="Max height: ${item.height_remaining}${maxTitleSuffix}"`)
-                }</div>`;
-            }
-        } else {
-            const parts = [];
-            if (hasLength) {
-                parts.push(cutSizeInputGroup(item.product, 'cutLength', 'Length', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
-            }
-            if (hasWidth) {
-                parts.push(cutSizeInputGroup(item.product, 'cutWidth', 'Width', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
-            }
-            if (hasHeight) {
-                parts.push(cutSizeInputGroup(item.product, 'cutHeight', 'Height', `type="number" min="0" step="0.01" class="w-28 px-2 py-1 border border-gray-300 rounded"`));
-            }
-            cutFieldsInputs.innerHTML = `<div class="flex flex-wrap items-end gap-3">${parts.join('')}</div>`;
-        }
-    } else {
-        cutFieldsDiv.classList.add('hidden');
-    }
+    selectedCutMeasurementUnit = null;
+    renderCutFields(item);
 };
 
 // --- Add Sale Item ---
@@ -1049,30 +1258,41 @@ addSaleItemBtn.addEventListener('click', function(e) {
     // Validate cut input(s) based on item type
     if (selectedProduct.type === 'remainder') {
         // For remainder items, validate against available remainder dimensions
+        const remUnitLbl = productCutMeasurementLabel(remainderDisplayUnit(selectedProduct, selectedProduct.product));
         if (cutLengthInput && l > 0) {
             const maxLength = selectedProduct.length_remaining || 0;
             if (l > maxLength) {
-                return showToast(`Cut length cannot exceed available remainder length (${maxLength})`, 'error');
+                return showToast(`Cut length cannot exceed available remainder (${maxLength} ${remUnitLbl})`, 'error');
             }
         }
         if (cutWidthInput && w > 0) {
             const maxWidth = selectedProduct.width_remaining || 0;
             if (w > maxWidth) {
-                return showToast(`Cut width cannot exceed available remainder width (${maxWidth})`, 'error');
+                return showToast(`Cut width cannot exceed available remainder (${maxWidth} ${remUnitLbl})`, 'error');
             }
         }
         if (cutHeightInput && h > 0) {
             const maxHeight = selectedProduct.height_remaining || 0;
             if (h > maxHeight) {
-                return showToast(`Cut height cannot exceed available remainder height (${maxHeight})`, 'error');
+                return showToast(`Cut height cannot exceed available remainder (${maxHeight} ${remUnitLbl})`, 'error');
             }
         }
     } else {
-        // For inventory items, validate against product default dimensions
-    const def = selectedProduct.product;
-    if (cutLengthInput && l >= Number(def.default_length)) return showToast('Cut length must be less than product length', 'error');
-    if (cutWidthInput && w >= Number(def.default_width)) return showToast('Cut width must be less than product width', 'error');
-    if (cutHeightInput && h >= Number(def.default_height)) return showToast('Cut height must be less than product height', 'error');
+        const def = selectedProduct.product;
+        const cutUnit = getActiveCutMeasurementUnit(def);
+        const maxLen = productDimensionInCutUnit(def, 'length', cutUnit);
+        const maxW = productDimensionInCutUnit(def, 'width', cutUnit);
+        const maxH = productDimensionInCutUnit(def, 'height', cutUnit);
+        const unitLbl = productCutMeasurementLabel(cutUnit);
+        if (cutLengthInput && l > 0 && maxLen != null && l >= maxLen) {
+            return showToast(`Cut length must be less than product length (${maxLen} ${unitLbl})`, 'error');
+        }
+        if (cutWidthInput && w > 0 && maxW != null && w >= maxW) {
+            return showToast(`Cut width must be less than product width (${maxW} ${unitLbl})`, 'error');
+        }
+        if (cutHeightInput && h > 0 && maxH != null && h >= maxH) {
+            return showToast(`Cut height must be less than product height (${maxH} ${unitLbl})`, 'error');
+        }
     }
     
     if (cutFields && !cutFields.classList.contains('hidden')) {
@@ -1090,7 +1310,8 @@ addSaleItemBtn.addEventListener('click', function(e) {
     }
     
     const totalPrice = unitPrice * qty;
-    const cutMeasurementLabel = productCutMeasurementLabel(selectedProduct.product);
+    const cutMeasurementUnit = getActiveCutMeasurementUnit(selectedProduct.product);
+    const cutMeasurementLabel = productCutMeasurementLabel(cutMeasurementUnit);
     saleItems.push({
         inventoryId: selectedProduct.id,
         type: selectedProduct.type,
@@ -1098,6 +1319,7 @@ addSaleItemBtn.addEventListener('click', function(e) {
         sku: selectedProduct.product.sku,
         qty,
         cutSize,
+        cutMeasurementUnit,
         cutMeasurementLabel,
         unitPrice,
         totalPrice,
@@ -1218,6 +1440,9 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
                 obj.cut_length = cutParts[0];
                 obj.cut_width = cutParts[1];
                 obj.cut_height = cutParts[2];
+            }
+            if (item.cutMeasurementUnit) {
+                obj.cut_measurement_unit = item.cutMeasurementUnit;
             }
             if (idx === pendingCutRemainder) {
                 if (location_note) obj.location_note = location_note;
@@ -1398,6 +1623,30 @@ window.viewSaleDetails = async function(saleId) {
                                 <span class="text-right max-w-xs">${sale.delivery_address}</span>
                             </div>
                             ` : ''}
+                            ${sale.is_installation ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Installer:</span>
+                                <span class="text-right max-w-xs">${sale.installer_name || '—'}</span>
+                            </div>
+                            ${sale.installer_phone ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Installer phone:</span>
+                                <span>${sale.installer_phone}</span>
+                            </div>
+                            ` : ''}
+                            ${sale.installation_address ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Installation address:</span>
+                                <span class="text-right max-w-xs">${sale.installation_address}</span>
+                            </div>
+                            ` : ''}
+                            ${sale.description ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Description:</span>
+                                <span class="text-right max-w-xs">${sale.description}</span>
+                            </div>
+                            ` : ''}
+                            ` : ''}
                             <div class="flex justify-between">
                                 <span class="font-medium">Total Amount:</span>
                                 <span class="font-bold text-lg">₱${Number(sale.total_amount).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>
@@ -1436,7 +1685,7 @@ window.viewSaleDetails = async function(saleId) {
                                                 <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
                                                 ${item.cut_length || item.cut_width || item.cut_height ? `
                                                     <div class="text-sm text-gray-600">
-                                                        Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}
+                                                        Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}${item.cut_measurement_unit ? ` (${item.cut_measurement_unit})` : ''}
                                                     </div>
                                                 ` : ''}
                                             </div>
@@ -1584,6 +1833,11 @@ document.getElementById('addInstallationSaleForm').addEventListener('submit', as
     }
     
     const formData = new FormData(e.target);
+    const installerName = (formData.get('installer_name') || '').trim();
+    if (!installerName) {
+        showToast('Installer name is required', 'error');
+        return;
+    }
     const installationData = {
         branch_id: currentBranchId,
         user_id: document.getElementById('saleUserId').value,
@@ -1591,6 +1845,8 @@ document.getElementById('addInstallationSaleForm').addEventListener('submit', as
         payment_method: formData.get('payment_method'),
         reference_number: formData.get('reference_number'),
         installation_address: formData.get('installation_address'),
+        installer_name: installerName,
+        installer_phone: (formData.get('installer_phone') || '').trim() || null,
         description: formData.get('description'),
         is_installation: true,
         is_delivered: false, // Installation sales are not delivered initially
@@ -1652,6 +1908,103 @@ saleQuantity.addEventListener('input', function() {
     }
 });
 
+// --- Prefill Add Sale from sales quotation ---
+async function prefillSaleFromQuotation(q) {
+    if (!q || !q.branch_id) {
+        showToast('Invalid quotation.', 'error');
+        return;
+    }
+    const qBid = String(q.branch_id);
+
+    if (currentUserRole === 'admin') {
+        if (!branchSelector) {
+            showToast('Branch selector not available.', 'error');
+            return;
+        }
+        branchSelector.value = qBid;
+        currentBranchId = qBid;
+    } else {
+        if (String(currentUserBranchId || '') !== qBid) {
+            showToast('This quotation belongs to another branch.', 'error');
+            return;
+        }
+        currentBranchId = String(currentUserBranchId);
+    }
+
+    if (!currentBranchId) {
+        showToast('Select a branch first.', 'error');
+        return;
+    }
+
+    await loadInventory();
+    updateAddSaleButtonsForBranch();
+
+    switchTab('add');
+
+    if (typeof referenceNumberInput !== 'undefined' && referenceNumberInput && q.quotation_number) {
+        referenceNumberInput.value = q.quotation_number;
+    }
+    if (typeof noInvoiceCheckbox !== 'undefined' && noInvoiceCheckbox) {
+        noInvoiceCheckbox.checked = false;
+    }
+    if (typeof referenceNumberSection !== 'undefined' && referenceNumberSection) {
+        referenceNumberSection.classList.remove('hidden');
+    }
+
+    saleItems = [];
+    const skipped = [];
+
+    for (const it of (q.items || [])) {
+        if (!it.product_id) {
+            skipped.push(it.description || 'Custom line');
+            continue;
+        }
+        const inv = inventory.find(i =>
+            String(i.product_id) === String(it.product_id) ||
+            String(i.product?.id) === String(it.product_id)
+        );
+        if (!inv) {
+            skipped.push(it.description || ('Product #' + it.product_id));
+            continue;
+        }
+
+        const qty = Number(it.quantity) || 1;
+        const unitPrice = Number(it.unit_price) || 0;
+        let availableStock = Number(inv.available_stock ?? 0);
+        if (inv.product?.base_unit === 'per set' && inv.product?.set_components_count > 0) {
+            availableStock = Number(inv.calculated_stock ?? 0);
+        }
+        if (qty > availableStock) {
+            skipped.push((it.description || inv.product?.name) + ' (needs stock: ' + availableStock + ')');
+            continue;
+        }
+
+        saleItems.push({
+            inventoryId: inv.id,
+            type: 'inventory',
+            productName: inv.product?.name || it.description,
+            sku: inv.product?.sku || '',
+            qty,
+            cutSize: '',
+            cutMeasurementUnit: null,
+            cutMeasurementLabel: '',
+            unitPrice,
+            totalPrice: qty * unitPrice,
+            remainderData: null,
+            isSet: inv.product?.base_unit === 'per set',
+        });
+    }
+
+    renderSaleItems();
+
+    const customerLabel = [q.customer_name, q.customer_company].filter(Boolean).join(' — ');
+    let msg = 'Opened Add Sale from quotation';
+    if (customerLabel) msg += ' (' + customerLabel + ')';
+    if (saleItems.length) msg += '. ' + saleItems.length + ' product(s) added.';
+    if (skipped.length) msg += ' ' + skipped.length + ' line(s) skipped — add manually.';
+    showToast(msg, saleItems.length ? 'success' : 'error');
+}
+
 // --- Print Delivery Receipt ---
 window.printDeliveryReceipt = function(saleId) {
     const printWindow = window.open(`/sales/${saleId}/delivery-receipt`, '_blank');
@@ -1661,8 +2014,8 @@ window.printDeliveryReceipt = function(saleId) {
 };
 
 // --- On Page Load ---
-document.addEventListener('DOMContentLoaded', function() {
-    loadBranches();
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadBranches();
     switchTab('today');
     resetSaleForm();
     // Initialize date filters to today
@@ -1677,23 +2030,29 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentUserRole === 'staff' && salesDateFilters) {
         salesDateFilters.style.display = 'none';
     }
-    
-    // Initialize Add New Sale button as disabled
-    const addSaleBtn = document.getElementById('addSaleBtn');
-    const addInstallationSaleBtn = document.getElementById('addInstallationSaleBtn');
-    addSaleBtn.disabled = true;
-    addSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    addInstallationSaleBtn.disabled = true;
-    addInstallationSaleBtn.classList.add('opacity-50', 'cursor-not-allowed');
-    
-    // Enable Add New Sale button for managers and staff since they have a branch set
-    if (currentUserRole === 'manager' || currentUserRole === 'staff') {
-        addSaleBtn.disabled = false;
-        addSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        addInstallationSaleBtn.disabled = false;
-        addInstallationSaleBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-        // Load sales for the user's branch
+
+    updateAddSaleButtonsForBranch();
+    // Managers/staff never open the branch dropdown; load sales once their branch_id is set above.
+    if ((currentUserRole === 'manager' || currentUserRole === 'staff') && currentBranchId) {
         loadSales();
+    }
+
+    const _qParam = new URLSearchParams(window.location.search).get('quotation');
+    if (_qParam) {
+        fetch('/api/sales-quotations/' + encodeURIComponent(_qParam), {
+            headers: { 'Accept': 'application/json' },
+        }).then(r => r.json().then(q => ({ ok: r.ok, q })).catch(() => ({ ok: false, q: null })))
+        .then(async ({ ok, q }) => {
+            if (!ok || !q || q.error) {
+                showToast('Could not load quotation for prefill.', 'error');
+                return;
+            }
+            if (q.status === 'rejected') {
+                showToast('This quotation was rejected and cannot be used for a sale.', 'error');
+                return;
+            }
+            await prefillSaleFromQuotation(q);
+        }).catch(() => showToast('Could not load quotation.', 'error'));
     }
 });
 </script>

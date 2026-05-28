@@ -17,6 +17,7 @@ class SaleItem extends Model
         'cut_length',
         'cut_width',
         'cut_height',
+        'cut_measurement_unit',
         'total_price',
         'fulfillment_source',
         'created_remainder_id',

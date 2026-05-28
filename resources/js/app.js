@@ -27,8 +27,25 @@ Alpine.data('pstSidebar', () => {
 
     return {
         open: initialOpen,
+        salesGroupOpen: true,
+        purchasesGroupOpen: false,
 
         init() {
+            try {
+                const path = window.location.pathname || '';
+                if (
+                    path.startsWith('/sales-quotations') ||
+                    path === '/sales' ||
+                    path.startsWith('/sales/')
+                ) {
+                    this.salesGroupOpen = true;
+                }
+                if (path.startsWith('/purchases')) {
+                    this.purchasesGroupOpen = true;
+                }
+            } catch (e) {
+                /* ignore */
+            }
             this.$nextTick(() => {
                 window.dispatchEvent(
                     new CustomEvent('sidebar-toggled', { detail: this.open }),

@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
-use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Models\Product;
 use App\Models\Category;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
@@ -19,25 +19,25 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         $categories = Category::pluck('id')->toArray();
-        $baseUnits = ['per pc', 'per ft', 'per sq ft', 'per set', 'per kg', 'per liter'];
+        $baseUnits = ['per pc', 'per ft', 'per sq ft', 'per set', 'per kg', 'per liter', 'per pail', 'per gallon'];
         $colors = ['Clear', 'Tinted', 'Bronze', 'Gray', 'Green', 'Blue', 'White', 'Black', 'Silver', 'Gold'];
         $productTypes = [
             'Glass' => [
-                'Clear Glass Panel', 'Tinted Glass Panel', 'Tempered Glass', 'Laminated Glass', 
+                'Clear Glass Panel', 'Tinted Glass Panel', 'Tempered Glass', 'Laminated Glass',
                 'Insulated Glass Unit', 'Mirror Glass', 'Frosted Glass', 'Stained Glass',
                 'Safety Glass', 'Decorative Glass', 'Glass Door', 'Glass Window',
-                'Glass Partition', 'Glass Railing', 'Glass Table Top'
+                'Glass Partition', 'Glass Railing', 'Glass Table Top',
             ],
             'Aluminum' => [
                 'Aluminum Frame', 'Aluminum Door', 'Aluminum Window', 'Aluminum Railing',
                 'Aluminum Partition', 'Aluminum Cladding', 'Aluminum Profile',
                 'Aluminum Handrail', 'Aluminum Gate', 'Aluminum Fence',
-                'Aluminum Trim', 'Aluminum Molding', 'Aluminum Sheet'
+                'Aluminum Trim', 'Aluminum Molding', 'Aluminum Sheet',
             ],
             'Set' => [
                 'Complete Window Set', 'Door and Frame Set', 'Glass and Frame Set',
-                'Railing System Set', 'Partition System Set', 'Cladding System Set'
-            ]
+                'Railing System Set', 'Partition System Set', 'Cladding System Set',
+            ],
         ];
 
         // Randomly select a category

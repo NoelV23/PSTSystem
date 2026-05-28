@@ -62,19 +62,19 @@ class Inventory extends Model
         }
 
         $maxSets = PHP_INT_MAX;
-        
+
         foreach ($setComponents as $component) {
             $componentInventory = Inventory::where('product_id', $component->component_product_id)
                 ->where('branch_id', $this->branch_id)
                 ->first();
 
-            if (!$componentInventory) {
+            if (! $componentInventory) {
                 return 0; // Component not in inventory
             }
 
             // Calculate available quantity of this component
             $availableQuantity = 0;
-            if ($component->componentProduct->base_unit === 'per pc' || $component->componentProduct->base_unit === 'per length') {
+            if ($component->componentProduct->base_unit === 'per pc' || $component->componentProduct->base_unit === 'per length' || $component->componentProduct->base_unit === 'per kg' || $component->componentProduct->base_unit === 'per liter' || $component->componentProduct->base_unit === 'per pail' || $component->componentProduct->base_unit === 'per gallon' || $component->componentProduct->base_unit === 'per roll') {
                 $availableQuantity = $componentInventory->available_stock ?? 0;
             } else {
                 $availableQuantity = $componentInventory->available_length ?? 0;
@@ -103,13 +103,13 @@ class Inventory extends Model
         }
 
         $totalPrice = 0;
-        
+
         foreach ($setComponents as $component) {
             $componentInventory = Inventory::where('product_id', $component->component_product_id)
                 ->where('branch_id', $this->branch_id)
                 ->first();
 
-            if (!$componentInventory) {
+            if (! $componentInventory) {
                 continue; // Skip if component not in inventory
             }
 
@@ -131,14 +131,19 @@ class Inventory extends Model
 
         if ($this->product->base_unit === 'per set' && $this->product->setComponents()->exists()) {
             $currentStock = $this->calculateSetStock();
-        } elseif ($this->product->base_unit === 'per pc' || $this->product->base_unit === 'per length' || $this->product->base_unit === 'per set') {
+        } elseif ($this->product->base_unit === 'per pc' || $this->product->base_unit === 'per length' || $this->product->base_unit === 'per set' || $this->product->base_unit === 'per roll' || $this->product->base_unit === 'per kg' || $this->product->base_unit === 'per liter' || $this->product->base_unit === 'per pail' || $this->product->base_unit === 'per gallon') {
             $currentStock = $this->available_stock ?? 0;
         } else {
             $currentStock = $this->available_length ?? 0;
         }
 
-        if ($currentStock === 0) return 'Out of Stock';
-        if ($currentStock <= $reorderLevel) return 'Low Stock';
+        if ($currentStock === 0) {
+            return 'Out of Stock';
+        }
+        if ($currentStock <= $reorderLevel) {
+            return 'Low Stock';
+        }
+
         return 'In Stock';
     }
-} 
+}

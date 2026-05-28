@@ -1,23 +1,22 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\BranchController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\SaleController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PurchaseController;
-
-
+use App\Http\Controllers\SaleController;
+use App\Http\Controllers\SalesQuotationController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-    
+
     // dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -37,12 +36,17 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     // sales
     Route::get('/sales', [SaleController::class, 'index'])->name('sales.index');
 
+    // sales quotations (canvassing / quotes — staff may create; managers approve)
+    Route::get('/sales-quotations', [SalesQuotationController::class, 'index'])->name('sales-quotations.index');
+    Route::get('/sales-quotations/{id}/print', [SalesQuotationController::class, 'printQuotation'])->name('sales-quotations.print');
+
     // products
     Route::get('/products', [ProductController::class, 'index'])->name('products.index');
     Route::get('/products/categories', [CategoryController::class, 'index'])->name('products.categories');
 
     // purchases (admin & manager)
     Route::get('/purchases', [PurchaseController::class, 'index'])->name('purchases.index')->middleware('role:admin,manager');
+    Route::get('/purchases/{id}/print-po', [PurchaseController::class, 'printPurchaseOrder'])->name('purchases.print-po')->middleware('role:admin,manager');
 
     // reports
     Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index')->middleware('role:admin,manager');
@@ -51,7 +55,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory')->middleware('role:admin,manager');
     Route::get('/api/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventoryData'])->name('api.reports.inventory')->middleware('role:admin,manager');
     Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales')->middleware('role:admin,manager');
-    
+
     // Installation Sales - Record Products
     Route::get('/api/installation-sales/{id}', [\App\Http\Controllers\InstallationSaleController::class, 'getInstallationSale'])->name('api.installation-sales.show');
     Route::get('/api/installation-sales/{id}/inventory', [\App\Http\Controllers\InstallationSaleController::class, 'getAvailableInventory'])->name('api.installation-sales.inventory');
@@ -62,12 +66,12 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::post('/api/installation-sales/{id}/remove-usage', [\App\Http\Controllers\InstallationSaleController::class, 'removeUsage'])->name('api.installation-sales.remove-usage');
     Route::post('/api/installation-sales/{id}/complete', [\App\Http\Controllers\InstallationSaleController::class, 'markCompleted'])->name('api.installation-sales.complete');
     Route::post('/api/installation-sales/{id}/reopen', [\App\Http\Controllers\InstallationSaleController::class, 'reopen'])->name('api.installation-sales.reopen');
-    
+
     // Export routes
     Route::get('/reports/sales/export', [\App\Http\Controllers\ReportsController::class, 'exportSales'])->name('reports.sales.export')->middleware('role:admin,manager');
     Route::get('/reports/purchases/export', [\App\Http\Controllers\ReportsController::class, 'exportPurchases'])->name('reports.purchases.export')->middleware('role:admin,manager');
     Route::get('/reports/inventory/export', [\App\Http\Controllers\ReportsController::class, 'exportInventory'])->name('reports.inventory.export')->middleware('role:admin,manager');
-    
+
     // Stock Adjustment routes
     Route::post('/inventory/{id}/adjust', [\App\Http\Controllers\StockAdjustmentController::class, 'adjust'])->name('inventory.adjust');
     Route::get('/stock-adjustments/history', [\App\Http\Controllers\StockAdjustmentController::class, 'history'])->name('stock-adjustments.history');
@@ -75,7 +79,6 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
 
     // Expenses (admin, manager & staff) page
     Route::get('/expenses', [\App\Http\Controllers\ExpensesController::class, 'index'])->name('expenses.index');
-
 
     // Branch API routes
     Route::get('/api/branches', [BranchController::class, 'getAllBranches'])->name('api.branches.index')->middleware('role:admin');
@@ -120,6 +123,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/api/purchases/products', [PurchaseController::class, 'getProducts'])->name('api.purchases.products');
     Route::get('/api/purchases/branches', [PurchaseController::class, 'getBranches'])->name('api.purchases.branches');
     Route::post('/api/purchases', [PurchaseController::class, 'store'])->name('api.purchases.store');
+    Route::post('/api/purchases/{id}/receive', [PurchaseController::class, 'receivePurchase'])->name('api.purchases.receive');
     Route::get('/api/purchases/{id}', [PurchaseController::class, 'show'])->name('api.purchases.show');
     Route::put('/api/purchases/{id}', [PurchaseController::class, 'update'])->name('api.purchases.update');
     Route::delete('/api/purchases/{id}', [PurchaseController::class, 'destroy'])->name('api.purchases.destroy');
@@ -134,6 +138,17 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::post('/api/sales/{id}/remove-item', [SaleController::class, 'removeItem'])->name('api.sales.removeItem');
     Route::get('/sales/{id}/delivery-receipt', [SaleController::class, 'deliveryReceipt'])->name('sales.delivery-receipt');
     Route::delete('/api/sales/{id}', [SaleController::class, 'destroy'])->name('api.sales.destroy')->middleware('role:admin,manager');
+
+    // Sales quotations API
+    Route::get('/api/sales-quotations/branch/{branchId}', [SalesQuotationController::class, 'getBranchQuotations'])->name('api.sales-quotations.branch');
+    Route::get('/api/sales-quotations/{id}', [SalesQuotationController::class, 'show'])->name('api.sales-quotations.show');
+    Route::post('/api/sales-quotations', [SalesQuotationController::class, 'store'])->name('api.sales-quotations.store');
+    Route::put('/api/sales-quotations/{id}', [SalesQuotationController::class, 'update'])->name('api.sales-quotations.update');
+    Route::delete('/api/sales-quotations/{id}', [SalesQuotationController::class, 'destroy'])->name('api.sales-quotations.destroy');
+    Route::post('/api/sales-quotations/{id}/submit', [SalesQuotationController::class, 'submit'])->name('api.sales-quotations.submit');
+    Route::post('/api/sales-quotations/{id}/approve', [SalesQuotationController::class, 'approve'])->name('api.sales-quotations.approve')->middleware('role:admin,manager');
+    Route::post('/api/sales-quotations/{id}/reject', [SalesQuotationController::class, 'reject'])->name('api.sales-quotations.reject')->middleware('role:admin,manager');
+    Route::post('/api/sales-quotations/{id}/link-sale', [SalesQuotationController::class, 'linkSale'])->name('api.sales-quotations.link-sale')->middleware('role:admin,manager');
 
     // Cut Remainder API routes
     Route::get('/api/cut-remainders', [\App\Http\Controllers\CutRemainderController::class, 'index'])->name('api.cut-remainders.index');

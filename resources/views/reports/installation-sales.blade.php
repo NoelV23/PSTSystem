@@ -80,6 +80,7 @@
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Branch</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Description</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Installer</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Address</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
@@ -97,6 +98,12 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ optional($sale->user)->name ?? 'N/A' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ optional($sale->branch)->name ?? 'N/A' }}</td>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ $sale->description ?: 'N/A' }}</td>
+                    <td class="px-6 py-4 text-sm text-gray-900">
+                        {{ $sale->installer_name ?: 'N/A' }}
+                        @if($sale->installer_phone)
+                            <div class="text-xs text-gray-500">{{ $sale->installer_phone }}</div>
+                        @endif
+                    </td>
                     <td class="px-6 py-4 text-sm text-gray-900">{{ $sale->installation_address ?: 'N/A' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $sale->payment_method ?: 'N/A' }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₱{{ number_format((float)$sale->total_amount, 2) }}</td>
@@ -115,7 +122,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="12" class="px-6 py-6 text-center text-gray-400">No installation sales found for the selected period.</td>
+                    <td colspan="13" class="px-6 py-6 text-center text-gray-400">No installation sales found for the selected period.</td>
                 </tr>
                 @endforelse
             </tbody>

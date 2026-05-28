@@ -16,6 +16,10 @@ class PurchaseOrder extends Model
         'order_date',
         'note',
         'total_cost',
+        'status',
+        'po_number',
+        'ship_to',
+        'payment_terms',
     ];
 
     protected $casts = [
@@ -26,7 +30,7 @@ class PurchaseOrder extends Model
     protected static function boot()
     {
         parent::boot();
-        
+
         // Default scope to sort by order_date descending
         static::addGlobalScope('orderByDate', function ($query) {
             $query->orderBy('order_date', 'desc');
@@ -49,4 +53,4 @@ class PurchaseOrder extends Model
             return $item->quantity * $item->cost_price;
         });
     }
-} 
+}

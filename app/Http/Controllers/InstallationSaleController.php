@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Models\Inventory;
 use App\Models\Branch;
 use App\Models\InstallationProductUsage;
+use App\Support\MeasurementUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -350,17 +351,29 @@ class InstallationSaleController extends Controller
 
                     // Create a new remainder if dimensions allow
                     if ($hasCut && $product && $product->base_unit !== 'per set') {
+                        $cutUnit = ! empty($item['cut_measurement_unit'])
+                            ? (string) MeasurementUnit::normalize($item['cut_measurement_unit'])
+                            : (MeasurementUnit::allowedCutUnitsForProduct($product)[0] ?? 'ft');
+                        $storageUnit = MeasurementUnit::productLinearStorageUnit($product);
                         $remainderData = [
                             'product_id' => $product->id,
                             'branch_id' => $sale->branch_id,
                             'status' => 'available',
+                            'cut_measurement_unit' => $cutUnit,
                         ];
-                        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length && $item['cut_length'] < $product->default_length) {
-                            $remainderData['length_remaining'] = $product->default_length - $item['cut_length'];
+                        if (isset($item['cut_length']) && $item['cut_length'] > 0 && $product->default_length) {
+                            $defaultLength = MeasurementUnit::convertLinear((float) $product->default_length, $storageUnit, $cutUnit);
+                            if ($item['cut_length'] < $defaultLength) {
+                                $remainderData['length_remaining'] = round($defaultLength - (float) $item['cut_length'], 2);
+                            }
                         }
-                        if (isset($item['cut_width']) && isset($item['cut_height']) && $item['cut_width'] > 0 && $item['cut_height'] > 0 && $product->default_width && $product->default_height && ($item['cut_width'] < $product->default_width || $item['cut_height'] < $product->default_height)) {
-                            $remainderData['width_remaining'] = $product->default_width - $item['cut_width'];
-                            $remainderData['height_remaining'] = $product->default_height - $item['cut_height'];
+                        if (isset($item['cut_width'], $item['cut_height']) && $item['cut_width'] > 0 && $item['cut_height'] > 0 && $product->default_width && $product->default_height) {
+                            $defaultWidth = MeasurementUnit::convertLinear((float) $product->default_width, $storageUnit, $cutUnit);
+                            $defaultHeight = MeasurementUnit::convertLinear((float) $product->default_height, $storageUnit, $cutUnit);
+                            if ($item['cut_width'] < $defaultWidth || $item['cut_height'] < $defaultHeight) {
+                                $remainderData['width_remaining'] = round(max(0, $defaultWidth - (float) $item['cut_width']), 2);
+                                $remainderData['height_remaining'] = round(max(0, $defaultHeight - (float) $item['cut_height']), 2);
+                            }
                         }
                         if (isset($remainderData['length_remaining']) || isset($remainderData['width_remaining'])) {
                             \App\Models\CutRemainder::create($remainderData);

@@ -145,6 +145,8 @@
                         <option value="per sq ft">Per sq ft</option>
                         <option value="per kg">Per kg</option>
                         <option value="per liter">Per liter</option>
+                        <option value="per pail">Per pail</option>
+                        <option value="per gallon">Per gallon</option>
                         <option value="per roll">Per roll</option>
                         <option value="per set">Per set</option>
                     </select>
@@ -165,6 +167,8 @@
                         <option value="g">Grams (g)</option>
                         <option value="liter">Liter (L)</option>
                         <option value="ml">Milliliter (ml)</option>
+                        <option value="pail">Pail</option>
+                        <option value="gallon">Gallon</option>
                     </select>
                     <div id="measurement_unitError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
@@ -424,7 +428,7 @@ function renderSetComponents() {
                         <!-- Product options will be populated here -->
                     </div>
                 </div>
-                <input type="number" min="1" class="component-qty px-2 py-1 border rounded w-20 text-sm" data-idx="${idx}" value="${comp.quantity}" placeholder="Qty">
+                <input type="number" min="1" step="1" class="component-qty px-2 py-1 border rounded w-20 text-sm" data-idx="${idx}" value="${comp.quantity}" placeholder="Qty">
                 <button type="button" onclick="removeComponent(${idx})" class="text-red-500 hover:text-red-700 text-sm font-medium px-2 py-1">Remove</button>
             </div>
         `;
@@ -575,7 +579,7 @@ function handleBaseUnitChange() {
     measurementUnitSection.classList.add('hidden');
     setComponentsSection.classList.add('hidden');
     
-    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet' || baseUnit === 'per roll' || baseUnit === 'per kg' || baseUnit === 'per liter') {
+    if (baseUnit === 'per pc' || baseUnit === 'per length' || baseUnit === 'per sheet' || baseUnit === 'per roll' || baseUnit === 'per kg' || baseUnit === 'per liter' || baseUnit === 'per pail' || baseUnit === 'per gallon') {
         // Show measurement section for countable / dimensioned / weight / volume products
         measurementSection.classList.remove('hidden');
         measurementUnitSection.classList.remove('hidden');
@@ -629,6 +633,20 @@ function updateMeasurementLabels() {
         else if (measurementUnit === 'ml') unitLabel = '(ml)';
         else if (measurementUnit) unitLabel = `(${measurementUnit})`;
         else unitLabel = '(L)';
+    } else if (baseUnit === 'per pail') {
+        if (measurementUnit === 'pail') unitLabel = '(pail)';
+        else if (measurementUnit === 'liter' || measurementUnit === 'ml') {
+            if (measurementUnit === 'liter') unitLabel = '(L)';
+            else if (measurementUnit === 'ml') unitLabel = '(ml)';
+        } else if (measurementUnit) unitLabel = `(${measurementUnit})`;
+        else unitLabel = '(pail)';
+    } else if (baseUnit === 'per gallon') {
+        if (measurementUnit === 'gallon') unitLabel = '(gal)';
+        else if (measurementUnit === 'liter' || measurementUnit === 'ml') {
+            if (measurementUnit === 'liter') unitLabel = '(L)';
+            else if (measurementUnit === 'ml') unitLabel = '(ml)';
+        } else if (measurementUnit) unitLabel = `(${measurementUnit})`;
+        else unitLabel = '(gal)';
     } else if (measurementUnit === 'sq ft') {
         unitLabel = '(sq ft)';
     } else if (measurementUnit === 'inches' || measurementUnit === 'inch') {

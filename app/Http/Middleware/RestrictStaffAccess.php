@@ -16,7 +16,7 @@ class RestrictStaffAccess
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return $next($request);
         }
 
@@ -33,6 +33,7 @@ class RestrictStaffAccess
         // Allowed web paths for staff (allow root and subpaths like sales/*, products/*)
         $allowedPrefixes = [
             'sales',
+            'sales-quotations',
             'products',
             'expenses',
         ];
@@ -43,17 +44,15 @@ class RestrictStaffAccess
         // If path does not start with any allowed prefix, redirect to sales
         $isAllowed = false;
         foreach ($allowedPrefixes as $prefix) {
-            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+            if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
                 $isAllowed = true;
                 break;
             }
         }
-        if (!$isAllowed) {
+        if (! $isAllowed) {
             return redirect()->route('sales.index');
         }
 
         return $next($request);
     }
 }
-
-

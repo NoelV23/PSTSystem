@@ -26,6 +26,17 @@
             <div class="text-xs text-gray-500 mt-1">Optional for installation sales</div>
         </div>
         
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label for="installationInstallerName" class="block text-sm font-medium text-gray-700 mb-1">Installer name *</label>
+                <input type="text" id="installationInstallerName" name="installer_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Person/company called to install">
+            </div>
+            <div>
+                <label for="installationInstallerPhone" class="block text-sm font-medium text-gray-700 mb-1">Installer phone</label>
+                <input type="text" id="installationInstallerPhone" name="installer_phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Optional contact number">
+            </div>
+        </div>
+
         <div>
             <label for="installationAddress" class="block text-sm font-medium text-gray-700 mb-1">Installation Address</label>
             <textarea id="installationAddress" name="installation_address" rows="3" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Enter installation address"></textarea>

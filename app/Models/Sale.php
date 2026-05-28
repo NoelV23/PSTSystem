@@ -25,6 +25,8 @@ class Sale extends Model
         'delivery_fee',
         'is_installation',
         'installation_address',
+        'installer_name',
+        'installer_phone',
         'description',
         'status',
         'customer_name',
@@ -49,8 +51,13 @@ class Sale extends Model
         return $this->hasMany(SaleItem::class);
     }
 
+    public function salesQuotation()
+    {
+        return $this->hasOne(SalesQuotation::class, 'sale_id');
+    }
+
     public function installationProductUsages()
     {
         return $this->hasMany(InstallationProductUsage::class);
     }
-} 
+}
