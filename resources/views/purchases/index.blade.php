@@ -828,7 +828,7 @@ function renderPurchaseItems() {
             <div class="sm:col-span-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Product</label>
                 <div class="relative">
-                    <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? getProductDisplayName(item.product_id) : ''}">
+                    <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? escapeHtml(getProductDisplayName(item.product_id)) : ''}">
                     <div class="item-product-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
                 </div>
                 <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
@@ -1338,40 +1338,47 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Helper function to get product display name
+// Product line display: Name + size/measurement + color (measurement before color).
 function getProductDisplayName(productId) {
     const product = products.find(p => p.id == productId);
     if (!product) return '';
-    
-    // Build measurement display
+
+    const fmtDim = (v) => {
+        if (v == null || v === '') return '';
+        const n = parseFloat(v);
+        if (Number.isNaN(n)) return String(v);
+        return Number.isInteger(n) ? String(n) : String(n);
+    };
+
     let measurementDisplay = '';
-    if (product.measurement_unit === 'sq ft') {
-        // For square feet, show width x height
-        if (product.default_width && product.default_height) {
-            measurementDisplay = `${product.default_width}×${product.default_height} sq ft`;
-        } else if (product.default_width) {
-            measurementDisplay = `${product.default_width} sq ft`;
-        } else if (product.default_height) {
-            measurementDisplay = `${product.default_height} sq ft`;
+    const mu = (product.measurement_unit || '').toLowerCase();
+
+    if (mu === 'sq ft') {
+        const w = product.default_width;
+        const h = product.default_height;
+        if (w && h) {
+            measurementDisplay = `${fmtDim(w)}/${fmtDim(h)} sq ft`;
+        } else if (w) {
+            measurementDisplay = `${fmtDim(w)} sq ft`;
+        } else if (h) {
+            measurementDisplay = `${fmtDim(h)} sq ft`;
         }
     } else if (product.default_length) {
-        // For other units, show length with unit
-        measurementDisplay = `${product.default_length} ${product.measurement_unit || product.base_unit.replace('per ', '')}`;
+        const unit = product.measurement_unit || String(product.base_unit || '').replace(/^per\s+/i, '') || '';
+        measurementDisplay = `${fmtDim(product.default_length)} ${unit}`.trim();
     }
-    
-    // Build color info
-    const colorText = product.color ? product.color : '';
-    
-    // Build display name with color and measurement
-    let displayName = product.name;
-    if (colorText) {
-        displayName += ` ${colorText}`;
-    }
+
+    const colorText = (product.color || '').trim();
+
+    const parts = [String(product.name || '').trim()];
     if (measurementDisplay) {
-        displayName += ` ${measurementDisplay}`;
+        parts.push(measurementDisplay);
     }
-    
-    return displayName;
+    if (colorText) {
+        parts.push(colorText);
+    }
+
+    return parts.join(' ');
 }
 
 // Function to select product from dropdown

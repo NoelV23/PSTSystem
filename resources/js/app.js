@@ -27,22 +27,18 @@ Alpine.data('pstSidebar', () => {
 
     return {
         open: initialOpen,
-        salesGroupOpen: true,
+        salesGroupOpen: false,
         purchasesGroupOpen: false,
 
         init() {
             try {
                 const path = window.location.pathname || '';
-                if (
+                // Only expand the group that matches the current page (collapse when navigating away).
+                this.salesGroupOpen =
                     path.startsWith('/sales-quotations') ||
                     path === '/sales' ||
-                    path.startsWith('/sales/')
-                ) {
-                    this.salesGroupOpen = true;
-                }
-                if (path.startsWith('/purchases')) {
-                    this.purchasesGroupOpen = true;
-                }
+                    path.startsWith('/sales/');
+                this.purchasesGroupOpen = path.startsWith('/purchases');
             } catch (e) {
                 /* ignore */
             }

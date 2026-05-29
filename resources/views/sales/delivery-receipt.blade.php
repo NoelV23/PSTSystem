@@ -226,7 +226,6 @@
         <div class="company-line">
             <span class="accent-p">P</span>OLYTECH STEEL <span class="accent-t">T</span>RADING
         </div>
-        <div class="slogan">"We've got you COVERED"</div>
     </div>
 
     <div class="doc-title-bar">DELIVERY RECEIPT</div>
