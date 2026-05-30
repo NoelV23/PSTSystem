@@ -397,6 +397,43 @@ function setupEventListeners() {
     document.getElementById('closeViewBtn').addEventListener('click', closeViewModal);
     document.getElementById('addItemBtn').addEventListener('click', addPurchaseItem);
 
+    // PO line items: product combobox — pick list (mousedown before blur closes it)
+    const purchaseItemsListEl = document.getElementById('purchaseItemsList');
+    if (purchaseItemsListEl && !purchaseItemsListEl.dataset.poPickBound) {
+        purchaseItemsListEl.dataset.poPickBound = '1';
+        purchaseItemsListEl.addEventListener('mousedown', function (e) {
+            const pick = e.target.closest('[data-po-pick-id]');
+            if (!pick || !this.contains(pick)) return;
+            e.preventDefault();
+            const index = parseInt(pick.dataset.poPickIndex, 10);
+            const id = parseInt(pick.dataset.poPickId, 10);
+            if (Number.isNaN(index) || Number.isNaN(id)) return;
+            purchaseItems[index].product_id = id;
+            const row = pick.closest('[data-po-line-index]');
+            if (row) {
+                const inp = row.querySelector('.item-product-search');
+                const p = products.find(x => String(x.id) === String(id));
+                if (inp && p) {
+                    inp.value = getProductDisplayName(id) + (p.sku ? ` (${p.sku})` : '');
+                }
+                const dd = row.querySelector('.item-product-dropdown');
+                if (dd) {
+                    dd.classList.add('hidden');
+                    dd.innerHTML = '';
+                    dd._poAnchor = null;
+                }
+            }
+        });
+    }
+
+    if (!window._poDdRepositionWired) {
+        window._poDdRepositionWired = true;
+        const schedPoDd = () => requestAnimationFrame(repositionPoProductDropdowns);
+        window.addEventListener('scroll', schedPoDd, true);
+        window.addEventListener('resize', schedPoDd);
+        purchaseModal.addEventListener('scroll', schedPoDd, true);
+    }
+
     const isDraftEl = document.getElementById('isDraftPo');
     if (isDraftEl) {
         isDraftEl.addEventListener('change', () => {
@@ -811,6 +848,58 @@ function removePurchaseItem(index) {
     updateTotalCost();
 }
 
+function poLineProductInputValue(productId) {
+    if (productId == null || productId === '') return '';
+    const p = products.find(x => String(x.id) === String(productId));
+    if (!p) return '';
+    return getProductDisplayName(p.id) + (p.sku ? ` (${p.sku})` : '');
+}
+
+function positionPoFloatingDd(anchorEl, panelEl) {
+    if (!anchorEl || !panelEl || panelEl.classList.contains('hidden')) return;
+    const r = anchorEl.getBoundingClientRect();
+    const gap = 4;
+    const spaceAbove = r.top - gap - 8;
+    const maxH = Math.min(280, Math.max(80, spaceAbove));
+    panelEl.style.position = 'fixed';
+    panelEl.style.left = `${Math.max(4, r.left)}px`;
+    panelEl.style.top = 'auto';
+    panelEl.style.bottom = `${window.innerHeight - r.top + gap}px`;
+    panelEl.style.width = `${r.width}px`;
+    panelEl.style.zIndex = '10050';
+    panelEl.style.maxHeight = `${maxH}px`;
+    panelEl.style.overflowY = 'auto';
+    panelEl.style.boxSizing = 'border-box';
+}
+
+function repositionPoProductDropdowns() {
+    document.querySelectorAll('.item-product-dropdown:not(.hidden)').forEach(panel => {
+        const a = panel._poAnchor;
+        if (a && document.body.contains(a)) positionPoFloatingDd(a, panel);
+    });
+}
+
+function renderPoProductDropdown(anchorInput, dropdown, index, query) {
+    const q = (query || '').trim().toLowerCase();
+    const list = !q
+        ? products.slice(0, 80)
+        : products.filter(p => {
+            const lab = getProductDisplayName(p.id).toLowerCase();
+            return lab.includes(q) || (p.sku && String(p.sku).toLowerCase().includes(q));
+        }).slice(0, 150);
+    if (!list.length) {
+        dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+    } else {
+        dropdown.innerHTML = list.map(p => {
+            const line = getProductDisplayName(p.id) + (p.sku ? ` (${p.sku})` : '');
+            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-id="${p.id}" data-po-pick-index="${index}">${escapeHtml(line)}</div>`;
+        }).join('');
+    }
+    dropdown.classList.remove('hidden');
+    dropdown._poAnchor = anchorInput;
+    positionPoFloatingDd(anchorInput, dropdown);
+}
+
 function renderPurchaseItems() {
     const container = document.getElementById('purchaseItemsList');
 
@@ -824,14 +913,13 @@ function renderPurchaseItems() {
     const lineTotal = (item) => (Number(item.quantity) || 0) * (Number(item.cost_price) || 0);
 
     container.innerHTML = purchaseItems.map((item, index) => `
-        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-end p-3 bg-white rounded border">
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-end p-3 bg-white rounded border" data-po-line-index="${index}">
             <div class="sm:col-span-5">
                 <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Product</label>
                 <div class="relative">
-                    <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? escapeHtml(getProductDisplayName(item.product_id)) : ''}">
-                    <div class="item-product-dropdown absolute left-0 right-0 z-[100] bottom-full mb-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+                    <input type="text" autocomplete="off" class="item-product-search w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white" data-index="${index}" placeholder="Search product…" value="${escapeHtml(poLineProductInputValue(item.product_id))}">
+                    <div class="item-product-dropdown hidden max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg"></div>
                 </div>
-                <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
             </div>
             <div class="sm:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Qty</label>
@@ -850,45 +938,33 @@ function renderPurchaseItems() {
             </div>
         </div>
     `).join('');
-    
-    // Add event listeners for product search
-    container.querySelectorAll('.item-product-search').forEach(input => {
-        input.addEventListener('input', function() {
-            const index = parseInt(this.dataset.index);
-            const query = this.value.trim().toLowerCase();
-            
-            if (!query) {
-                this.nextElementSibling.classList.add('hidden');
-                return;
-            }
-            
-            // Filter products
-            const filteredProducts = products.filter(p => {
-                const displayName = getProductDisplayName(p.id);
-                return displayName.toLowerCase().includes(query) || 
-                       p.sku?.toLowerCase().includes(query);
-            });
-            
-            const dropdown = this.nextElementSibling;
-            if (filteredProducts.length === 0) {
-                dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
-            } else {
-                dropdown.innerHTML = filteredProducts.map(p => `
-                    <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" onclick="selectProduct(${index}, ${p.id})">
-                        ${escapeHtml(getProductDisplayName(p.id))} (${escapeHtml(p.sku || 'No SKU')})
-                    </div>
-                `).join('');
-            }
-            dropdown.classList.remove('hidden');
+
+    container.querySelectorAll('.item-product-search').forEach(inp => {
+        const index = parseInt(inp.dataset.index, 10);
+        const dd = inp.nextElementSibling;
+        if (!dd || !dd.classList.contains('item-product-dropdown')) return;
+
+        inp.addEventListener('focus', () => {
+            renderPoProductDropdown(inp, dd, index, inp.value);
         });
-        
-        input.addEventListener('blur', function() {
+        inp.addEventListener('input', () => {
+            const curPid = purchaseItems[index].product_id;
+            if (curPid) {
+                const expected = poLineProductInputValue(curPid);
+                if (inp.value.trim() !== expected.trim()) {
+                    purchaseItems[index].product_id = '';
+                }
+            }
+            renderPoProductDropdown(inp, dd, index, inp.value);
+        });
+        inp.addEventListener('blur', () => {
             setTimeout(() => {
-                this.nextElementSibling.classList.add('hidden');
+                dd.classList.add('hidden');
+                dd._poAnchor = null;
             }, 200);
         });
     });
-    
+
     container.querySelectorAll('.item-quantity, .item-cost').forEach(input => {
         input.addEventListener('input', function() {
             const index = parseInt(this.dataset.index);
@@ -1380,29 +1456,6 @@ function getProductDisplayName(productId) {
 
     return parts.join(' ');
 }
-
-// Function to select product from dropdown
-window.selectProduct = function(index, productId) {
-    const product = products.find(p => p.id == productId);
-    if (!product) return;
-    
-    purchaseItems[index].product_id = productId;
-    
-    // Update the search input with the selected product name
-    const searchInput = document.querySelector(`.item-product-search[data-index="${index}"]`);
-    const hiddenInput = document.querySelector(`.item-product-id[data-index="${index}"]`);
-    
-    if (searchInput) {
-        searchInput.value = getProductDisplayName(productId);
-    }
-    if (hiddenInput) {
-        hiddenInput.value = productId;
-    }
-    
-    // Hide dropdown
-    const dropdown = searchInput.nextElementSibling;
-    dropdown.classList.add('hidden');
-};
 
 </script>
 @endsection 
