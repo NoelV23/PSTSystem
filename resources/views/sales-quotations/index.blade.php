@@ -7,7 +7,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Sales quotations</h2>
-                    <p class="mt-1 text-sm text-gray-600">Create a quotation (staff can use this page), print for the customer, then click <strong>Open sales</strong> to start a sale with products from the quotation pre-filled.</p>
+                    <p class="mt-1 text-sm text-gray-600">Sales quotations are formal price offers for a customer: line items, totals, tax, and terms. Use them to record what was quoted before an order becomes a sale.</p>
                 </div>
                 <button type="button" id="sqNewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                     + New quotation
@@ -149,10 +149,11 @@
                     <button type="button" id="sqAddLineBtn" class="text-sm bg-white border px-3 py-1 rounded-lg hover:bg-gray-100">+ Add line</button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm min-w-[44rem]">
+                    <table class="w-full text-sm min-w-[51rem]">
                         <thead>
                             <tr class="text-left text-gray-600">
                                 <th class="py-2 pr-1 w-[20rem]">Product (optional)</th>
+                                <th class="py-2 pl-0 pr-2 w-28 text-right">Avail.</th>
                                 <th class="py-2 pr-2 w-[20rem]">Description *</th>
                                 <th class="py-2 pr-2 w-24">Qty *</th>
                                 <th class="py-2 pr-2 w-28">Unit ₱ *</th>
@@ -209,8 +210,7 @@
     const canApprove = role === 'admin' || role === 'manager';
 
     let branchId = isAdmin ? null : (window.sqUserBranchId || null);
-    /** Full product catalog for line-item picker (not branch inventory). */
-    let sqProducts = [];
+    let sqInventoryItems = [];
 
     const el = (id) => document.getElementById(id);
 
@@ -245,16 +245,93 @@
         if (!isAdmin) branchId = window.sqUserBranchId;
     }
 
-    async function loadProducts() {
-        const res = await fetch('/api/products?per_page=5000', {
+    function branchIdForSqInventory() {
+        if (isAdmin && el('sqFormBranch') && el('sqFormBranch').value) {
+            return parseInt(el('sqFormBranch').value, 10) || null;
+        }
+        return currentBranch();
+    }
+
+    function sqInvStock(inv) {
+        if (!inv || !inv.product) return 0;
+        const isSet = inv.product.base_unit === 'per set' && (Number(inv.product.set_components_count) > 0 || inv.calculated_stock != null);
+        if (isSet) return Number(inv.calculated_stock ?? 0);
+        return Number(inv.available_stock ?? 0);
+    }
+
+    function sqInvUnitPrice(inv) {
+        if (!inv) return '';
+        const n = Number(inv.price);
+        if (Number.isNaN(n) || n < 0) return '';
+        return n.toFixed(2);
+    }
+
+    function formatSqStock(n) {
+        const x = Number(n);
+        if (Number.isNaN(x)) return '—';
+        return x.toLocaleString('en-PH', { maximumFractionDigits: 4 });
+    }
+
+    async function loadSqBranchInventory(mergeFromQuotation = null) {
+        const b = branchIdForSqInventory();
+        if (!b) {
+            sqInventoryItems = [];
+            return;
+        }
+        const res = await fetch(`/api/inventory/branch/${b}?per_page=5000`, {
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
         });
         if (!res.ok) {
-            sqProducts = [];
+            sqInventoryItems = [];
             return;
         }
         const data = await res.json();
-        sqProducts = Array.isArray(data.data) ? data.data : [];
+        let rows = Array.isArray(data.data) ? data.data : [];
+        const inBranch = new Set(rows.map(i => String(i.product_id)));
+
+        try {
+            const pres = await fetch('/api/products?per_page=5000', {
+                headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+            });
+            if (pres.ok) {
+                const pdata = await pres.json();
+                const plist = Array.isArray(pdata.data) ? pdata.data : (Array.isArray(pdata) ? pdata : []);
+                plist.forEach((p) => {
+                    if (!p || p.id == null) return;
+                    if (inBranch.has(String(p.id))) return;
+                    rows.push({
+                        id: null,
+                        product_id: p.id,
+                        product: p,
+                        available_stock: 0,
+                        calculated_stock: 0,
+                        price: null,
+                        wholesale_price: null,
+                        _catalogOnly: true,
+                    });
+                });
+            }
+        } catch (_) { /* catalog optional */ }
+
+        sqInventoryItems = rows;
+
+        if (mergeFromQuotation && Array.isArray(mergeFromQuotation.items)) {
+            const seen = new Set(sqInventoryItems.map(i => String(i.product_id)));
+            mergeFromQuotation.items.forEach(it => {
+                const pid = it.product_id;
+                if (!pid || seen.has(String(pid)) || !it.product) return;
+                sqInventoryItems.push({
+                    id: null,
+                    product_id: pid,
+                    product: it.product,
+                    available_stock: 0,
+                    calculated_stock: 0,
+                    price: it.unit_price,
+                    wholesale_price: null,
+                });
+                seen.add(String(pid));
+            });
+        }
     }
 
     function currentBranch() {
@@ -505,26 +582,35 @@
 
         function filterSqProducts(q) {
             const t = (q || '').trim().toLowerCase();
-            const list = sqProducts.filter(p => {
+            const list = sqInventoryItems.filter(inv => {
+                const p = inv.product;
                 if (!p) return false;
                 const lab = sqProductDisplayLabel(p).toLowerCase();
                 return lab.includes(t) || (p.sku && String(p.sku).toLowerCase().includes(t));
+            });
+            list.sort((a, b) => {
+                const ac = a._catalogOnly ? 1 : 0;
+                const bc = b._catalogOnly ? 1 : 0;
+                if (ac !== bc) return ac - bc;
+                return sqProductDisplayLabel(a.product).localeCompare(sqProductDisplayLabel(b.product), undefined, { sensitivity: 'base' });
             });
             if (!t) return list.slice(0, 80);
             return list.slice(0, 150);
         }
 
         function openProductDd() {
-            if (!sqProducts.length) {
-                dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products loaded yet.</div>';
+            if (!sqInventoryItems.length) {
+                dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No branch inventory loaded. Select branch or add stock.</div>';
             } else {
                 const list = filterSqProducts(search.value);
                 if (!list.length) {
                     dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
                 } else {
-                    dd.innerHTML = list.map(p => {
+                    dd.innerHTML = list.map(inv => {
+                        const p = inv.product;
+                        const remLabel = 'Rem: ' + (inv._catalogOnly ? '—' : formatSqStock(sqInvStock(inv)));
                         const labelHtml = sqProductDisplayLabelHtml(p);
-                        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-id="${p.id}">${labelHtml}</div>`;
+                        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-id="${p.id}">${labelHtml} <span class="text-gray-500 font-normal">${escapeHtml(remLabel)}</span></div>`;
                     }).join('');
                 }
             }
@@ -536,10 +622,12 @@
         search.addEventListener('focus', openProductDd);
         search.addEventListener('input', () => {
             if (hidden.value) {
-                const pCur = sqProducts.find(p => String(p.id) === String(hidden.value));
+                const pCur = sqInventoryItems.find(i => String(i.product_id) === String(hidden.value))?.product;
                 const expected = pCur ? (sqProductDisplayLabel(pCur) + (pCur.sku ? ` (${pCur.sku})` : '')) : '';
                 if (expected && search.value.trim() !== expected.trim()) {
                     hidden.value = '';
+                    const rem = tr.querySelector('.sq-line-rem');
+                    if (rem) rem.textContent = '—';
                 }
             }
             openProductDd();
@@ -576,12 +664,17 @@
     function addLineRow(data = {}) {
         const tr = document.createElement('tr');
         tr.dataset.line = '1';
-        const p0 = sqProducts.find(p => String(p.id) === String(data.product_id)) || data.product || null;
+        let inv0 = sqInventoryItems.find(i => String(i.product_id) === String(data.product_id));
+        const p0 = inv0?.product || data.product || null;
         let initSearch = '';
         let initHid = '';
+        let initRem = '—';
         if (p0) {
             initHid = String(p0.id);
             initSearch = sqProductDisplayLabel(p0) + (p0.sku ? ` (${p0.sku})` : '');
+            if (inv0) {
+                initRem = inv0._catalogOnly ? '—' : formatSqStock(sqInvStock(inv0));
+            }
         }
         tr.innerHTML = `
             <td class="py-1 pr-1 align-top w-[20rem]">
@@ -591,6 +684,7 @@
                     <div class="sq-line-product-dd hidden max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg"></div>
                 </div>
             </td>
+            <td class="py-1 pl-0 pr-2 align-top text-right"><span class="sq-line-rem text-xs text-gray-700 tabular-nums whitespace-nowrap">${escapeHtml(initRem)}</span></td>
             <td class="py-1 pr-2 align-top w-[20rem]"><input type="text" class="sq-line-desc w-full min-w-0 border rounded px-2 py-1 text-sm" placeholder="Description"></td>
             <td class="py-1 pr-2"><input type="number" step="1" min="1" class="sq-line-qty w-full border rounded px-2 py-1 text-sm"></td>
             <td class="py-1 pr-2"><input type="number" step="0.01" min="0" class="sq-line-price w-full border rounded px-2 py-1 text-sm"></td>
@@ -632,9 +726,11 @@
         if (create) {
             el('sqModalTitle').textContent = 'New quotation';
             if (isAdmin && el('sqFormBranch') && branchId) el('sqFormBranch').value = String(branchId);
-            await loadProducts();
-            if (sqProducts.length === 0) {
-                toast('Could not load product list.', false);
+            await loadSqBranchInventory(null);
+            if (sqInventoryItems.length === 0) {
+                toast('No products available. Select a branch or add inventory / products.', false);
+            } else if (!sqInventoryItems.some(i => !i._catalogOnly)) {
+                toast('This branch has no stock rows yet. You can still choose products from the catalog; set unit price as needed.', true);
             }
             addLineRow();
         }
@@ -715,7 +811,7 @@
             el('sqNotes').value = q.notes || '';
             el('sqTerms').value = q.terms || '';
             el('sqLinesBody').innerHTML = '';
-            await loadProducts();
+            await loadSqBranchInventory(q);
             (q.items || []).forEach(it => addLineRow({
                 product_id: it.product_id,
                 product: it.product,
@@ -758,13 +854,16 @@
             e.preventDefault();
             const tr = pick.closest('tr');
             const id = pick.dataset.sqPickId;
-            const p = sqProducts.find(x => String(x.id) === String(id));
+            const inv = sqInventoryItems.find(i => i.product && String(i.product.id) === String(id));
+            const p = inv?.product;
             if (!tr || !p) return;
             const search = tr.querySelector('.sq-line-product-search');
             const hidden = tr.querySelector('.sq-line-product-id');
             const dd = tr.querySelector('.sq-line-product-dd');
             const desc = tr.querySelector('.sq-line-desc');
+            const price = tr.querySelector('.sq-line-price');
             const qty = tr.querySelector('.sq-line-qty');
+            const rem = tr.querySelector('.sq-line-rem');
             if (search) search.value = sqProductDisplayLabel(p) + (p.sku ? ` (${p.sku})` : '');
             if (hidden) hidden.value = String(p.id);
             if (dd) {
@@ -773,7 +872,27 @@
                 dd._sqAnchor = null;
             }
             if (desc) desc.value = sqProductDisplayLabel(p);
-            if (qty) qty.removeAttribute('max');
+            if (inv && price) {
+                const up = sqInvUnitPrice(inv);
+                if (up !== '') price.value = up;
+            }
+            if (inv && rem) {
+                rem.textContent = inv._catalogOnly ? '—' : formatSqStock(sqInvStock(inv));
+            }
+            if (inv && qty) {
+                if (inv._catalogOnly) {
+                    qty.removeAttribute('max');
+                } else {
+                    const maxSt = sqInvStock(inv);
+                    if (maxSt > 0) {
+                        qty.max = String(maxSt);
+                        const qv = parseFloat(qty.value) || 0;
+                        if (qv > maxSt) qty.value = String(maxSt);
+                    } else {
+                        qty.removeAttribute('max');
+                    }
+                }
+            }
             refreshSqLineTotal(tr);
             refreshSqTotals();
         });
@@ -803,9 +922,17 @@
         sqSearchDebounce = setTimeout(() => loadList(), 350);
     });
     el('sqQuotationSearch').addEventListener('change', loadList);
+    if (el('sqFormBranch')) {
+        el('sqFormBranch').addEventListener('change', async () => {
+            if (!el('sqModal').classList.contains('hidden')) {
+                await loadSqBranchInventory(null);
+            }
+        });
+    }
     if (el('sqBranchSelector')) {
-        el('sqBranchSelector').addEventListener('change', () => {
+        el('sqBranchSelector').addEventListener('change', async () => {
             branchId = parseInt(el('sqBranchSelector').value, 10) || null;
+            await loadSqBranchInventory(null);
             loadList();
         });
     }
@@ -828,7 +955,7 @@
         if (isAdmin) await loadBranches();
         if (!isAdmin) branchId = window.sqUserBranchId;
         else if (el('sqBranchSelector')?.value) branchId = parseInt(el('sqBranchSelector').value, 10);
-        await loadProducts();
+        await loadSqBranchInventory(null);
         loadList();
     });
 })();
