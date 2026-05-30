@@ -66,7 +66,7 @@
 </div>
 
 <!-- Modal -->
-<div id="sqModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 hidden overflow-y-auto">
+<div id="sqModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 z-50 hidden overflow-y-auto overflow-x-hidden">
     <div class="relative top-8 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white mb-12">
         <div class="flex justify-between items-center mb-4">
             <h3 id="sqModalTitle" class="text-lg font-medium text-gray-900">Quotation</h3>
@@ -125,12 +125,12 @@
                 <textarea id="sqTerms" rows="2" class="w-full px-3 py-2 border rounded-lg" placeholder="Payment terms, delivery, etc."></textarea>
             </div>
 
-            <div class="border rounded-lg p-3 bg-gray-50">
+            <div class="border rounded-lg p-3 bg-gray-50 overflow-visible">
                 <div class="flex justify-between items-center mb-2">
                     <span class="font-medium text-gray-800">Line items</span>
                     <button type="button" id="sqAddLineBtn" class="text-sm bg-white border px-3 py-1 rounded-lg hover:bg-gray-100">+ Add line</button>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto overflow-y-visible">
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="text-left text-gray-600">
@@ -302,6 +302,59 @@
         return d.innerHTML;
     }
 
+    /** Same display as PO: Name + size/measurement + color (measurement before color). */
+    function sqProductDisplayLabel(p) {
+        if (!p) return '';
+        const fmtDim = (v) => {
+            if (v == null || v === '') return '';
+            const n = parseFloat(v);
+            if (Number.isNaN(n)) return String(v);
+            return Number.isInteger(n) ? String(n) : String(n);
+        };
+        let measurementDisplay = '';
+        const mu = (p.measurement_unit || '').toLowerCase();
+        if (mu === 'sq ft') {
+            const w = p.default_width;
+            const h = p.default_height;
+            if (w && h) {
+                measurementDisplay = `${fmtDim(w)}/${fmtDim(h)} sq ft`;
+            } else if (w) {
+                measurementDisplay = `${fmtDim(w)} sq ft`;
+            } else if (h) {
+                measurementDisplay = `${fmtDim(h)} sq ft`;
+            }
+        } else if (p.default_length) {
+            const unit = p.measurement_unit || String(p.base_unit || '').replace(/^per\s+/i, '') || '';
+            measurementDisplay = `${fmtDim(p.default_length)} ${unit}`.trim();
+        }
+        const colorText = (p.color || '').trim();
+        const parts = [String(p.name || '').trim()];
+        if (measurementDisplay) parts.push(measurementDisplay);
+        if (colorText) parts.push(colorText);
+        return parts.join(' ');
+    }
+
+    window.sqSelectLineProduct = function (event, productId) {
+        if (!event || !event.target) return;
+        const tr = event.target.closest('tr');
+        if (!tr) return;
+        const product = (Array.isArray(products) ? products : []).find(p => String(p.id) === String(productId));
+        if (!product) return;
+        const search = tr.querySelector('.sq-line-product-search');
+        const hid = tr.querySelector('.sq-line-product-id');
+        const dropdown = tr.querySelector('.sq-line-product-dropdown');
+        const desc = tr.querySelector('.sq-line-desc');
+        if (hid) hid.value = String(product.id);
+        if (search) search.value = sqProductDisplayLabel(product);
+        if (dropdown) {
+            dropdown.innerHTML = '';
+            dropdown.classList.add('hidden');
+        }
+        if (desc && !desc.value.trim()) {
+            desc.value = sqProductDisplayLabel(product);
+        }
+    };
+
     function actionsHtml(r) {
         const id = r.id;
         let html = '';
@@ -385,14 +438,36 @@
                 refreshSqTotals();
             });
         });
-        const sel = tr.querySelector('.sq-line-product');
+        const productSearch = tr.querySelector('.sq-line-product-search');
+        const productDropdown = tr.querySelector('.sq-line-product-dropdown');
+        const productHid = tr.querySelector('.sq-line-product-id');
         const desc = tr.querySelector('.sq-line-desc');
-        if (sel) {
-            sel.addEventListener('change', () => {
-                const pid = sel.value;
-                if (!pid) return;
-                const p = (Array.isArray(products) ? products : []).find(x => String(x.id) === String(pid));
-                if (p && !desc.value) desc.value = p.name;
+        if (productSearch && productDropdown) {
+            productSearch.addEventListener('input', function () {
+                const query = this.value.trim().toLowerCase();
+                if (!query) {
+                    productDropdown.classList.add('hidden');
+                    if (productHid) productHid.value = '';
+                    return;
+                }
+                const plist = Array.isArray(products) ? products : [];
+                const filtered = plist.filter(p => {
+                    const label = sqProductDisplayLabel(p).toLowerCase();
+                    return label.includes(query) || (p.sku && String(p.sku).toLowerCase().includes(query));
+                });
+                if (filtered.length === 0) {
+                    productDropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+                } else {
+                    productDropdown.innerHTML = filtered.map(p => `
+                        <div class="sq-line-product-option px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" onmousedown="event.preventDefault(); window.sqSelectLineProduct(event, ${p.id})">
+                            ${escapeHtml(sqProductDisplayLabel(p))} (${escapeHtml(p.sku || 'No SKU')})
+                        </div>
+                    `).join('');
+                }
+                productDropdown.classList.remove('hidden');
+            });
+            productSearch.addEventListener('blur', function () {
+                setTimeout(() => productDropdown.classList.add('hidden'), 200);
             });
         }
         tr.querySelector('.sq-remove-line')?.addEventListener('click', () => {
@@ -412,11 +487,17 @@
         const tr = document.createElement('tr');
         tr.dataset.line = '1';
         const plist = Array.isArray(products) ? products : [];
-        const opts = '<option value="">—</option>' + plist.map(p =>
-            `<option value="${p.id}" ${data.product_id == p.id ? 'selected' : ''}>${escapeHtml(p.sku || '')} ${escapeHtml(p.name)}</option>`
-        ).join('');
+        const initialP = data.product_id ? plist.find(x => String(x.id) === String(data.product_id)) : null;
+        const initialLabel = initialP ? escapeHtml(sqProductDisplayLabel(initialP)) : '';
+        const initialHid = data.product_id ? String(data.product_id) : '';
         tr.innerHTML = `
-            <td class="py-1 pr-2"><select class="sq-line-product w-full border rounded px-1 py-1 text-xs">${opts}</select></td>
+            <td class="py-1 pr-2 align-top min-w-[12rem]">
+                <div class="relative">
+                    <input type="text" class="sq-line-product-search w-full border rounded px-2 py-1 text-sm" autocomplete="off" placeholder="Type product name or SKU…" value="${initialLabel}">
+                    <div class="sq-line-product-dropdown absolute left-0 right-0 z-[100] bottom-full mb-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+                    <input type="hidden" class="sq-line-product-id" value="${initialHid}">
+                </div>
+            </td>
             <td class="py-1 pr-2"><input type="text" class="sq-line-desc w-full border rounded px-2 py-1 text-sm" placeholder="Description"></td>
             <td class="py-1 pr-2"><input type="number" step="1" min="1" class="sq-line-qty w-full border rounded px-2 py-1 text-sm"></td>
             <td class="py-1 pr-2"><input type="number" step="0.01" min="0" class="sq-line-price w-full border rounded px-2 py-1 text-sm"></td>
@@ -424,7 +505,6 @@
             <td class="py-1"><button type="button" class="sq-remove-line text-red-600 text-lg leading-none">&times;</button></td>
         `;
         el('sqLinesBody').appendChild(tr);
-        const sel = tr.querySelector('.sq-line-product');
         const desc = tr.querySelector('.sq-line-desc');
         const qty = tr.querySelector('.sq-line-qty');
         const price = tr.querySelector('.sq-line-price');
@@ -439,7 +519,8 @@
     function gatherLines() {
         const rows = [...document.querySelectorAll('#sqLinesBody tr')];
         return rows.map(tr => {
-            const pid = tr.querySelector('.sq-line-product').value;
+            const hid = tr.querySelector('.sq-line-product-id');
+            const pid = hid && hid.value ? hid.value.trim() : '';
             return {
                 product_id: pid ? parseInt(pid, 10) : null,
                 description: tr.querySelector('.sq-line-desc').value.trim(),

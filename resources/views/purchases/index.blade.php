@@ -829,7 +829,7 @@ function renderPurchaseItems() {
                 <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Product</label>
                 <div class="relative">
                     <input type="text" class="item-product-search w-full px-2 py-1 border rounded text-sm" data-index="${index}" placeholder="Type product name or SKU..." value="${item.product_id ? escapeHtml(getProductDisplayName(item.product_id)) : ''}">
-                    <div class="item-product-dropdown absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+                    <div class="item-product-dropdown absolute left-0 right-0 z-[100] bottom-full mb-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
                 </div>
                 <input type="hidden" class="item-product-id" data-index="${index}" value="${item.product_id}">
             </div>
