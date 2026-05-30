@@ -135,6 +135,7 @@
                         <thead>
                             <tr class="text-left text-gray-600">
                                 <th class="py-2 pr-2">Product (optional)</th>
+                                <th class="py-2 pr-2 w-28 text-right">Avail.</th>
                                 <th class="py-2 pr-2">Description *</th>
                                 <th class="py-2 pr-2 w-24">Qty *</th>
                                 <th class="py-2 pr-2 w-28">Unit ₱ *</th>
@@ -191,7 +192,7 @@
     const canApprove = role === 'admin' || role === 'manager';
 
     let branchId = isAdmin ? null : (window.sqUserBranchId || null);
-    let products = [];
+    let sqInventoryItems = [];
 
     const el = (id) => document.getElementById(id);
 
@@ -226,12 +227,65 @@
         if (!isAdmin) branchId = window.sqUserBranchId;
     }
 
-    async function loadProducts() {
-        // API returns a paginator { data: [...], ... }, not a bare array.
-        const res = await fetch('/api/products?per_page=5000', { headers: { 'Accept': 'application/json' } });
-        if (!res.ok) return;
-        const raw = await res.json();
-        products = Array.isArray(raw) ? raw : (Array.isArray(raw.data) ? raw.data : []);
+    function branchIdForSqInventory() {
+        if (isAdmin && el('sqFormBranch') && el('sqFormBranch').value) {
+            return parseInt(el('sqFormBranch').value, 10) || null;
+        }
+        return currentBranch();
+    }
+
+    function sqInvStock(inv) {
+        if (!inv || !inv.product) return 0;
+        const isSet = inv.product.base_unit === 'per set' && (Number(inv.product.set_components_count) > 0 || inv.calculated_stock != null);
+        if (isSet) return Number(inv.calculated_stock ?? 0);
+        return Number(inv.available_stock ?? 0);
+    }
+
+    function sqInvUnitPrice(inv) {
+        if (!inv) return '';
+        const n = Number(inv.price);
+        if (Number.isNaN(n) || n < 0) return '';
+        return n.toFixed(2);
+    }
+
+    function formatSqStock(n) {
+        const x = Number(n);
+        if (Number.isNaN(x)) return '—';
+        return x.toLocaleString('en-PH', { maximumFractionDigits: 4 });
+    }
+
+    async function loadSqBranchInventory(mergeFromQuotation = null) {
+        const b = branchIdForSqInventory();
+        if (!b) {
+            sqInventoryItems = [];
+            return;
+        }
+        const res = await fetch(`/api/inventory/branch/${b}?per_page=5000`, {
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+        });
+        if (!res.ok) {
+            sqInventoryItems = [];
+            return;
+        }
+        const data = await res.json();
+        sqInventoryItems = Array.isArray(data.data) ? data.data : [];
+        if (mergeFromQuotation && Array.isArray(mergeFromQuotation.items)) {
+            const seen = new Set(sqInventoryItems.map(i => String(i.product_id)));
+            mergeFromQuotation.items.forEach(it => {
+                const pid = it.product_id;
+                if (!pid || seen.has(String(pid)) || !it.product) return;
+                sqInventoryItems.push({
+                    id: null,
+                    product_id: pid,
+                    product: it.product,
+                    available_stock: 0,
+                    calculated_stock: 0,
+                    price: it.unit_price,
+                    wholesale_price: null,
+                });
+                seen.add(String(pid));
+            });
+        }
     }
 
     function currentBranch() {
@@ -302,9 +356,9 @@
         return d.innerHTML;
     }
 
-    /** Same display as PO: Name + size/measurement + color (measurement before color). */
-    function sqProductDisplayLabel(p) {
-        if (!p) return '';
+    /** Name + size/measurement + color (measurement before color); `isSet` = per-set bundle. */
+    function sqProductDisplayLabelParts(p) {
+        if (!p) return { base: '', isSet: false };
         const fmtDim = (v) => {
             if (v == null || v === '') return '';
             const n = parseFloat(v);
@@ -331,7 +385,33 @@
         const parts = [String(p.name || '').trim()];
         if (measurementDisplay) parts.push(measurementDisplay);
         if (colorText) parts.push(colorText);
-        return parts.join(' ');
+        const base = parts.filter(Boolean).join(' ');
+        const isSet = (p.base_unit || '').toLowerCase() === 'per set';
+        return { base, isSet };
+    }
+
+    /** Plain text for inputs, saved description, and search matching. */
+    function sqProductDisplayLabel(p) {
+        if (!p) return '';
+        const { base, isSet } = sqProductDisplayLabelParts(p);
+        if (!isSet) return base;
+        return base ? `${base} (set)` : '(set)';
+    }
+
+    /** Rich label for dropdown rows: highlights <span class="text-purple-600">(set)</span>. */
+    function sqProductDisplayLabelHtml(p) {
+        if (!p) return '';
+        const { base, isSet } = sqProductDisplayLabelParts(p);
+        let html = escapeHtml(base);
+        if (isSet) {
+            html += base
+                ? ' <span class="text-purple-600 font-semibold">(set)</span>'
+                : '<span class="text-purple-600 font-semibold">(set)</span>';
+        }
+        if (p.sku) {
+            html += ` <span class="text-gray-500">(${escapeHtml(String(p.sku))})</span>`;
+        }
+        return html;
     }
 
     function actionsHtml(r) {
@@ -443,23 +523,31 @@
 
         function filterSqProducts(q) {
             const t = (q || '').trim().toLowerCase();
-            if (!t) return products.slice(0, 80);
-            return products.filter(p => {
+            const list = sqInventoryItems.filter(inv => {
+                const p = inv.product;
+                if (!p) return false;
                 const lab = sqProductDisplayLabel(p).toLowerCase();
                 return lab.includes(t) || (p.sku && String(p.sku).toLowerCase().includes(t));
-            }).slice(0, 150);
+            });
+            if (!t) return list.slice(0, 80);
+            return list.slice(0, 150);
         }
 
         function openProductDd() {
-            const list = filterSqProducts(search.value);
-            if (!list.length) {
-                dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+            if (!sqInventoryItems.length) {
+                dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No branch inventory loaded. Select branch or add stock.</div>';
             } else {
-                dd.innerHTML = list.map(p => {
-                    const label = sqProductDisplayLabel(p);
-                    const tail = p.sku ? ` (${escapeHtml(p.sku)})` : '';
-                    return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-id="${p.id}">${escapeHtml(label)}${tail}</div>`;
-                }).join('');
+                const list = filterSqProducts(search.value);
+                if (!list.length) {
+                    dd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+                } else {
+                    dd.innerHTML = list.map(inv => {
+                        const p = inv.product;
+                        const st = formatSqStock(sqInvStock(inv));
+                        const labelHtml = sqProductDisplayLabelHtml(p);
+                        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-id="${p.id}">${labelHtml} <span class="text-gray-500 font-normal">Rem: ${escapeHtml(st)}</span></div>`;
+                    }).join('');
+                }
             }
             dd.classList.remove('hidden');
             dd._sqAnchor = search;
@@ -469,9 +557,13 @@
         search.addEventListener('focus', openProductDd);
         search.addEventListener('input', () => {
             if (hidden.value) {
-                const pCur = products.find(x => String(x.id) === String(hidden.value));
+                const pCur = sqInventoryItems.find(i => String(i.product_id) === String(hidden.value))?.product;
                 const expected = pCur ? (sqProductDisplayLabel(pCur) + (pCur.sku ? ` (${pCur.sku})` : '')) : '';
-                if (expected && search.value.trim() !== expected.trim()) hidden.value = '';
+                if (expected && search.value.trim() !== expected.trim()) {
+                    hidden.value = '';
+                    const rem = tr.querySelector('.sq-line-rem');
+                    if (rem) rem.textContent = '—';
+                }
             }
             openProductDd();
         });
@@ -507,15 +599,15 @@
     function addLineRow(data = {}) {
         const tr = document.createElement('tr');
         tr.dataset.line = '1';
-        const plist = Array.isArray(products) ? products : [];
+        let inv0 = sqInventoryItems.find(i => String(i.product_id) === String(data.product_id));
+        const p0 = inv0?.product || data.product || null;
         let initSearch = '';
         let initHid = '';
-        if (data.product_id) {
-            const p0 = plist.find(x => String(x.id) === String(data.product_id));
-            if (p0) {
-                initHid = String(p0.id);
-                initSearch = sqProductDisplayLabel(p0) + (p0.sku ? ` (${p0.sku})` : '');
-            }
+        let initRem = '—';
+        if (p0) {
+            initHid = String(p0.id);
+            initSearch = sqProductDisplayLabel(p0) + (p0.sku ? ` (${p0.sku})` : '');
+            if (inv0) initRem = formatSqStock(sqInvStock(inv0));
         }
         tr.innerHTML = `
             <td class="py-1 pr-2 align-top">
@@ -525,6 +617,7 @@
                     <div class="sq-line-product-dd hidden max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg"></div>
                 </div>
             </td>
+            <td class="py-1 pr-2 align-top text-right"><span class="sq-line-rem text-xs text-gray-700 tabular-nums whitespace-nowrap">${escapeHtml(initRem)}</span></td>
             <td class="py-1 pr-2"><input type="text" class="sq-line-desc w-full border rounded px-2 py-1 text-sm" placeholder="Description"></td>
             <td class="py-1 pr-2"><input type="number" step="1" min="1" class="sq-line-qty w-full border rounded px-2 py-1 text-sm"></td>
             <td class="py-1 pr-2"><input type="number" step="0.01" min="0" class="sq-line-price w-full border rounded px-2 py-1 text-sm"></td>
@@ -557,7 +650,7 @@
         }).filter(l => l.description && !isNaN(l.quantity) && l.quantity > 0 && !isNaN(l.unit_price) && l.unit_price >= 0);
     }
 
-    function openModal(create) {
+    async function openModal(create) {
         el('sqModal').classList.remove('hidden');
         el('sqForm').reset();
         el('sqLinesBody').innerHTML = '';
@@ -565,9 +658,12 @@
         el('sqTotalsPreview')?.classList.add('hidden');
         if (create) {
             el('sqModalTitle').textContent = 'New quotation';
-            if (products.length === 0) addLineRow();
-            else addLineRow();
             if (isAdmin && el('sqFormBranch') && branchId) el('sqFormBranch').value = String(branchId);
+            await loadSqBranchInventory(null);
+            if (sqInventoryItems.length === 0) {
+                toast('No inventory for this branch yet. Add stock or choose another branch.', false);
+            }
+            addLineRow();
         }
     }
 
@@ -646,8 +742,10 @@
             el('sqNotes').value = q.notes || '';
             el('sqTerms').value = q.terms || '';
             el('sqLinesBody').innerHTML = '';
+            await loadSqBranchInventory(q);
             (q.items || []).forEach(it => addLineRow({
                 product_id: it.product_id,
+                product: it.product,
                 description: it.description,
                 quantity: it.quantity,
                 unit_price: it.unit_price,
@@ -687,12 +785,16 @@
             e.preventDefault();
             const tr = pick.closest('tr');
             const id = pick.dataset.sqPickId;
-            const p = products.find(x => String(x.id) === String(id));
+            const inv = sqInventoryItems.find(i => i.product && String(i.product.id) === String(id));
+            const p = inv?.product;
             if (!tr || !p) return;
             const search = tr.querySelector('.sq-line-product-search');
             const hidden = tr.querySelector('.sq-line-product-id');
             const dd = tr.querySelector('.sq-line-product-dd');
             const desc = tr.querySelector('.sq-line-desc');
+            const price = tr.querySelector('.sq-line-price');
+            const qty = tr.querySelector('.sq-line-qty');
+            const rem = tr.querySelector('.sq-line-rem');
             if (search) search.value = sqProductDisplayLabel(p) + (p.sku ? ` (${p.sku})` : '');
             if (hidden) hidden.value = String(p.id);
             if (dd) {
@@ -700,7 +802,24 @@
                 dd.innerHTML = '';
                 dd._sqAnchor = null;
             }
-            if (desc && !desc.value.trim()) desc.value = sqProductDisplayLabel(p);
+            if (desc) desc.value = sqProductDisplayLabel(p);
+            if (inv && price) {
+                const up = sqInvUnitPrice(inv);
+                if (up !== '') price.value = up;
+            }
+            if (inv && rem) rem.textContent = formatSqStock(sqInvStock(inv));
+            if (inv && qty) {
+                const maxSt = sqInvStock(inv);
+                if (maxSt > 0) {
+                    qty.max = String(maxSt);
+                    const qv = parseFloat(qty.value) || 0;
+                    if (qv > maxSt) qty.value = String(maxSt);
+                } else {
+                    qty.removeAttribute('max');
+                }
+            }
+            refreshSqLineTotal(tr);
+            refreshSqTotals();
         });
     }
 
@@ -712,7 +831,7 @@
         el('sqModal')?.addEventListener('scroll', schedSqDd, true);
     }
 
-    el('sqNewBtn').addEventListener('click', () => { openModal(true); });
+    el('sqNewBtn').addEventListener('click', () => { openModal(true).catch(() => {}); });
     el('sqModalClose').addEventListener('click', closeModal);
     el('sqAddLineBtn').addEventListener('click', () => addLineRow());
     el('sqDiscount').addEventListener('input', refreshSqTotals);
@@ -720,8 +839,19 @@
     el('sqSaveDraftBtn').addEventListener('click', () => saveQuotation());
     el('sqRefreshBtn').addEventListener('click', loadList);
     el('sqStatusFilter').addEventListener('change', loadList);
+    if (el('sqFormBranch')) {
+        el('sqFormBranch').addEventListener('change', async () => {
+            if (!el('sqModal').classList.contains('hidden')) {
+                await loadSqBranchInventory(null);
+            }
+        });
+    }
     if (el('sqBranchSelector')) {
-        el('sqBranchSelector').addEventListener('change', () => { branchId = parseInt(el('sqBranchSelector').value, 10) || null; loadList(); });
+        el('sqBranchSelector').addEventListener('change', async () => {
+            branchId = parseInt(el('sqBranchSelector').value, 10) || null;
+            await loadSqBranchInventory(null);
+            loadList();
+        });
     }
     el('sqLinkCancel').addEventListener('click', () => el('sqLinkModal').classList.add('hidden'));
     el('sqLinkConfirm').addEventListener('click', async () => {
@@ -740,9 +870,9 @@
 
     document.addEventListener('DOMContentLoaded', async () => {
         if (isAdmin) await loadBranches();
-        await loadProducts();
         if (!isAdmin) branchId = window.sqUserBranchId;
         else if (el('sqBranchSelector')?.value) branchId = parseInt(el('sqBranchSelector').value, 10);
+        await loadSqBranchInventory(null);
         loadList();
     });
 })();
