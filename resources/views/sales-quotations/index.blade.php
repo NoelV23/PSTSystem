@@ -131,12 +131,12 @@
                     <button type="button" id="sqAddLineBtn" class="text-sm bg-white border px-3 py-1 rounded-lg hover:bg-gray-100">+ Add line</button>
                 </div>
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm min-w-[36rem]">
+                    <table class="w-full text-sm min-w-[51rem]">
                         <thead>
                             <tr class="text-left text-gray-600">
-                                <th class="py-2 pr-2">Product (optional)</th>
-                                <th class="py-2 pr-2 w-28 text-right">Avail.</th>
-                                <th class="py-2 pr-2">Description *</th>
+                                <th class="py-2 pr-1 w-[20rem]">Product (optional)</th>
+                                <th class="py-2 pl-0 pr-2 w-28 text-right">Avail.</th>
+                                <th class="py-2 pr-2 w-[20rem]">Description *</th>
                                 <th class="py-2 pr-2 w-24">Qty *</th>
                                 <th class="py-2 pr-2 w-28">Unit ₱ *</th>
                                 <th class="py-2 pr-2 w-24 text-right">Line total</th>
@@ -610,15 +610,15 @@
             if (inv0) initRem = formatSqStock(sqInvStock(inv0));
         }
         tr.innerHTML = `
-            <td class="py-1 pr-2 align-top">
-                <div class="relative min-w-[12rem]">
-                    <input type="text" autocomplete="off" class="sq-line-product-search w-full border border-gray-300 rounded px-2 py-1 text-sm" placeholder="Search product…" value="${escapeHtml(initSearch)}">
+            <td class="py-1 pr-1 align-top w-[20rem]">
+                <div class="relative w-full min-w-0">
+                    <input type="text" autocomplete="off" class="sq-line-product-search w-full min-w-0 border border-gray-300 rounded px-2 py-1 text-sm" placeholder="Search product…" value="${escapeHtml(initSearch)}">
                     <input type="hidden" class="sq-line-product-id" value="${escapeHtml(initHid)}">
                     <div class="sq-line-product-dd hidden max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg"></div>
                 </div>
             </td>
-            <td class="py-1 pr-2 align-top text-right"><span class="sq-line-rem text-xs text-gray-700 tabular-nums whitespace-nowrap">${escapeHtml(initRem)}</span></td>
-            <td class="py-1 pr-2"><input type="text" class="sq-line-desc w-full border rounded px-2 py-1 text-sm" placeholder="Description"></td>
+            <td class="py-1 pl-0 pr-2 align-top text-right"><span class="sq-line-rem text-xs text-gray-700 tabular-nums whitespace-nowrap">${escapeHtml(initRem)}</span></td>
+            <td class="py-1 pr-2 align-top w-[20rem]"><input type="text" class="sq-line-desc w-full min-w-0 border rounded px-2 py-1 text-sm" placeholder="Description"></td>
             <td class="py-1 pr-2"><input type="number" step="1" min="1" class="sq-line-qty w-full border rounded px-2 py-1 text-sm"></td>
             <td class="py-1 pr-2"><input type="number" step="0.01" min="0" class="sq-line-price w-full border rounded px-2 py-1 text-sm"></td>
             <td class="py-1 pr-2 text-right"><span class="sq-line-total text-sm font-medium text-gray-800">₱0.00</span></td>
