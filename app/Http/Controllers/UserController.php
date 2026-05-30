@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Branch;
+use App\Support\UserActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -20,7 +20,7 @@ class UserController extends Controller
     public function getAllUsers()
     {
         $currentUser = auth()->user();
-        
+
         if ($currentUser->role === 'manager') {
             // Manager can only see users from their branch
             $users = User::with('branch:id,name')
@@ -28,9 +28,9 @@ class UserController extends Controller
                 ->get();
         } else {
             // Admin can see all users
-        $users = User::with('branch:id,name')->get();
+            $users = User::with('branch:id,name')->get();
         }
-        
+
         return response()->json($users);
     }
 
@@ -38,13 +38,13 @@ class UserController extends Controller
     public function store(Request $request)
     {
         $currentUser = auth()->user();
-        
+
         // Manager can only create staff users for their branch
         if ($currentUser->role === 'manager') {
             $request->merge(['role' => 'staff']);
             $request->merge(['branch_id' => $currentUser->branch_id]);
         }
-        
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email',
@@ -53,15 +53,20 @@ class UserController extends Controller
             'branch_id' => 'nullable|exists:branches,id',
             'status' => ['required', Rule::in(['active', 'inactive'])],
         ]);
-        
+
         // Manager cannot create admin users
         if ($currentUser->role === 'manager' && $validated['role'] === 'admin') {
             return response()->json(['error' => 'Managers cannot create admin users'], 403);
         }
-        
+
         $validated['password'] = Hash::make($validated['password']);
         $user = User::create($validated);
         $user->load('branch:id,name');
+        UserActivity::record($currentUser->id, 'user.created', 'Created user: '.$user->email, [
+            'target_user_id' => $user->id,
+            'role' => $user->role,
+        ]);
+
         return response()->json($user, 201);
     }
 
@@ -70,7 +75,7 @@ class UserController extends Controller
     {
         $currentUser = auth()->user();
         $user = User::findOrFail($id);
-        
+
         // Manager can only update users from their branch
         if ($currentUser->role === 'manager') {
             if ($user->branch_id !== $currentUser->branch_id) {
@@ -84,23 +89,28 @@ class UserController extends Controller
             $request->merge(['role' => 'staff']);
             $request->merge(['branch_id' => $currentUser->branch_id]);
         }
-        
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => ['required','email','max:255', Rule::unique('users','email')->ignore($user->id)],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
             'password' => 'nullable|string|min:6',
             'role' => ['required', Rule::in(['admin', 'manager', 'staff'])],
             'branch_id' => 'nullable|exists:branches,id',
             'status' => ['required', Rule::in(['active', 'inactive'])],
         ]);
-        
-        if (!empty($validated['password'])) {
+
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
         }
         $user->update($validated);
         $user->load('branch:id,name');
+        UserActivity::record($currentUser->id, 'user.updated', 'Updated user: '.$user->email, [
+            'target_user_id' => $user->id,
+            'role' => $user->role,
+        ]);
+
         return response()->json($user);
     }
 

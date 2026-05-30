@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
+use App\Support\UserActivity;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -54,6 +56,11 @@ class LoginRequest extends FormRequest
             // Count this failed attempt and set a 5-minute decay
             RateLimiter::hit($this->throttleKey(), 300);
 
+            $uid = User::where('email', $this->input('email'))->value('id');
+            UserActivity::record($uid, 'auth.failed', 'Invalid login credentials.', [
+                'email' => $this->input('email'),
+            ]);
+
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
@@ -77,6 +84,12 @@ class LoginRequest extends FormRequest
         event(new Lockout($this));
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
+
+        $uid = User::where('email', $this->input('email'))->value('id');
+        UserActivity::record($uid, 'auth.lockout', 'Login rate limit triggered.', [
+            'email' => $this->input('email'),
+            'retry_after_seconds' => $seconds,
+        ]);
 
         throw ValidationException::withMessages([
             'email' => trans('auth.throttle', [

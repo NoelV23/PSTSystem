@@ -10,6 +10,7 @@ use App\Http\Controllers\PurchaseController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\SalesQuotationController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserLogController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'restrict.staff'])->group(function () {
@@ -24,6 +25,9 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
 
     // branches (admin only)
     Route::get('/branches', [BranchController::class, 'index'])->name('branches.index')->middleware('role:admin');
+
+    // user activity log (admin only)
+    Route::get('/user-logs', [UserLogController::class, 'index'])->name('user-logs.index')->middleware('role:admin');
 
     // users (admin & manager)
     Route::get('/users', [UserController::class, 'index'])->name('users.index')->middleware('role:admin,manager');

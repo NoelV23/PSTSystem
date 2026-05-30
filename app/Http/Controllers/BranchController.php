@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
-use Illuminate\Http\Request;
+use App\Support\UserActivity;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 
 class BranchController extends Controller
 {
@@ -15,6 +16,7 @@ class BranchController extends Controller
         if (Auth::user()->role !== 'admin') {
             return redirect()->route('dashboard');
         }
+
         return view('branches.index');
     }
 
@@ -22,6 +24,7 @@ class BranchController extends Controller
     {
         try {
             $branches = Branch::orderBy('created_at', 'desc')->get();
+
             return response()->json($branches);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to fetch branches'], 500);
@@ -32,6 +35,7 @@ class BranchController extends Controller
     {
         try {
             $branch = Branch::findOrFail($id);
+
             return response()->json($branch);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Branch not found'], 404);
@@ -50,6 +54,10 @@ class BranchController extends Controller
             ]);
 
             $branch = Branch::create($validated);
+            UserActivity::record(Auth::id(), 'branch.created', 'Branch created: '.$branch->name, [
+                'branch_id' => $branch->id,
+            ]);
+
             return response()->json($branch, 201);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -71,6 +79,10 @@ class BranchController extends Controller
 
             $branch = Branch::findOrFail($id);
             $branch->update($validated);
+            UserActivity::record(Auth::id(), 'branch.updated', 'Branch updated: '.$branch->name, [
+                'branch_id' => $branch->id,
+            ]);
+
             return response()->json($branch);
         } catch (ValidationException $e) {
             return response()->json(['errors' => $e->errors()], 422);
@@ -83,10 +95,16 @@ class BranchController extends Controller
     {
         try {
             $branch = Branch::findOrFail($id);
+            $name = $branch->name;
+            $bid = $branch->id;
             $branch->delete();
+            UserActivity::record(Auth::id(), 'branch.deleted', 'Branch deleted: '.$name, [
+                'branch_id' => $bid,
+            ]);
+
             return response()->json(['message' => 'Branch deleted successfully'], 200);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Failed to delete branch'], 500);
         }
     }
-} 
+}

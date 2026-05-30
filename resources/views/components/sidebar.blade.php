@@ -368,6 +368,32 @@
                             Users
                         </div>
                     </a>
+                    @if(auth()->user()->role === 'admin')
+                    <a href="{{ url('/user-logs') }}" class="relative flex items-center justify-between py-2.5 px-2 rounded-lg text-white font-medium hover:bg-white/10 transition {{ request()->is('user-logs') ? 'bg-white/15 ring-1 ring-[#f4c20d]/60 shadow-sm' : '' }}"
+                       x-data="{ showTooltip: false }"
+                       @mouseenter="if (!open) showTooltip = true"
+                       @mouseleave="showTooltip = false">
+                        <span class="flex items-center gap-3">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            <span x-show="open">User logs</span>
+                        </span>
+                        <svg x-show="open" class="h-4 w-4 text-white opacity-60" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M9 5l7 7-7 7" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div x-show="showTooltip && !open"
+                             x-transition:enter="transition ease-out duration-200"
+                             x-transition:enter-start="opacity-0 scale-95"
+                             x-transition:enter-end="opacity-100 scale-100"
+                             x-transition:leave="transition ease-in duration-150"
+                             x-transition:leave-start="opacity-100 scale-100"
+                             x-transition:leave-end="opacity-0 scale-95"
+                             class="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-sm rounded shadow-lg z-50 whitespace-nowrap">
+                            User logs
+                        </div>
+                    </a>
+                    @endif
                 @endif
             </nav>
         </aside>

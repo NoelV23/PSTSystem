@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Support\UserActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,11 +31,17 @@ class AuthenticatedSessionController extends Controller
 
         // Block inactive users immediately after authentication
         if (Auth::user() && (Auth::user()->status ?? null) === 'inactive') {
+            UserActivity::record(Auth::id(), 'auth.blocked_inactive', 'Inactive account blocked after credentials verified.', [
+                'email' => Auth::user()->email,
+            ]);
             Auth::guard('web')->logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
+
             return redirect()->route('login')->withErrors(['email' => 'Your account is inactive. Please contact the administrator.']);
         }
+
+        UserActivity::record(Auth::id(), 'auth.login', 'Signed in successfully.');
 
         if (Auth::user()->role === 'staff') {
             return redirect()->intended(route('sales.index', absolute: false));
@@ -48,6 +55,9 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $userId = $request->user()?->id;
+        UserActivity::record($userId, 'auth.logout', 'Signed out.');
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
