@@ -28,6 +28,24 @@
 
         <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-6 flex flex-wrap gap-4 items-end">
             <div>
+                <span class="block text-sm font-medium text-gray-700 mb-1">Date range</span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div>
+                        <label for="sqDateFrom" class="sr-only">From</label>
+                        <input type="date" id="sqDateFrom" value="{{ now()->format('Y-m-d') }}" class="px-3 py-2 border border-gray-300 rounded-lg" title="From">
+                    </div>
+                    <span class="text-gray-500 text-sm">to</span>
+                    <div>
+                        <label for="sqDateTo" class="sr-only">To</label>
+                        <input type="date" id="sqDateTo" value="{{ now()->format('Y-m-d') }}" class="px-3 py-2 border border-gray-300 rounded-lg" title="To">
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label for="sqQuotationSearch" class="block text-sm font-medium text-gray-700 mb-1">Quotation #</label>
+                <input type="text" id="sqQuotationSearch" class="px-3 py-2 border border-gray-300 rounded-lg w-full sm:w-56 font-mono text-sm" placeholder="e.g. SQ-01-2026-00001" autocomplete="off">
+            </div>
+            <div>
                 <label for="sqStatusFilter" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
                 <select id="sqStatusFilter" class="px-3 py-2 border border-gray-300 rounded-lg">
                     <option value="">All</option>
@@ -296,6 +314,20 @@
         return window.sqUserBranchId;
     }
 
+    function sqListQueryString() {
+        const params = new URLSearchParams();
+        const st = el('sqStatusFilter').value;
+        if (st) params.set('status', st);
+        const df = el('sqDateFrom').value;
+        const dt = el('sqDateTo').value;
+        if (df) params.set('date_from', df);
+        if (dt) params.set('date_to', dt);
+        const qn = (el('sqQuotationSearch').value || '').trim();
+        if (qn) params.set('quotation', qn);
+        const s = params.toString();
+        return s ? ('?' + s) : '';
+    }
+
     async function loadList() {
         const b = currentBranch();
         if (!b) {
@@ -307,8 +339,7 @@
         el('sqLoading').classList.remove('hidden');
         el('sqTableWrap').classList.add('hidden');
         el('sqEmpty').classList.add('hidden');
-        const st = el('sqStatusFilter').value;
-        const q = st ? ('?status=' + encodeURIComponent(st)) : '';
+        const q = sqListQueryString();
         const res = await fetch('/api/sales-quotations/branch/' + b + q, {
             headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf() },
         });
@@ -839,6 +870,14 @@
     el('sqSaveDraftBtn').addEventListener('click', () => saveQuotation());
     el('sqRefreshBtn').addEventListener('click', loadList);
     el('sqStatusFilter').addEventListener('change', loadList);
+    el('sqDateFrom').addEventListener('change', loadList);
+    el('sqDateTo').addEventListener('change', loadList);
+    let sqSearchDebounce = null;
+    el('sqQuotationSearch').addEventListener('input', () => {
+        clearTimeout(sqSearchDebounce);
+        sqSearchDebounce = setTimeout(() => loadList(), 350);
+    });
+    el('sqQuotationSearch').addEventListener('change', loadList);
     if (el('sqFormBranch')) {
         el('sqFormBranch').addEventListener('change', async () => {
             if (!el('sqModal').classList.contains('hidden')) {

@@ -7,6 +7,7 @@ use App\Models\SalesQuotationItem;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class SalesQuotationController extends Controller
 {
@@ -40,6 +41,38 @@ class SalesQuotationController extends Controller
 
         if ($request->filled('status')) {
             $query->where('status', $request->string('status'));
+        }
+
+        $dateFrom = null;
+        $dateTo = null;
+        if ($request->filled('date_from')) {
+            $f = $request->string('date_from')->trim();
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $f)) {
+                $dateFrom = $f;
+            }
+        }
+        if ($request->filled('date_to')) {
+            $t = $request->string('date_to')->trim();
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $t)) {
+                $dateTo = $t;
+            }
+        }
+        if ($dateFrom && $dateTo && $dateFrom > $dateTo) {
+            [$dateFrom, $dateTo] = [$dateTo, $dateFrom];
+        }
+        if ($dateFrom) {
+            $query->whereDate('created_at', '>=', $dateFrom);
+        }
+        if ($dateTo) {
+            $query->whereDate('created_at', '<=', $dateTo);
+        }
+
+        if ($request->filled('quotation')) {
+            $term = Str::limit(trim($request->string('quotation')), 64, '');
+            if ($term !== '') {
+                $like = '%'.addcslashes($term, '%_\\').'%';
+                $query->where('quotation_number', 'like', $like);
+            }
         }
 
         return response()->json($query->get());
