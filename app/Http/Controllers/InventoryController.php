@@ -50,9 +50,12 @@ class InventoryController extends Controller
             ->where('branch_id', $branchId);
 
         if ($search) {
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('variant_group_label', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('thickness', 'like', "%{$search}%")
+                    ->orWhere('color', 'like', "%{$search}%");
             });
         }
         if ($category) {
@@ -62,6 +65,7 @@ class InventoryController extends Controller
         }
 
         $inventory = $query->join('products', 'inventories.product_id', '=', 'products.id')
+            ->orderByRaw('COALESCE(NULLIF(products.variant_group_label, ""), products.name) asc')
             ->orderBy('products.name', 'asc')
             ->select('inventories.*')
             ->paginate($perPage);
@@ -213,9 +217,12 @@ class InventoryController extends Controller
             ->where('branch_id', $branchId);
 
         if ($search) {
-            $query->whereHas('product', function($q) use ($search) {
+            $query->whereHas('product', function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('variant_group_label', 'like', "%{$search}%")
+                    ->orWhere('sku', 'like', "%{$search}%")
+                    ->orWhere('thickness', 'like', "%{$search}%")
+                    ->orWhere('color', 'like', "%{$search}%");
             });
         }
 

@@ -143,169 +143,169 @@
 </div>
 
 <!-- Add/Edit Purchase Modal -->
-<div id="purchaseModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="modalTitle" class="text-lg font-medium text-gray-900">New Purchase Order</h3>
-                <button id="closeModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
+<div id="purchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+    <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
+        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+            <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
+                <h3 id="modalTitle" class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">New Purchase Order</h3>
+                <button type="button" id="closeModal" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
             </div>
-            <form id="purchaseForm" data-custom-submit="true" class="space-y-6">
+            <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 lg:px-8">
+            <form id="purchaseForm" data-custom-submit="true" class="space-y-8">
                 <input type="hidden" id="purchaseId" name="purchase_id">
-                <input type="hidden" id="selectedBranchId" name="branch_id">
-                
-                <!-- Purchase Order Details -->
-                <div class="mb-3 rounded-lg border border-blue-100 bg-blue-50 p-3">
-                    <label class="flex items-start gap-2 cursor-pointer text-sm text-gray-800">
-                        <input type="checkbox" id="isDraftPo" class="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                @if(auth()->user()->role === 'admin')
+                <input type="hidden" id="selectedBranchId" value="">
+                @else
+                <input type="hidden" id="selectedBranch" value="{{ auth()->user()->branch_id }}">
+                <input type="hidden" id="selectedBranchId" value="{{ auth()->user()->branch_id }}">
+                @endif
+
+                <div class="rounded-xl border border-blue-100 bg-blue-50/90 p-4 sm:p-5">
+                    <label class="flex cursor-pointer items-start gap-3 text-sm text-gray-800">
+                        <input type="checkbox" id="isDraftPo" class="mt-0.5 h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                         <span><strong>Draft PO</strong> — save for printing and emailing the supplier. <span class="text-gray-600">No stock is added until you use “Receive / record invoice”.</span></span>
                     </label>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label for="supplierName" class="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
-                        <input type="text" id="supplierName" name="supplier_name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                        <div id="supplier_nameError" class="text-red-500 text-sm mt-1 hidden"></div>
+
+                <div class="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="supplierName" class="text-sm font-medium text-gray-700">Supplier name <span class="text-red-600">*</span></label>
+                        <input type="text" id="supplierName" name="supplier_name" required class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">
+                        <div id="supplier_nameError" class="hidden text-sm text-red-600"></div>
                     </div>
-                    <div>
-                        <label for="orderDate" class="block text-sm font-medium text-gray-700 mb-1">Order Date *</label>
-                        <input type="date" id="orderDate" name="order_date" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                        <div id="order_dateError" class="text-red-500 text-sm mt-1 hidden"></div>
+                    <div class="flex flex-col gap-1.5">
+                        <label for="orderDate" class="text-sm font-medium text-gray-700">Order date <span class="text-red-600">*</span></label>
+                        <input type="date" id="orderDate" name="order_date" required class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">
+                        <div id="order_dateError" class="hidden text-sm text-red-600"></div>
                     </div>
-                    <div>
-                        <label for="purchaseReceiptNo" class="block text-sm font-medium text-gray-700 mb-1">Supplier invoice / DR no.</label>
-                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Required when adding stock (not for draft)">
-                        <div id="purchase_receipt_noError" class="text-red-500 text-sm mt-1 hidden"></div>
-                    </div>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                    <div>
-                        <label for="shipTo" class="block text-sm font-medium text-gray-700 mb-1">Ship to / site (optional)</label>
-                        <textarea id="shipTo" name="ship_to" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Project site, delivery notes…"></textarea>
-                    </div>
-                    <div>
-                        <label for="paymentTerms" class="block text-sm font-medium text-gray-700 mb-1">Payment terms (optional)</label>
-                        <input type="text" id="paymentTerms" name="payment_terms" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="e.g. COD, 30 days">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="purchaseReceiptNo" class="text-sm font-medium text-gray-700">Supplier invoice / DR no.</label>
+                        <input type="text" id="purchaseReceiptNo" name="purchase_receipt_no" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Required when adding stock (not for draft)">
+                        <div id="purchase_receipt_noError" class="hidden text-sm text-red-600"></div>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+                <div class="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2">
+                    <div class="flex flex-col gap-1.5 @if(auth()->user()->role !== 'admin') md:col-span-2 @endif">
+                        <label for="paymentTerms" class="text-sm font-medium text-gray-700">Payment terms <span class="font-normal text-gray-500">(optional)</span></label>
+                        <input type="text" id="paymentTerms" name="payment_terms" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="e.g. COD, 30 days">
+                    </div>
                     @if(auth()->user()->role === 'admin')
-                    <div>
-                        <label for="selectedBranch" class="block text-sm font-medium text-gray-700 mb-1">Branch *</label>
-                        <select id="selectedBranch" name="branch_id" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                            <option value="">Select branch...</option>
+                    <div class="flex flex-col gap-1.5">
+                        <label for="selectedBranch" class="text-sm font-medium text-gray-700">Branch <span class="text-red-600">*</span></label>
+                        <select id="selectedBranch" name="branch_id" required class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">
+                            <option value="">Select branch…</option>
                         </select>
-                        <div id="branch_idError" class="text-red-500 text-sm mt-1 hidden"></div>
+                        <div id="branch_idError" class="hidden text-sm text-red-600"></div>
                     </div>
-                    @else
-                    <input type="hidden" id="selectedBranch" name="branch_id" value="{{ auth()->user()->branch_id }}">
-                    <input type="hidden" id="selectedBranchId" name="branch_id" value="{{ auth()->user()->branch_id }}">
                     @endif
                 </div>
-                
-                <div>
-                    <label for="purchaseNote" class="block text-sm font-medium text-gray-700 mb-1">Note (Optional)</label>
-                    <textarea id="purchaseNote" name="note" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"></textarea>
-                    <div id="noteError" class="text-red-500 text-sm mt-1 hidden"></div>
-                </div>
-                
-                <!-- Purchase Items Section -->
-                <div class="border rounded-lg p-4 bg-gray-50">
-                    <div class="flex justify-between items-center mb-4">
-                        <h4 class="text-lg font-medium text-gray-900">Purchase Items</h4>
-                        <button type="button" id="addItemBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">+ Add Item</button>
+
+                <div class="grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-2 md:items-stretch">
+                    <div class="flex min-h-0 flex-col gap-1.5">
+                        <label for="shipTo" class="text-sm font-medium text-gray-700">Ship to / site <span class="font-normal text-gray-500">(optional)</span></label>
+                        <textarea id="shipTo" name="ship_to" rows="4" class="min-h-[9.5rem] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 md:min-h-[10.5rem]" placeholder="Project site, delivery notes…"></textarea>
                     </div>
-                    
-                    <div class="hidden sm:grid sm:grid-cols-12 gap-2 px-3 pb-1 text-xs font-medium text-gray-500 uppercase">
+                    <div class="flex min-h-0 flex-col gap-1.5">
+                        <label for="purchaseNote" class="text-sm font-medium text-gray-700">Note <span class="font-normal text-gray-500">(optional)</span></label>
+                        <textarea id="purchaseNote" name="note" rows="4" class="min-h-[9.5rem] flex-1 resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 md:min-h-[10.5rem]"></textarea>
+                        <div id="noteError" class="hidden text-sm text-red-600"></div>
+                    </div>
+                </div>
+
+                <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <h4 class="text-base font-semibold text-gray-900 sm:text-lg">Purchase items</h4>
+                        <button type="button" id="addItemBtn" class="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add item</button>
+                    </div>
+                    <div class="hidden px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:grid sm:grid-cols-12 sm:gap-3">
                         <div class="sm:col-span-5">Product</div>
                         <div class="sm:col-span-2">Qty</div>
                         <div class="sm:col-span-2">Unit cost</div>
                         <div class="sm:col-span-2 text-right">Line total</div>
                         <div class="sm:col-span-1"></div>
                     </div>
-                    <div id="purchaseItemsList" class="space-y-3">
+                    <div id="purchaseItemsList" class="space-y-4">
                         <!-- Purchase items will be added here -->
                     </div>
-                    
-                    <div class="mt-4 pt-4 border-t">
-                        <div class="flex justify-between items-center">
-                            <span class="text-lg font-medium text-gray-900">PO total</span>
-                            <span id="totalCost" class="text-2xl font-bold text-red-600">₱0.00</span>
-                        </div>
+                    <div class="mt-6 flex flex-col gap-1 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+                        <span class="text-sm font-medium text-gray-600 sm:text-base">PO total</span>
+                        <span id="totalCost" class="text-2xl font-bold tabular-nums text-red-600">₱0.00</span>
                     </div>
                 </div>
-                
-                <div class="flex justify-end space-x-3 pt-4">
-                    <button type="button" id="cancelBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Cancel</button>
-                    <button type="submit" id="submitBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Save Purchase Order</button>
+
+                <div class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end sm:gap-4">
+                    <button type="button" id="cancelBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Cancel</button>
+                    <button type="submit" id="submitBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">Save purchase order</button>
                 </div>
             </form>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Receive draft PO → record invoice & stock -->
-<div id="receivePurchaseModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-12 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white mb-12">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900">Receive / record invoice</h3>
-            <button type="button" id="closeReceiveModal" class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-        </div>
-        <p class="text-sm text-gray-600 mb-4">Select a <strong>draft</strong> PO, enter the supplier’s invoice or DR number, confirm quantities and costs, then save to add items to inventory.</p>
-        <div class="space-y-4">
-            <div>
-                <label for="receivePoSelect" class="block text-sm font-medium text-gray-700 mb-1">Draft PO *</label>
-                <select id="receivePoSelect" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
-                    <option value="">— Load draft POs —</option>
-                </select>
+<div id="receivePurchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+    <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
+        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+            <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
+                <h3 class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">Receive / record invoice</h3>
+                <button type="button" id="closeReceiveModal" class="rounded-lg p-1.5 text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
             </div>
-            <div id="receivePoSummary" class="hidden text-sm bg-gray-50 rounded p-3 border text-gray-700"></div>
-            <div>
-                <label for="receiveInvoiceNo" class="block text-sm font-medium text-gray-700 mb-1">Supplier invoice / DR no. *</label>
-                <input type="text" id="receiveInvoiceNo" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="From supplier’s sales invoice">
-            </div>
-            <div>
-                <label for="receiveNote" class="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
-                <textarea id="receiveNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
-            </div>
-            <div id="receiveItemsSection" class="hidden border rounded-lg p-3 bg-gray-50">
-                <h4 class="font-medium text-gray-900 mb-2">Line items</h4>
-                <div id="receiveItemsList" class="space-y-2"></div>
-                <div class="mt-3 text-right font-semibold text-gray-900">PO total: <span id="receiveTotalCost">₱0.00</span></div>
-            </div>
-            <div class="flex justify-end gap-2 pt-2">
-                <button type="button" id="cancelReceiveBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg">Cancel</button>
-                <button type="button" id="submitReceiveBtn" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50" disabled>Save &amp; add to stock</button>
+            <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 lg:px-8">
+                <p class="mb-6 text-sm leading-relaxed text-gray-600">Select a <strong>draft</strong> PO, enter the supplier’s invoice or DR number, confirm quantities and costs, then save to add items to inventory.</p>
+                <div class="space-y-6">
+                    <div class="flex flex-col gap-1.5">
+                        <label for="receivePoSelect" class="text-sm font-medium text-gray-700">Draft PO <span class="text-red-600">*</span></label>
+                        <select id="receivePoSelect" class="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">
+                            <option value="">— Load draft POs —</option>
+                        </select>
+                    </div>
+                    <div id="receivePoSummary" class="hidden rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700"></div>
+                    <div class="flex flex-col gap-1.5">
+                        <label for="receiveInvoiceNo" class="text-sm font-medium text-gray-700">Supplier invoice / DR no. <span class="text-red-600">*</span></label>
+                        <input type="text" id="receiveInvoiceNo" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="From supplier’s sales invoice">
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label for="receiveNote" class="text-sm font-medium text-gray-700">Note <span class="font-normal text-gray-500">(optional)</span></label>
+                        <textarea id="receiveNote" rows="3" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></textarea>
+                    </div>
+                    <div id="receiveItemsSection" class="hidden rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                        <h4 class="mb-3 text-base font-semibold text-gray-900">Line items</h4>
+                        <div id="receiveItemsList" class="space-y-4"></div>
+                        <div class="mt-4 border-t border-gray-200 pt-4 text-right text-base font-semibold text-gray-900">PO total: <span id="receiveTotalCost" class="tabular-nums text-emerald-700">₱0.00</span></div>
+                    </div>
+                    <div class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end sm:gap-4">
+                        <button type="button" id="cancelReceiveBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Cancel</button>
+                        <button type="button" id="submitReceiveBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg bg-emerald-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto" disabled>Save &amp; add to stock</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
 <!-- View Purchase Details Modal -->
-<div id="viewPurchaseModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-        <div class="mt-3">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="viewModalTitle" class="text-lg font-medium text-gray-900">Purchase Order Details</h3>
-                <button id="closeViewModal" class="text-gray-400 hover:text-gray-600">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+<div id="viewPurchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+    <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
+        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+            <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
+                <h3 id="viewModalTitle" class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">Purchase order details</h3>
+                <button type="button" id="closeViewModal" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
                 </button>
             </div>
-            
-            <div id="purchaseDetails" class="space-y-6">
-                <!-- Purchase details will be loaded here -->
-            </div>
-            
-            <div class="flex justify-end pt-4">
-                <button id="closeViewBtn" class="px-4 py-2 text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-lg transition duration-200">Close</button>
+            <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 lg:px-8">
+                <div id="purchaseDetails" class="space-y-6">
+                    <!-- Purchase details will be loaded here -->
+                </div>
+                <div class="mt-8 flex flex-col-reverse border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
+                    <button type="button" id="closeViewBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Close</button>
+                </div>
             </div>
         </div>
     </div>
@@ -326,6 +326,7 @@
     </div>
 </div>
 
+<script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let purchases = [];
@@ -338,6 +339,7 @@ let selectedBranchId = '';
 let isEditMode = false;
 let currentPurchaseId = null;
 let purchaseItems = [];
+const Picker = window.PstProductVariantPicker;
 
 function setSelectedBranch(branchId, options = {}) {
     const { loadList = false } = options;
@@ -360,6 +362,111 @@ function setSelectedBranch(branchId, options = {}) {
 
     if (loadList && selectedBranchId) {
         loadPurchases();
+    }
+}
+
+function poProductsAsRows() {
+    return products.map((p) => ({ product: p }));
+}
+
+function poHydrateLineVariantBucket(it) {
+    if (!it || !it.product_id || !Picker) return;
+    const p = products.find((x) => String(x.id) === String(it.product_id));
+    if (!p) return;
+    const gk = Picker.groupKey(p);
+    it._poVariants = poProductsAsRows().filter((r) => Picker.groupKey(r.product) === gk);
+}
+
+function poPopulateVariantSelectOptionsForRow(row, index) {
+    const it = purchaseItems[index];
+    const wrap = row.querySelector('.po-variant-wrap');
+    const selC = row.querySelector('.po-line-var-color');
+    const selT = row.querySelector('.po-line-var-thick');
+    const selM = row.querySelector('.po-line-var-meas');
+    const invs = it._poVariants || [];
+    if (!wrap || !selC || !selT || !selM) return;
+    if (!invs.length) {
+        wrap.classList.add('hidden');
+        return;
+    }
+    const colors = Picker.distinctColors(invs);
+    const thicks = Picker.distinctThicknesses(invs);
+    const meas = Picker.distinctMeasurements(invs);
+    if (colors.length === 1 && colors[0] === '') {
+        selC.classList.add('hidden');
+        selC.innerHTML = '<option value="">—</option>';
+    } else {
+        selC.classList.remove('hidden');
+        selC.innerHTML = '<option value="">Color…</option>' + colors.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c || '(none)')}</option>`).join('');
+    }
+    if (!thicks.length) {
+        selT.classList.add('hidden');
+        selT.innerHTML = '<option value="">—</option>';
+    } else {
+        selT.classList.remove('hidden');
+        const thickPlh = invs[0] && invs[0].product ? escapeHtml(Picker.thicknessSpecLabel(invs[0].product)) : 'Thickness';
+        selT.innerHTML = `<option value="">${thickPlh}…</option>` + thicks.map((t) => `<option value="${escapeHtml(t.value)}">${escapeHtml(t.label)}</option>`).join('');
+    }
+    selM.classList.remove('hidden');
+    selM.innerHTML = '<option value="">Size / length…</option>' + meas.map((m) => `<option value="${escapeHtml(m.value)}">${escapeHtml(m.label)}</option>`).join('');
+    if (colors.length === 1) selC.value = colors[0];
+    if (thicks.length === 1) selT.value = thicks[0].value;
+    if (meas.length === 1) selM.value = meas[0].value;
+    wrap.classList.remove('hidden');
+}
+
+function poTryResolveVariant(index) {
+    const it = purchaseItems[index];
+    const row = document.querySelector(`[data-po-line-index="${index}"]`);
+    if (!it || !row || !Picker) return;
+    const invs = it._poVariants || [];
+    const selC = row.querySelector('.po-line-var-color');
+    const selT = row.querySelector('.po-line-var-thick');
+    const selM = row.querySelector('.po-line-var-meas');
+    const inp = row.querySelector('.item-product-search');
+    const f = {};
+    if (selC && !selC.classList.contains('hidden')) f.color = selC.value;
+    else f.color = '';
+    if (selT && !selT.classList.contains('hidden') && selT.value) f.thicknessValue = selT.value;
+    if (selM && selM.value) f.measurementValue = selM.value;
+    let narrowed = Picker.narrowVariants(invs, f);
+    if (selM && !selM.classList.contains('hidden') && !f.measurementValue) {
+        const sub = Picker.narrowVariants(invs, { color: f.color, thicknessValue: f.thicknessValue || undefined });
+        const mo = Picker.distinctMeasurements(sub);
+        if (mo.length === 1) {
+            selM.value = mo[0].value;
+            f.measurementValue = mo[0].value;
+            narrowed = Picker.narrowVariants(invs, f);
+        }
+    }
+    if (narrowed.length === 1) {
+        const p = narrowed[0].product;
+        it.product_id = p.id;
+        if (inp) inp.value = Picker.groupLabel(p);
+    } else {
+        it.product_id = '';
+    }
+}
+
+function poWireVariantSelects(row, index) {
+    row.querySelectorAll('.po-line-var-color, .po-line-var-thick, .po-line-var-meas').forEach((sel) => {
+        sel.addEventListener('change', () => poTryResolveVariant(index));
+    });
+    const it = purchaseItems[index];
+    if (it && it.product_id && it._poVariants && it._poVariants.length) {
+        const p = products.find((x) => String(x.id) === String(it.product_id));
+        poPopulateVariantSelectOptionsForRow(row, index);
+        if (p) {
+            const selC = row.querySelector('.po-line-var-color');
+            const selT = row.querySelector('.po-line-var-thick');
+            const selM = row.querySelector('.po-line-var-meas');
+            const tk = Picker.thicknessKey(p);
+            const mk = Picker.measurementKey(p);
+            if (selC && !selC.classList.contains('hidden')) selC.value = (p.color != null && p.color !== '') ? String(p.color) : '';
+            if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
+            if (selM && mk) selM.value = mk;
+        }
+        poTryResolveVariant(index);
     }
 }
 
@@ -402,6 +509,28 @@ function setupEventListeners() {
     if (purchaseItemsListEl && !purchaseItemsListEl.dataset.poPickBound) {
         purchaseItemsListEl.dataset.poPickBound = '1';
         purchaseItemsListEl.addEventListener('mousedown', function (e) {
+            const gpick = e.target.closest('[data-po-pick-group]');
+            if (gpick && this.contains(gpick)) {
+                e.preventDefault();
+                const index = parseInt(gpick.dataset.poPickIndex, 10);
+                const gk = decodeURIComponent(gpick.dataset.poPickGroup);
+                if (Number.isNaN(index) || !Picker) return;
+                purchaseItems[index]._poVariants = poProductsAsRows().filter((r) => Picker.groupKey(r.product) === gk);
+                const row = gpick.closest('[data-po-line-index]');
+                if (row) {
+                    const inp = row.querySelector('.item-product-search');
+                    const dd = row.querySelector('.item-product-dropdown');
+                    if (inp && purchaseItems[index]._poVariants[0]) inp.value = Picker.groupLabel(purchaseItems[index]._poVariants[0].product);
+                    if (dd) {
+                        dd.classList.add('hidden');
+                        dd.innerHTML = '';
+                        dd._poAnchor = null;
+                    }
+                    poPopulateVariantSelectOptionsForRow(row, index);
+                    poTryResolveVariant(index);
+                }
+                return;
+            }
             const pick = e.target.closest('[data-po-pick-id]');
             if (!pick || !this.contains(pick)) return;
             e.preventDefault();
@@ -414,13 +543,26 @@ function setupEventListeners() {
                 const inp = row.querySelector('.item-product-search');
                 const p = products.find(x => String(x.id) === String(id));
                 if (inp && p) {
-                    inp.value = getProductDisplayName(id) + (p.sku ? ` (${p.sku})` : '');
+                    inp.value = Picker ? Picker.groupLabel(p) : (getProductDisplayName(id) + (p.sku ? ` (${p.sku})` : ''));
                 }
                 const dd = row.querySelector('.item-product-dropdown');
                 if (dd) {
                     dd.classList.add('hidden');
                     dd.innerHTML = '';
                     dd._poAnchor = null;
+                }
+                if (Picker && p) {
+                    poHydrateLineVariantBucket(purchaseItems[index]);
+                    poPopulateVariantSelectOptionsForRow(row, index);
+                    const selC = row.querySelector('.po-line-var-color');
+                    const selT = row.querySelector('.po-line-var-thick');
+                    const selM = row.querySelector('.po-line-var-meas');
+                    const tk = Picker.thicknessKey(p);
+                    const mk = Picker.measurementKey(p);
+                    if (selC && !selC.classList.contains('hidden')) selC.value = (p.color != null && p.color !== '') ? String(p.color) : '';
+                    if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
+                    if (selM && mk) selM.value = mk;
+                    poTryResolveVariant(index);
                 }
             }
         });
@@ -852,6 +994,7 @@ function poLineProductInputValue(productId) {
     if (productId == null || productId === '') return '';
     const p = products.find(x => String(x.id) === String(productId));
     if (!p) return '';
+    if (Picker) return Picker.groupLabel(p);
     return getProductDisplayName(p.id) + (p.sku ? ` (${p.sku})` : '');
 }
 
@@ -881,18 +1024,36 @@ function repositionPoProductDropdowns() {
 
 function renderPoProductDropdown(anchorInput, dropdown, index, query) {
     const q = (query || '').trim().toLowerCase();
-    const list = !q
-        ? products.slice(0, 80)
-        : products.filter(p => {
-            const lab = getProductDisplayName(p.id).toLowerCase();
-            return lab.includes(q) || (p.sku && String(p.sku).toLowerCase().includes(q));
-        }).slice(0, 150);
-    if (!list.length) {
+    if (!Picker) {
+        const list = !q
+            ? products.slice(0, 80)
+            : products.filter((p) => {
+                const lab = getProductDisplayName(p.id).toLowerCase();
+                return lab.includes(q) || (p.sku && String(p.sku).toLowerCase().includes(q));
+            }).slice(0, 150);
+        if (!list.length) {
+            dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+        } else {
+            dropdown.innerHTML = list.map((p) => {
+                const line = getProductDisplayName(p.id) + (p.sku ? ` (${p.sku})` : '');
+                return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-id="${p.id}" data-po-pick-index="${index}">${escapeHtml(line)}</div>`;
+            }).join('');
+        }
+        dropdown.classList.remove('hidden');
+        dropdown._poAnchor = anchorInput;
+        positionPoFloatingDd(anchorInput, dropdown);
+        return;
+    }
+    const rows = poProductsAsRows();
+    const groups = Picker.groupsMatchingQuery(rows, q);
+    const entries = [...groups.entries()].sort((a, b) => Picker.groupLabel(a[1][0].product).localeCompare(Picker.groupLabel(b[1][0].product), undefined, { sensitivity: 'base' }));
+    if (!entries.length) {
         dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
     } else {
-        dropdown.innerHTML = list.map(p => {
-            const line = getProductDisplayName(p.id) + (p.sku ? ` (${p.sku})` : '');
-            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-id="${p.id}" data-po-pick-index="${index}">${escapeHtml(line)}</div>`;
+        dropdown.innerHTML = entries.map(([key, invs]) => {
+            const lab = Picker.groupLabel(invs[0].product);
+            const enc = encodeURIComponent(key);
+            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-group="${enc}" data-po-pick-index="${index}">${escapeHtml(lab)} <span class="text-gray-500 font-normal">· ${invs.length}</span></div>`;
         }).join('');
     }
     dropdown.classList.remove('hidden');
@@ -913,28 +1074,35 @@ function renderPurchaseItems() {
     const lineTotal = (item) => (Number(item.quantity) || 0) * (Number(item.cost_price) || 0);
 
     container.innerHTML = purchaseItems.map((item, index) => `
-        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-end p-3 bg-white rounded border" data-po-line-index="${index}">
+        <div class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-12 sm:items-center sm:gap-4" data-po-line-index="${index}">
             <div class="sm:col-span-5">
-                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Product</label>
-                <div class="relative">
-                    <input type="text" autocomplete="off" class="item-product-search w-full px-2 py-1 border border-gray-300 rounded text-sm bg-white" data-index="${index}" placeholder="Search product…" value="${escapeHtml(poLineProductInputValue(item.product_id))}">
-                    <div class="item-product-dropdown hidden max-h-48 overflow-y-auto bg-white border border-gray-300 rounded-lg shadow-lg"></div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Product</label>
+                <div class="flex flex-wrap items-end gap-2">
+                    <div class="relative min-w-0 flex-1 sm:min-w-[12rem]">
+                        <input type="text" autocomplete="off" class="item-product-search w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" placeholder="Search product name…" value="${escapeHtml(poLineProductInputValue(item.product_id))}">
+                        <div class="item-product-dropdown hidden max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg"></div>
+                    </div>
+                    <div class="po-variant-wrap hidden flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:flex-nowrap">
+                        <select class="po-line-var-color max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" data-index="${index}"></select>
+                        <select class="po-line-var-thick max-w-[9rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" data-index="${index}"></select>
+                        <select class="po-line-var-meas max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" data-index="${index}"></select>
+                    </div>
                 </div>
             </div>
             <div class="sm:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Qty</label>
-                <input type="number" class="item-quantity w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.quantity}" min="1" step="1">
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Qty</label>
+                <input type="number" class="item-quantity block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.quantity}" min="1" step="1">
             </div>
             <div class="sm:col-span-2">
-                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Unit cost</label>
-                <input type="number" class="item-cost w-full px-2 py-1 border rounded text-sm" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="0.00">
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Unit cost</label>
+                <input type="number" class="item-cost block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="0.00">
             </div>
             <div class="sm:col-span-2 sm:text-right">
-                <label class="block text-sm font-medium text-gray-700 mb-1 sm:sr-only">Line total</label>
-                <div class="item-subtotal text-sm font-semibold text-gray-900" data-index="${index}">₱${lineTotal(item).toFixed(2)}</div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Line total</label>
+                <div class="item-subtotal rounded-lg border border-transparent bg-gray-50 px-3 py-2.5 text-sm font-semibold tabular-nums text-gray-900 sm:inline-block sm:border-0 sm:bg-transparent sm:px-0 sm:py-0" data-index="${index}">₱${lineTotal(item).toFixed(2)}</div>
             </div>
-            <div class="sm:col-span-1 flex sm:justify-end pb-1">
-                <button type="button" onclick="removePurchaseItem(${index})" class="text-red-500 hover:text-red-700 text-sm font-medium">Remove</button>
+            <div class="flex sm:col-span-1 sm:justify-end sm:pb-1">
+                <button type="button" onclick="removePurchaseItem(${index})" class="text-sm font-medium text-red-600 hover:text-red-800">Remove</button>
             </div>
         </div>
     `).join('');
@@ -953,6 +1121,7 @@ function renderPurchaseItems() {
                 const expected = poLineProductInputValue(curPid);
                 if (inp.value.trim() !== expected.trim()) {
                     purchaseItems[index].product_id = '';
+                    delete purchaseItems[index]._poVariants;
                 }
             }
             renderPoProductDropdown(inp, dd, index, inp.value);
@@ -979,6 +1148,11 @@ function renderPurchaseItems() {
             updateItemSubtotal(index);
             updateTotalCost();
         });
+    });
+
+    container.querySelectorAll('[data-po-line-index]').forEach((row) => {
+        const idx = parseInt(row.dataset.poLineIndex, 10);
+        if (!Number.isNaN(idx)) poWireVariantSelects(row, idx);
     });
 }
 
@@ -1286,6 +1460,7 @@ async function editPurchase(id) {
             quantity: item.quantity,
             cost_price: item.cost_price
         }));
+        purchaseItems.forEach(poHydrateLineVariantBucket);
 
         renderPurchaseItems();
         updateTotalCost();
