@@ -18,7 +18,7 @@ class SalesQuotationController extends Controller
 
     public function printQuotation(int $id)
     {
-        $quotation = SalesQuotation::with(['branch', 'user', 'approver', 'items.product'])
+        $quotation = SalesQuotation::with(['branch', 'user', 'approver', 'items.product.category'])
             ->findOrFail($id);
 
         $this->authorizeQuotationView(request()->user(), $quotation);
@@ -80,7 +80,7 @@ class SalesQuotationController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $quotation = SalesQuotation::with(['branch', 'user', 'approver', 'items.product', 'sale'])
+        $quotation = SalesQuotation::with(['branch', 'user', 'approver', 'items.product.category', 'sale'])
             ->findOrFail($id);
         $this->authorizeQuotationView($request->user(), $quotation);
 
@@ -105,6 +105,14 @@ class SalesQuotationController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
             'items.*.description' => 'required|string|max:500',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
@@ -139,7 +147,7 @@ class SalesQuotationController extends Controller
             $this->syncItems($quotation, $validated['items']);
             $this->recalculateTotals($quotation);
             $this->assignQuotationNumber($quotation);
-            $quotation->refresh()->load(['items.product', 'branch', 'user']);
+            $quotation->refresh()->load(['items.product.category', 'branch', 'user']);
 
             return response()->json($quotation, 201);
         });
@@ -169,6 +177,14 @@ class SalesQuotationController extends Controller
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
             'items.*.description' => 'required|string|max:500',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_price' => 'required|numeric|min:0',
         ]);
@@ -196,7 +212,7 @@ class SalesQuotationController extends Controller
             $this->syncItems($quotation, $validated['items']);
             $this->recalculateTotals($quotation);
             $this->assignQuotationNumber($quotation);
-            $quotation->refresh()->load(['items.product', 'branch', 'user']);
+            $quotation->refresh()->load(['items.product.category', 'branch', 'user']);
 
             return response()->json($quotation);
         });
@@ -233,7 +249,7 @@ class SalesQuotationController extends Controller
         $this->assignQuotationNumber($quotation);
         $quotation->update(['status' => 'pending_approval']);
 
-        return response()->json($quotation->fresh()->load(['items.product', 'branch', 'user']));
+        return response()->json($quotation->fresh()->load(['items.product.category', 'branch', 'user']));
     }
 
     public function approve(Request $request, int $id)
@@ -258,7 +274,7 @@ class SalesQuotationController extends Controller
             'rejection_reason' => null,
         ]);
 
-        return response()->json($quotation->fresh()->load(['items.product', 'branch', 'user', 'approver']));
+        return response()->json($quotation->fresh()->load(['items.product.category', 'branch', 'user', 'approver']));
     }
 
     public function reject(Request $request, int $id)
@@ -286,7 +302,7 @@ class SalesQuotationController extends Controller
             'approved_at' => null,
         ]);
 
-        return response()->json($quotation->fresh()->load(['items.product', 'branch', 'user']));
+        return response()->json($quotation->fresh()->load(['items.product.category', 'branch', 'user']));
     }
 
     public function linkSale(Request $request, int $id)
@@ -314,7 +330,7 @@ class SalesQuotationController extends Controller
 
         $quotation->update(['sale_id' => $sale->id]);
 
-        return response()->json($quotation->fresh()->load(['sale', 'items.product']));
+        return response()->json($quotation->fresh()->load(['sale', 'items.product.category']));
     }
 
     protected function assertBranchAccess($user, int $branchId): void
@@ -352,17 +368,46 @@ class SalesQuotationController extends Controller
             $qty = (float) $row['quantity'];
             $unit = (float) $row['unit_price'];
             $lineTotal = round($qty * $unit, 2);
+            $productId = $row['product_id'] ?? null;
 
             SalesQuotationItem::create([
                 'sales_quotation_id' => $quotation->id,
-                'product_id' => $row['product_id'] ?? null,
+                'product_id' => $productId,
                 'description' => $row['description'],
+                'custom_item_name' => $productId ? null : $this->nullableString($row['custom_item_name'] ?? null),
+                'custom_color' => $this->nullableString($row['custom_color'] ?? null),
+                'custom_thickness' => $this->nullableString($row['custom_thickness'] ?? null),
+                'custom_measurement' => $this->nullableString($row['custom_measurement'] ?? null),
+                'cut_length' => $this->nullableNumeric($row['cut_length'] ?? null),
+                'cut_width' => $this->nullableNumeric($row['cut_width'] ?? null),
+                'cut_height' => $this->nullableNumeric($row['cut_height'] ?? null),
+                'cut_measurement_unit' => $this->nullableString($row['cut_measurement_unit'] ?? null),
                 'quantity' => $qty,
                 'unit_price' => $unit,
                 'line_total' => $lineTotal,
                 'sort_order' => $index,
             ]);
         }
+    }
+
+    private function nullableString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $t = trim($value);
+
+        return $t === '' ? null : $t;
+    }
+
+    private function nullableNumeric($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $n = (float) $value;
+
+        return $n > 0 ? $n : null;
     }
 
     protected function recalculateTotals(SalesQuotation $quotation): void

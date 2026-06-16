@@ -7,12 +7,16 @@ use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\PurchaseItem;
 use App\Models\PurchaseOrder;
+use App\Services\CutRemainderService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseController extends Controller
 {
+    public function __construct(
+        protected CutRemainderService $cutRemainderService
+    ) {}
     public function index()
     {
         return view('purchases.index');
@@ -106,6 +110,13 @@ class PurchaseController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => 'required|numeric|min:0.01',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.location_note' => 'nullable|string|max:255',
+            'items.*.status' => 'nullable|in:available,discarded',
+            'items.*.discard_reason' => 'nullable|string|max:500',
         ]);
 
         DB::beginTransaction();
@@ -116,14 +127,15 @@ class PurchaseController extends Controller
             foreach ($validated['items'] as $item) {
                 $cost = (float) $item['cost_price'];
                 $qty = (float) $item['quantity'];
-                $purchaseItem = PurchaseItem::create([
+                $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $qty,
                     'cost_price' => $cost,
-                ]);
+                ], $this->cutFieldsFromItem($item)));
                 $totalCost += $purchaseItem->subtotal;
                 $this->updateInventory($item['product_id'], $purchaseOrder->branch_id, $qty, $cost);
+                $this->createRemaindersForPurchaseItem($item, $purchaseOrder->branch_id);
             }
 
             $purchaseOrder->update([
@@ -197,6 +209,13 @@ class PurchaseController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => $isDraft ? 'nullable|numeric|min:0' : 'required|numeric|min:0.01',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.location_note' => 'nullable|string|max:255',
+            'items.*.status' => 'nullable|in:available,discarded',
+            'items.*.discard_reason' => 'nullable|string|max:500',
         ]);
 
         DB::beginTransaction();
@@ -219,12 +238,12 @@ class PurchaseController extends Controller
             $totalCost = 0;
             foreach ($validated['items'] as $item) {
                 $cost = $isDraft ? (float) ($item['cost_price'] ?? 0) : (float) $item['cost_price'];
-                $purchaseItem = PurchaseItem::create([
+                $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'cost_price' => $cost,
-                ]);
+                ], $this->cutFieldsFromItem($item)));
 
                 $totalCost += $purchaseItem->subtotal;
             }
@@ -239,6 +258,7 @@ class PurchaseController extends Controller
                         $item['quantity'],
                         $item['cost_price']
                     );
+                    $this->createRemaindersForPurchaseItem($item, $validated['branch_id']);
                 }
             }
 
@@ -284,6 +304,10 @@ class PurchaseController extends Controller
             'items.*.product_id' => 'required|exists:products,id',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => 'nullable|numeric|min:0',
+            'items.*.cut_length' => 'nullable|numeric|min:0',
+            'items.*.cut_width' => 'nullable|numeric|min:0',
+            'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
         ]);
 
         DB::beginTransaction();
@@ -302,12 +326,12 @@ class PurchaseController extends Controller
             $totalCost = 0;
             foreach ($validated['items'] as $item) {
                 $cost = (float) ($item['cost_price'] ?? 0);
-                $purchaseItem = PurchaseItem::create([
+                $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
                     'cost_price' => $cost,
-                ]);
+                ], $this->cutFieldsFromItem($item)));
 
                 $totalCost += $purchaseItem->subtotal;
             }
@@ -614,5 +638,52 @@ class PurchaseController extends Controller
             $setInventory->calculated_price = $setInventory->calculateSetPrice();
             $setInventory->saveQuietly();
         }
+    }
+
+    protected function cutFieldsFromItem(array $item): array
+    {
+        return [
+            'cut_length' => $this->nullableCutNumeric($item['cut_length'] ?? null),
+            'cut_width' => $this->nullableCutNumeric($item['cut_width'] ?? null),
+            'cut_height' => $this->nullableCutNumeric($item['cut_height'] ?? null),
+            'cut_measurement_unit' => $this->nullableCutString($item['cut_measurement_unit'] ?? null),
+        ];
+    }
+
+    private function nullableCutNumeric($value): ?float
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+        $n = (float) $value;
+
+        return $n > 0 ? $n : null;
+    }
+
+    private function nullableCutString(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+        $t = trim($value);
+
+        return $t === '' ? null : $t;
+    }
+
+    private function createRemaindersForPurchaseItem(array $item, int $branchId): void
+    {
+        $product = Product::find($item['product_id']);
+        if (! $product || $product->base_unit === 'per set') {
+            return;
+        }
+
+        $cutItem = array_merge($this->cutFieldsFromItem($item), [
+            'location_note' => $item['location_note'] ?? null,
+            'status' => $item['status'] ?? 'available',
+            'discard_reason' => $item['discard_reason'] ?? null,
+            'quantity' => $item['quantity'],
+        ]);
+
+        $this->cutRemainderService->createFromPurchaseLine($product, $branchId, $cutItem);
     }
 }

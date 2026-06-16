@@ -134,6 +134,32 @@
                             <select id="salesVarMeas" class="min-w-[7rem] max-w-[11rem] rounded-lg border border-gray-300 bg-white px-2 py-2 text-xs shadow-sm"></select>
                         </div>
                     </div>
+                    <div id="salesCustomModeBar" class="mt-2 hidden">
+                        <button type="button" id="salesEnterCustomBtn" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">Use as custom / non-catalog item</button>
+                    </div>
+                    <div id="salesCustomSpecFields" class="mt-3 hidden grid grid-cols-1 gap-3 sm:grid-cols-3">
+                        <div class="flex flex-col gap-1">
+                            <label for="salesCustomColor" class="text-xs font-medium text-gray-600">Color</label>
+                            <input id="salesCustomColor" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="salesCustomThickness" class="text-xs font-medium text-gray-600">Thickness / spec</label>
+                            <input id="salesCustomThickness" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                        </div>
+                        <div class="flex flex-col gap-1">
+                            <label for="salesCustomMeasurement" class="text-xs font-medium text-gray-600">Size / length</label>
+                            <input id="salesCustomMeasurement" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                        </div>
+                    </div>
+                    <div id="salesCustomCutSection" class="mt-2 hidden">
+                        <button type="button" id="salesToggleCustomCutBtn" class="text-xs font-medium text-amber-800 hover:underline">+ Cut size</button>
+                        <div id="salesCustomCutFields" class="mt-2 hidden rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
+                            <div id="salesCustomCutInputs" class="flex flex-wrap items-center gap-2"></div>
+                        </div>
+                    </div>
+                    <p id="salesExitCustomLink" class="mt-2 hidden">
+                        <button type="button" id="salesExitCustomBtn" class="text-xs text-gray-600 hover:underline">← Back to catalog search</button>
+                    </p>
                 </div>
 
                 <div id="productDetailsSection" class="hidden space-y-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4 sm:p-5">
@@ -318,6 +344,7 @@
 </div>
 
 <script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
+<script src="{{ asset('js/pst-cut-fields.js') }}"></script>
 <script>
 // --- State ---
 let branches = [];
@@ -325,9 +352,13 @@ let currentBranchId = '';
 let sales = [];
 let salesPagination = {};
 let inventory = [];
+let salesCatalogRows = [];
 let remainders = [];
 let saleItems = [];
 let selectedProduct = null;
+let salesCustomMode = false;
+let salesCustomCutVisible = false;
+let pendingQuotationId = null;
 let pendingCutRemainder = null;
 let cutRemainderDiscardMode = false;
 let cutRemainderDiscardReason = '';
@@ -425,7 +456,10 @@ function formatCurrency(amount) {
 function resetProductFields() {
     selectedProduct = null;
     selectedCutMeasurementUnit = null;
+    salesCustomMode = false;
+    salesCustomCutVisible = false;
     salesHideVariantStrip();
+    salesHideCustomModeUi();
     productDetailsSection.classList.add('hidden');
     if (document.getElementById('productMeta')) document.getElementById('productMeta').innerHTML = '';
     productPrice.value = '';
@@ -434,6 +468,16 @@ function resetProductFields() {
     cutFields.classList.add('hidden');
     const cutFieldsInputs = document.getElementById('cutFieldsInputs');
     if (cutFieldsInputs) cutFieldsInputs.innerHTML = '';
+    const cc = document.getElementById('salesCustomColor');
+    const ct = document.getElementById('salesCustomThickness');
+    const cm = document.getElementById('salesCustomMeasurement');
+    if (cc) cc.value = '';
+    if (ct) ct.value = '';
+    if (cm) cm.value = '';
+    const customCutWrap = document.getElementById('salesCustomCutFields');
+    const customCutInputs = document.getElementById('salesCustomCutInputs');
+    if (customCutWrap) customCutWrap.classList.add('hidden');
+    if (customCutInputs) customCutInputs.innerHTML = '';
 }
 function resetSaleForm() {
     saleItems = [];
@@ -731,20 +775,209 @@ function renderSalesPagination() {
 }
 
 // --- Inventory/Product Search ---
-async function loadInventory() {
+async function loadInventory(mergeFromQuotation = null) {
     if (!currentBranchId) {
         inventory = [];
+        salesCatalogRows = [];
         remainders = [];
         return;
     }
     const res = await fetch(`/api/inventory/branch/${currentBranchId}?per_page=1000`);
     const data = await res.json();
     inventory = data.data || [];
-    
-    // Also load remainders
+    salesCatalogRows = inventory.map((row) => ({ ...row }));
+
+    const inBranch = new Set(salesCatalogRows.map((r) => String(r.product_id)));
+
+    try {
+        const pres = await fetch('/api/products?per_page=5000', {
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+        });
+        if (pres.ok) {
+            const pdata = await pres.json();
+            const plist = Array.isArray(pdata.data) ? pdata.data : (Array.isArray(pdata) ? pdata : []);
+            plist.forEach((p) => {
+                if (!p || p.id == null || inBranch.has(String(p.id))) return;
+                salesCatalogRows.push({
+                    id: null,
+                    product_id: p.id,
+                    product: p,
+                    available_stock: 0,
+                    calculated_stock: 0,
+                    price: null,
+                    wholesale_price: null,
+                    _catalogOnly: true,
+                });
+            });
+        }
+    } catch (_) { /* catalog optional */ }
+
+    if (mergeFromQuotation && Array.isArray(mergeFromQuotation.items)) {
+        mergeFromQuotation.items.forEach((it) => {
+            const pid = it.product_id;
+            if (!pid || !it.product) return;
+            const existing = salesCatalogRows.find((r) => String(r.product_id) === String(pid));
+            if (existing) {
+                if (!existing.product?.category && it.product.category) {
+                    existing.product = it.product;
+                }
+                return;
+            }
+            salesCatalogRows.push({
+                id: null,
+                product_id: pid,
+                product: it.product,
+                available_stock: 0,
+                calculated_stock: 0,
+                price: it.unit_price,
+                wholesale_price: null,
+            });
+        });
+    }
+
     const remaindersRes = await fetch(`/api/inventory/branch/${currentBranchId}/remainders?per_page=1000`);
     const remaindersData = await remaindersRes.json();
     remainders = remaindersData.data || [];
+}
+
+function salesInvRowForProductId(productId) {
+    return inventory.find((i) => String(i.product_id) === String(productId) || String(i.product?.id) === String(productId));
+}
+
+function salesFindVariantBySavedSpecs(variantRows, data) {
+    if (!variantRows?.length || !data || !Picker) return null;
+    const thick = (data.custom_thickness || '').trim().toLowerCase();
+    const meas = (data.custom_measurement || '').trim().toLowerCase();
+    const color = (data.custom_color || '').trim().toLowerCase();
+    if (!thick && !meas && !color) return null;
+    const matches = variantRows.filter((v) => {
+        const p = v.product;
+        if (!p) return false;
+        if (color && String(p.color || '').trim().toLowerCase() !== color) return false;
+        if (thick && (Picker.thicknessLabel(p) || '').trim().toLowerCase() !== thick) return false;
+        if (meas && (Picker.measurementLabel(p) || '').trim().toLowerCase() !== meas) return false;
+        return true;
+    });
+    return matches.length === 1 ? matches[0] : null;
+}
+
+function salesFindVariantGroupRows(label) {
+    if (!label || !Picker) return [];
+    const needle = label.trim().toLowerCase();
+    const gmap = new Map();
+    salesCatalogRows.forEach((row) => {
+        if (!row?.product) return;
+        const key = Picker.groupKey(row.product);
+        if (!gmap.has(key)) gmap.set(key, []);
+        gmap.get(key).push(row);
+    });
+    for (const [, rows] of gmap) {
+        const lab = Picker.groupLabel(rows[0].product).trim().toLowerCase();
+        if (lab === needle) return rows;
+    }
+    return [];
+}
+
+function salesHideCustomModeUi() {
+    const bar = document.getElementById('salesCustomModeBar');
+    const specs = document.getElementById('salesCustomSpecFields');
+    const cutSec = document.getElementById('salesCustomCutSection');
+    const exit = document.getElementById('salesExitCustomLink');
+    if (bar) bar.classList.add('hidden');
+    if (specs) specs.classList.add('hidden');
+    if (cutSec) cutSec.classList.add('hidden');
+    if (exit) exit.classList.add('hidden');
+}
+
+function salesEnterCustomMode(prefillName = '') {
+    salesCustomMode = true;
+    salesCustomCutVisible = false;
+    selectedProduct = null;
+    salesHideVariantStrip();
+    productDropdown.classList.add('hidden');
+    if (prefillName) productSearch.value = prefillName;
+    productDetailsSection.classList.remove('hidden');
+    document.getElementById('salesCustomModeBar')?.classList.add('hidden');
+    document.getElementById('salesCustomSpecFields')?.classList.remove('hidden');
+    document.getElementById('salesCustomCutSection')?.classList.remove('hidden');
+    document.getElementById('salesExitCustomLink')?.classList.remove('hidden');
+    document.getElementById('salesCustomCutFields')?.classList.add('hidden');
+    const meta = document.getElementById('productMeta');
+    if (meta) meta.innerHTML = '<span class="text-amber-800 font-medium">Custom / non-catalog item</span> — not deducted from inventory.';
+    cutFields.classList.add('hidden');
+    saleQuantity.value = saleQuantity.value || '1';
+}
+
+function salesExitCustomMode() {
+    salesCustomMode = false;
+    salesCustomCutVisible = false;
+    salesHideCustomModeUi();
+    productDetailsSection.classList.add('hidden');
+    productSearch.value = '';
+    productPrice.value = '';
+    saleQuantity.value = '';
+}
+
+function salesBuildCutPayloadFromItem(it) {
+    let cut_length = it.cut_length ?? null;
+    let cut_width = it.cut_width ?? null;
+    let cut_height = it.cut_height ?? null;
+    if (!cut_length && !cut_width && !cut_height && it.cutSize) {
+        const parts = String(it.cutSize).split(' x ').map(Number).filter((n) => n > 0);
+        if (parts.length === 1) cut_length = parts[0];
+        if (parts.length === 2) { cut_width = parts[0]; cut_height = parts[1]; }
+        if (parts.length === 3) { cut_length = parts[0]; cut_width = parts[1]; cut_height = parts[2]; }
+    }
+    return {
+        cut_length,
+        cut_width,
+        cut_height,
+        cut_measurement_unit: it.cut_measurement_unit || it.cutMeasurementUnit || null,
+    };
+}
+
+function salesFormatCutDisplay(it) {
+    const c = salesBuildCutPayloadFromItem(it);
+    if (window.PstCutFields) {
+        const s = PstCutFields.formatDisplay(c);
+        if (s) return s;
+    }
+    return it.cutSize || '';
+}
+
+function salesPushCustomSaleItem(payload) {
+    const qty = Number(payload.qty) || 1;
+    const unitPrice = Number(payload.unitPrice) || 0;
+    const cut = salesBuildCutPayloadFromItem(payload);
+    let cutSize = '';
+    if (cut.cut_length || cut.cut_width || cut.cut_height) {
+        cutSize = [cut.cut_length, cut.cut_width, cut.cut_height].filter((v) => v > 0).join(' x ');
+    }
+    const specs = [payload.customThickness, payload.customMeasurement].filter(Boolean).join(' · ');
+    const displayName = payload.customItemName || payload.productName || 'Custom item';
+    saleItems.push({
+        type: 'custom',
+        productName: displayName,
+        customItemName: payload.customItemName || displayName,
+        customColor: payload.customColor || null,
+        customThickness: payload.customThickness || null,
+        customMeasurement: payload.customMeasurement || null,
+        description: payload.description || displayName,
+        sku: '',
+        qty,
+        cutSize,
+        cut_length: cut.cut_length,
+        cut_width: cut.cut_width,
+        cut_height: cut.cut_height,
+        cutMeasurementUnit: cut.cut_measurement_unit,
+        cutMeasurementLabel: cut.cut_measurement_unit ? String(cut.cut_measurement_unit) : '',
+        unitPrice,
+        totalPrice: qty * unitPrice,
+        remainderData: null,
+        isSet: false,
+        stockWarning: !!payload.stockWarning,
+        specLabel: specs,
+    });
 }
 
 // Function to reload inventory and remainders data
@@ -768,16 +1001,29 @@ function salesHideVariantStrip() {
 }
 
 function salesInvItemAsResult(item) {
-    let stock = item.available_stock;
-    if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
-        stock = item.calculated_stock || 0;
+    const stockRow = item.id ? item : salesInvRowForProductId(item.product_id);
+    let stock = stockRow ? stockRow.available_stock : 0;
+    if (stockRow?.product?.base_unit === 'per set' && stockRow.product?.set_components_count > 0) {
+        stock = stockRow.calculated_stock || 0;
+    }
+    const invId = stockRow?.id;
+    if (!invId) {
+        return {
+            type: 'catalog',
+            id: item.product_id,
+            product: item.product,
+            available_stock: 0,
+            cost: 0,
+            source: 'Catalog (no stock)',
+            _noStock: true,
+        };
     }
     return {
         type: 'inventory',
-        id: item.id,
+        id: invId,
         product: item.product,
         available_stock: stock,
-        cost: item.cost,
+        cost: stockRow.cost,
         source: 'Main Stock',
     };
 }
@@ -831,7 +1077,7 @@ function salesResultRowHtml(item) {
     const remainderInfo = item.remainderInfo || '';
 
     return `
-        <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" onclick="selectProduct('${item.type}', ${item.id})">
+        <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100 ${item._noStock ? 'opacity-75' : ''}" onclick="${item._noStock ? `showToast('No stock for this item at this branch.', 'error')` : `selectProduct('${item.type}', ${item.id})`}">
             <div class="font-medium">
                 ${remainderIndicator}${escapeHtmlSales(displayName)} (${escapeHtmlSales(p.sku || 'No SKU')})
             </div>
@@ -902,7 +1148,13 @@ function salesTryResolveInvVariant() {
         }
     }
     if (narrowed.length === 1) {
-        window.selectProduct('inventory', narrowed[0].id);
+        const row = narrowed[0];
+        const stockInv = row.id ? row : salesInvRowForProductId(row.product_id);
+        if (stockInv?.id) {
+            window.selectProduct('inventory', stockInv.id);
+        } else {
+            showToast('This variant is not in stock at this branch. You can add it as a custom item if needed.', 'error');
+        }
     }
 }
 
@@ -916,9 +1168,11 @@ function salesWireVariantSelects() {
 productSearch.addEventListener('input', function() {
     const query = this.value.trim().toLowerCase();
     salesHideVariantStrip();
+    if (salesCustomMode) return;
     window.__salesInvGroupMap = new Map();
     if (!query) {
         productDropdown.classList.add('hidden');
+        document.getElementById('salesCustomModeBar')?.classList.add('hidden');
         return;
     }
 
@@ -928,7 +1182,7 @@ productSearch.addEventListener('input', function() {
         return;
     }
 
-    const filteredInventory = inventory.filter((item) =>
+    const filteredInventory = salesCatalogRows.filter((item) =>
         item.product?.name?.toLowerCase().includes(query) ||
         item.product?.sku?.toLowerCase().includes(query)
     );
@@ -971,16 +1225,29 @@ productSearch.addEventListener('input', function() {
     const allParts = invParts.concat(remParts);
 
     if (!allParts.length) {
-        productDropdown.innerHTML = '<div class="px-4 py-2 text-gray-400">No products found.</div>';
+        productDropdown.innerHTML = `
+            <div class="px-4 py-2 text-gray-400">No catalog match.</div>
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-100 text-sm text-blue-700 font-medium" data-sales-use-custom="1">Add as custom item: “${escapeHtmlSales(query)}”</div>
+        `;
         productDropdown.classList.remove('hidden');
+        document.getElementById('salesCustomModeBar')?.classList.remove('hidden');
         return;
     }
+
+    document.getElementById('salesCustomModeBar')?.classList.remove('hidden');
 
     productDropdown.innerHTML = allParts.join('');
     productDropdown.classList.remove('hidden');
 });
 
 productDropdown.addEventListener('mousedown', function (e) {
+    const customPick = e.target.closest('[data-sales-use-custom]');
+    if (customPick) {
+        e.preventDefault();
+        productDropdown.classList.add('hidden');
+        salesEnterCustomMode(productSearch.value.trim());
+        return;
+    }
     const pick = e.target.closest('[data-sales-pick-group]');
     if (!pick || !Picker) return;
     e.preventDefault();
@@ -1373,6 +1640,35 @@ window.selectProduct = function(type, id) {
 // --- Add Sale Item ---
 addSaleItemBtn.addEventListener('click', function(e) {
     e.preventDefault();
+
+    if (salesCustomMode) {
+        const name = productSearch.value.trim();
+        if (!name) return showToast('Enter item name', 'error');
+        const qty = Number(saleQuantity.value);
+        if (!qty || qty <= 0) return showToast('Enter a valid quantity', 'error');
+        const unitPrice = Number(productPrice.value);
+        if (!unitPrice || unitPrice <= 0) return showToast('Enter a valid unit price', 'error');
+        let cutPayload = {};
+        if (salesCustomCutVisible && window.PstCutFields) {
+            cutPayload = PstCutFields.readInline(document.getElementById('salesCustomCutInputs'));
+        }
+        salesPushCustomSaleItem({
+            customItemName: name,
+            productName: name,
+            customColor: document.getElementById('salesCustomColor')?.value.trim() || null,
+            customThickness: document.getElementById('salesCustomThickness')?.value.trim() || null,
+            customMeasurement: document.getElementById('salesCustomMeasurement')?.value.trim() || null,
+            description: name,
+            qty,
+            unitPrice,
+            ...cutPayload,
+        });
+        renderSaleItems();
+        salesExitCustomMode();
+        resetProductFields();
+        return;
+    }
+
     if (!selectedProduct) return showToast('Select a product first', 'error');
     
     const qty = Number(saleQuantity.value);
@@ -1489,20 +1785,28 @@ function renderSaleItems() {
         saleTotalAmount.textContent = '0.00';
         return;
     }
-    saleItemsTableBody.innerHTML = saleItems.map((item, idx) => `
-        <tr>
+    saleItemsTableBody.innerHTML = saleItems.map((item, idx) => {
+        const specBits = [item.customColor, item.specLabel || [item.customThickness, item.customMeasurement].filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
+        const cutDisp = salesFormatCutDisplay(item);
+        return `
+        <tr class="${item.stockWarning ? 'bg-amber-50' : ''}">
             <td class="px-4 py-2 text-sm">
-                ${item.productName} (${item.sku || 'No SKU'})
+                <span class="${item.type === 'custom' ? 'text-red-700 font-medium' : ''}">${escapeHtmlSales(item.productName)}</span>
+                ${item.sku ? ` <span class="text-gray-500">(${escapeHtmlSales(item.sku)})</span>` : ''}
+                ${item.type === 'custom' ? '<span class="ml-1 text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded">Custom</span>' : ''}
                 ${item.type === 'remainder' ? '<span class="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded">Remainder</span>' : ''}
                 ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
+                ${item.stockWarning ? '<span class="text-xs text-amber-700 bg-amber-100 px-1 py-0.5 rounded">Check stock</span>' : ''}
+                ${specBits ? `<div class="text-xs text-gray-500 mt-0.5">${escapeHtmlSales(specBits)}</div>` : ''}
             </td>
             <td class="px-4 py-2 text-sm">${item.qty}</td>
-            <td class="px-4 py-2 text-sm">${item.cutSize ? `${item.cutSize}${item.cutMeasurementLabel ? ` <span class="text-gray-500">(${item.cutMeasurementLabel})</span>` : ''}` : '-'}</td>
+            <td class="px-4 py-2 text-sm">${cutDisp ? `${escapeHtmlSales(cutDisp)}${item.cutMeasurementLabel ? ` <span class="text-gray-500">(${escapeHtmlSales(item.cutMeasurementLabel)})</span>` : ''}` : '-'}</td>
             <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
             <td class="px-4 py-2 text-sm">₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
             <td class="px-4 py-2 text-sm"><button type="button" class="text-red-500 hover:underline" onclick="removeSaleItem(${idx})">Remove</button></td>
         </tr>
-    `).join('');
+    `;
+    }).join('');
     saleTotalAmount.textContent = saleItems.reduce((sum, i) => sum + i.totalPrice, 0).toLocaleString('en-PH', {minimumFractionDigits:2});
 }
 window.removeSaleItem = function(idx) {
@@ -1534,7 +1838,7 @@ addSaleForm.addEventListener('submit', async function(e) {
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
     // Check if any item is a cut
     const cutItemIdx = saleItems.findIndex(item =>
-        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
+        item.type !== 'custom' && (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
     );
     if (cutItemIdx !== -1) {
         // Show cut remainder modal
@@ -1579,6 +1883,20 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
             obj.inventory_id = item.inventoryId;
         } else if (item.type === 'remainder') {
             obj.remainder_id = item.remainderData.id;
+        } else if (item.type === 'custom') {
+            obj.item_type = 'custom';
+            obj.description = item.description || item.productName;
+            obj.custom_item_name = item.customItemName || item.productName;
+            obj.custom_color = item.customColor || null;
+            obj.custom_thickness = item.customThickness || null;
+            obj.custom_measurement = item.customMeasurement || null;
+            if (item.cut_length || item.cut_width || item.cut_height) {
+                obj.cut_length = item.cut_length;
+                obj.cut_width = item.cut_width;
+                obj.cut_height = item.cut_height;
+                if (item.cutMeasurementUnit) obj.cut_measurement_unit = item.cutMeasurementUnit;
+            }
+            return obj;
         }
         
         if (item.cutSize && item.cutSize !== '' && item.cutSize !== '-') {
@@ -1644,6 +1962,7 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
         
         const result = await res.json();
         showToast('Sale created! Inventory data has been refreshed.', 'success');
+        await salesTryLinkQuotation(result.id);
         
         // If delivery was selected, show delivery receipt option
         if (delivery_data) {
@@ -1712,6 +2031,37 @@ closeSaleDetailsModal.addEventListener('click', function() {
 });
 
 // View Sale Details Function
+function salesApiItemDisplayHtml(item) {
+    const isCustom = !item.product_id || item.fulfillment_source === 'custom'
+        || item.custom_item_name || item.custom_thickness || item.custom_measurement || item.custom_color;
+    if (isCustom && !item.product) {
+        const name = item.custom_item_name || item.description || 'Custom item';
+        const specs = [item.custom_thickness, item.custom_measurement, item.custom_color].filter(Boolean).join(' · ');
+        let html = `<span class="text-red-700">${escapeHtmlSales(name)}</span>`;
+        html += ' <span class="text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded">Custom</span>';
+        if (specs) {
+            html += `<div class="text-sm text-gray-600">${escapeHtmlSales(specs)}</div>`;
+        }
+        return html;
+    }
+    const p = item.product || {};
+    const baseUnit = (p.base_unit || '');
+    const unitFallback = baseUnit.replace('per ', '');
+    let measurement = '';
+    if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
+        measurement = `${p.default_width}×${p.default_height} sq ft`;
+    } else if (p.default_length) {
+        const unit = p.measurement_unit || unitFallback;
+        measurement = `${p.default_length} ${unit}`;
+    }
+    const name = p.name || item.custom_item_name || item.description || 'Custom item';
+    const color = p.color ? ` ${p.color}` : (item.custom_color ? ` ${item.custom_color}` : '');
+    const measureText = measurement ? ` (${measurement})` : '';
+    const specSnap = [item.custom_thickness, item.custom_measurement].filter(Boolean).join(' · ');
+    const specHtml = specSnap && !measurement ? ` <span class="text-gray-500">(${escapeHtmlSales(specSnap)})</span>` : '';
+    return `${escapeHtmlSales(name)}${escapeHtmlSales(color)}${escapeHtmlSales(measureText)}${specHtml}`;
+}
+
 window.viewSaleDetails = async function(saleId) {
     try {
         const response = await fetch(`/api/sales/${saleId}`, {
@@ -1818,24 +2168,9 @@ window.viewSaleDetails = async function(saleId) {
                                         <div class="flex justify-between items-start mb-2">
                                             <div class="flex-1">
                                                 <div class="font-medium">
-                                                    ${(() => {
-                                                        const p = item.product || {};
-                                                        const baseUnit = (p.base_unit || '');
-                                                        const unitFallback = baseUnit.replace('per ', '');
-                                                        let measurement = '';
-                                                        if (p.measurement_unit === 'sq ft' && p.default_width && p.default_height) {
-                                                            measurement = `${p.default_width}×${p.default_height} sq ft`;
-                                                        } else if (p.default_length) {
-                                                            const unit = p.measurement_unit || unitFallback;
-                                                            measurement = `${p.default_length} ${unit}`;
-                                                        }
-                                                        const name = p.name || 'Unknown Product';
-                                                        const color = p.color ? ` ${p.color}` : '';
-                                                        const measureText = measurement ? ` (${measurement})` : '';
-                                                        return `${name}${color}${measureText}`;
-                                                    })()}
+                                                    ${salesApiItemDisplayHtml(item)}
                                                 </div>
-                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || 'No SKU'}</div>
+                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || (item.product_id ? 'No SKU' : '—')}</div>
                                                 ${item.cut_length || item.cut_width || item.cut_height ? `
                                                     <div class="text-sm text-gray-600">
                                                         Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}${item.cut_measurement_unit ? ` (${item.cut_measurement_unit})` : ''}
@@ -1919,7 +2254,7 @@ deliveryDetailsForm.addEventListener('submit', async function(e) {
     const totalAmount = saleItems.reduce((sum, i) => sum + i.totalPrice, 0);
     // Check if any item is a cut
     const cutItemIdx = saleItems.findIndex(item =>
-        (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
+        item.type !== 'custom' && (item.cutSize && item.cutSize !== '' && item.cutSize !== '-')
     );
     if (cutItemIdx !== -1) {
         // Show cut remainder modal
@@ -2067,6 +2402,7 @@ async function prefillSaleFromQuotation(q) {
         showToast('Invalid quotation.', 'error');
         return;
     }
+    pendingQuotationId = q.id;
     const qBid = String(q.branch_id);
 
     if (currentUserRole === 'admin') {
@@ -2089,7 +2425,7 @@ async function prefillSaleFromQuotation(q) {
         return;
     }
 
-    await loadInventory();
+    await loadInventory(q);
     updateAddSaleButtonsForBranch();
 
     switchTab('add');
@@ -2105,32 +2441,79 @@ async function prefillSaleFromQuotation(q) {
     }
 
     saleItems = [];
-    const skipped = [];
+    let stockWarnings = 0;
 
     for (const it of (q.items || [])) {
-        if (!it.product_id) {
-            skipped.push(it.description || 'Custom line');
-            continue;
+        const qty = Number(it.quantity) || 1;
+        const unitPrice = Number(it.unit_price) || 0;
+        const cut = salesBuildCutPayloadFromItem(it);
+        let cutSize = '';
+        if (cut.cut_length || cut.cut_width || cut.cut_height) {
+            cutSize = [cut.cut_length, cut.cut_width, cut.cut_height].filter((v) => v > 0).join(' x ');
         }
-        const inv = inventory.find(i =>
-            String(i.product_id) === String(it.product_id) ||
-            String(i.product?.id) === String(it.product_id)
-        );
-        if (!inv) {
-            skipped.push(it.description || ('Product #' + it.product_id));
+
+        const isCustomLine = !it.product_id && (it.custom_item_name || it.custom_color || it.custom_thickness || it.custom_measurement);
+        if (isCustomLine || (!it.product_id && it.custom_item_name)) {
+            salesPushCustomSaleItem({
+                customItemName: it.custom_item_name || it.description || 'Custom item',
+                productName: it.custom_item_name || it.description || 'Custom item',
+                customColor: it.custom_color || null,
+                customThickness: it.custom_thickness || null,
+                customMeasurement: it.custom_measurement || null,
+                description: it.description || it.custom_item_name || 'Custom item',
+                qty,
+                unitPrice,
+                cut_length: cut.cut_length,
+                cut_width: cut.cut_width,
+                cut_height: cut.cut_height,
+                cut_measurement_unit: cut.cut_measurement_unit,
+                cutSize,
+            });
             continue;
         }
 
-        const qty = Number(it.quantity) || 1;
-        const unitPrice = Number(it.unit_price) || 0;
+        let productId = it.product_id;
+        let inv = productId ? salesInvRowForProductId(productId) : null;
+
+        if (!inv && (it.custom_thickness || it.custom_measurement || it.custom_color || it.custom_item_name)) {
+            const groupLabel = (it.custom_item_name || it.product?.name || it.description || '').trim();
+            const groupRows = salesFindVariantGroupRows(groupLabel);
+            const matched = salesFindVariantBySavedSpecs(groupRows.length ? groupRows : salesCatalogRows, it);
+            if (matched?.product_id) {
+                productId = matched.product_id;
+                inv = salesInvRowForProductId(productId);
+            }
+        }
+
+        if (!inv && productId) {
+            inv = salesInvRowForProductId(productId);
+        }
+
+        if (!inv) {
+            salesPushCustomSaleItem({
+                customItemName: it.custom_item_name || it.product?.name || it.description || 'Quoted item',
+                productName: it.custom_item_name || it.product?.name || it.description || 'Quoted item',
+                customColor: it.custom_color || it.product?.color || null,
+                customThickness: it.custom_thickness || (it.product && Picker ? Picker.thicknessLabel(it.product) : null),
+                customMeasurement: it.custom_measurement || (it.product && Picker ? Picker.measurementLabel(it.product) : null),
+                description: it.description || it.custom_item_name || 'Quoted item',
+                qty,
+                unitPrice,
+                cut_length: cut.cut_length,
+                cut_width: cut.cut_width,
+                cut_height: cut.cut_height,
+                cut_measurement_unit: cut.cut_measurement_unit,
+                cutSize,
+            });
+            continue;
+        }
+
         let availableStock = Number(inv.available_stock ?? 0);
         if (inv.product?.base_unit === 'per set' && inv.product?.set_components_count > 0) {
             availableStock = Number(inv.calculated_stock ?? 0);
         }
-        if (qty > availableStock) {
-            skipped.push((it.description || inv.product?.name) + ' (needs stock: ' + availableStock + ')');
-            continue;
-        }
+        const stockWarning = qty > availableStock;
+        if (stockWarning) stockWarnings++;
 
         saleItems.push({
             inventoryId: inv.id,
@@ -2138,24 +2521,53 @@ async function prefillSaleFromQuotation(q) {
             productName: inv.product?.name || it.description,
             sku: inv.product?.sku || '',
             qty,
-            cutSize: '',
-            cutMeasurementUnit: null,
-            cutMeasurementLabel: '',
+            cutSize,
+            cut_length: cut.cut_length,
+            cut_width: cut.cut_width,
+            cut_height: cut.cut_height,
+            cutMeasurementUnit: cut.cut_measurement_unit || null,
+            cutMeasurementLabel: cut.cut_measurement_unit ? String(cut.cut_measurement_unit) : '',
             unitPrice,
             totalPrice: qty * unitPrice,
             remainderData: null,
             isSet: inv.product?.base_unit === 'per set',
+            stockWarning,
+            customColor: it.custom_color || null,
+            customThickness: it.custom_thickness || null,
+            customMeasurement: it.custom_measurement || null,
+            specLabel: [it.custom_thickness, it.custom_measurement, it.custom_color].filter(Boolean).join(' · '),
         });
     }
 
     renderSaleItems();
 
     const customerLabel = [q.customer_name, q.customer_company].filter(Boolean).join(' — ');
-    let msg = 'Opened Add Sale from quotation';
+    let msg = 'Sale form filled from quotation';
     if (customerLabel) msg += ' (' + customerLabel + ')';
-    if (saleItems.length) msg += '. ' + saleItems.length + ' product(s) added.';
-    if (skipped.length) msg += ' ' + skipped.length + ' line(s) skipped — add manually.';
+    msg += '. ' + saleItems.length + ' line(s) loaded';
+    if (stockWarnings) msg += ' — ' + stockWarnings + ' need stock/qty adjustment';
+    msg += '. Review and create sale.';
     showToast(msg, saleItems.length ? 'success' : 'error');
+}
+
+async function salesTryLinkQuotation(saleId) {
+    if (!pendingQuotationId || !saleId) return;
+    if (!['admin', 'manager'].includes(currentUserRole)) return;
+    try {
+        const res = await fetch(`/api/sales-quotations/${pendingQuotationId}/link-sale`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            },
+            body: JSON.stringify({ sale_id: saleId }),
+        });
+        if (res.ok) {
+            showToast('Quotation linked to this sale.', 'success');
+            pendingQuotationId = null;
+        }
+    } catch (_) { /* optional */ }
 }
 
 // --- Print Delivery Receipt ---
@@ -2207,6 +2619,22 @@ document.addEventListener('DOMContentLoaded', async function() {
             await prefillSaleFromQuotation(q);
         }).catch(() => showToast('Could not load quotation.', 'error'));
     }
+
+    document.getElementById('salesEnterCustomBtn')?.addEventListener('click', () => salesEnterCustomMode(productSearch.value.trim()));
+    document.getElementById('salesExitCustomBtn')?.addEventListener('click', () => salesExitCustomMode());
+    document.getElementById('salesToggleCustomCutBtn')?.addEventListener('click', () => {
+        salesCustomCutVisible = !salesCustomCutVisible;
+        const wrap = document.getElementById('salesCustomCutFields');
+        const inputs = document.getElementById('salesCustomCutInputs');
+        if (!wrap || !inputs || !window.PstCutFields) return;
+        if (salesCustomCutVisible) {
+            wrap.classList.remove('hidden');
+            PstCutFields.renderFreeform(inputs, {}, () => {});
+        } else {
+            wrap.classList.add('hidden');
+            inputs.innerHTML = '';
+        }
+    });
 });
 </script>
 @endsection

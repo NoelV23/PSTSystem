@@ -99,6 +99,13 @@
         .cen { text-align: center; }
         .item-name { font-weight: 600; }
         .color-cell { font-weight: 700; color: #92400e; }
+        tr.line-non-catalog td {
+            color: #b91c1c;
+            font-weight: 600;
+        }
+        tr.line-non-catalog td.color-cell {
+            color: #b91c1c;
+        }
         .subtotal-row td { font-weight: 700; }
         .bottom-wrap {
             display: table;
@@ -188,20 +195,53 @@
             return '—';
         }
         $parts = [];
-        if ($p->default_height && (float) $p->default_height > 0) {
-            $parts[] = rtrim(rtrim(number_format((float) $p->default_height, 2), '0'), '.') . 'mm';
+        $t = trim((string) ($p->thickness ?? ''));
+        if ($t !== '') {
+            $parts[] = $t;
         }
-        if ($p->default_width && (float) $p->default_width > 0) {
-            $wu = ($p->measurement_unit === 'sq ft') ? ' ft' : ' m';
-            $parts[] = rtrim(rtrim(number_format((float) $p->default_width, 3), '0'), '.') . $wu;
+        $mu = strtolower(trim((string) ($p->measurement_unit ?? '')));
+        if ($mu === 'sq ft') {
+            $w = $p->default_width ?? null;
+            $h = $p->default_height ?? null;
+            if ($w !== null && $w !== '' && (float) $w > 0 && $h !== null && $h !== '' && (float) $h > 0) {
+                $parts[] = rtrim(rtrim(number_format((float) $w, 3), '0'), '.').'×'.rtrim(rtrim(number_format((float) $h, 3), '0'), '.').' sq ft';
+            } elseif ($w !== null && $w !== '' && (float) $w > 0) {
+                $parts[] = rtrim(rtrim(number_format((float) $w, 3), '0'), '.').' sq ft';
+            }
+        } elseif ($p->default_length != null && $p->default_length !== '' && (float) $p->default_length > 0) {
+            $unit = trim((string) ($p->measurement_unit ?? ''));
+            if ($unit === '') {
+                $unit = strtolower(preg_replace('/^per\s+/i', '', (string) ($p->base_unit ?? '')) ?: '');
+            }
+            $ln = rtrim(rtrim(number_format((float) $p->default_length, 3), '0'), '.');
+            $parts[] = $unit !== '' ? "{$ln} {$unit}" : $ln;
         }
-        if ($p->default_length && (float) $p->default_length > 0) {
-            $lu = ($p->measurement_unit === 'sq ft') ? ' ft' : ' m';
-            $parts[] = rtrim(rtrim(number_format((float) $p->default_length, 3), '0'), '.') . $lu;
-        } elseif ($p->default_width && $p->default_height && (float) $p->default_width > 0) {
-            $parts[] = 'LS';
+        if ($parts === [] && $p->default_width != null && $p->default_width !== '' && (float) $p->default_width > 0 && $mu !== 'sq ft') {
+            $wu = trim((string) ($p->measurement_unit ?? '')) ?: 'm';
+            $parts[] = rtrim(rtrim(number_format((float) $p->default_width, 3), '0'), '.').' '.$wu;
         }
-        return $parts ? implode(' x ', $parts) : '—';
+
+        return $parts ? implode(' · ', $parts) : '—';
+    };
+
+    $formatCut = function ($line) {
+        $parts = array_values(array_filter([
+            $line->cut_length,
+            $line->cut_width,
+            $line->cut_height,
+        ], fn ($v) => $v !== null && (float) $v > 0));
+        if ($parts === []) {
+            return '';
+        }
+        $s = implode(' × ', array_map(
+            fn ($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.'),
+            $parts
+        ));
+        if ($line->cut_measurement_unit) {
+            $s .= ' '.$line->cut_measurement_unit;
+        }
+
+        return $s;
     };
 
     $defaultTerms = "1. 60% down payment upon confirmation of order; balance upon completion of delivery.\n2. Lead time: 4–6 working days upon receipt of down payment.\n3. Cancellation of confirmed orders may be subject to charges.\n4. Returns accepted only for manufacturing defects, subject to inspection.\n5. Prices are valid until the date indicated on this quotation.";
@@ -270,17 +310,39 @@
             @foreach($items as $line)
                 @php
                     $p = $line->product;
+                    $isNonCatalog = $line->product_id === null;
                     $qty = (float) $line->quantity;
                     $u = $unitLabel($p);
                     $qtyDisplay = rtrim(rtrim(number_format($qty, 2), '0'), '.') . ' ' . $u;
-                    $itemName = $p?->name ?? $line->description;
-                    $color = $p?->color ?? '—';
-                    $dim = $lineDimension($p);
-                    if ($dim === '—' && $line->description && ! $p) {
-                        $itemName = $line->description;
+                    $itemName = $p?->name ?? ($line->custom_item_name ?: $line->description);
+                    $color = $p ? ($p->color ?: '—') : ($line->custom_color ?: '—');
+                    if ($p) {
+                        $savedSpecs = array_filter([
+                            $line->custom_thickness ?? null,
+                            $line->custom_measurement ?? null,
+                        ]);
+                        $dim = count($savedSpecs)
+                            ? implode(' · ', $savedSpecs)
+                            : $lineDimension($p);
+                        $cutTxt = $formatCut($line);
+                        if ($cutTxt !== '') {
+                            $dim = ($dim !== '—' ? $dim.' · ' : '').'Cut: '.$cutTxt;
+                        }
+                    } elseif ($line->product_id) {
+                        $dim = trim((string) ($line->description ?? '')) !== '' ? \Illuminate\Support\Str::limit(trim((string) $line->description), 120) : '—';
+                    } else {
+                        $specParts = array_filter([
+                            $line->custom_thickness ?? null,
+                            $line->custom_measurement ?? null,
+                        ]);
+                        $dim = count($specParts) ? implode(' · ', $specParts) : 'As quoted';
+                        $cutTxt = $formatCut($line);
+                        if ($cutTxt !== '') {
+                            $dim = ($dim !== 'As quoted' ? $dim.' · ' : '').'Cut: '.$cutTxt;
+                        }
                     }
                 @endphp
-                <tr>
+                <tr @class(['line-non-catalog' => $isNonCatalog])>
                     <td class="cen">{{ $qtyDisplay }}</td>
                     <td class="item-name">{{ $itemName }}</td>
                     <td class="color-cell">{{ $color }}</td>

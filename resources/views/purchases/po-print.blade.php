@@ -230,7 +230,22 @@
             $gauge = ($h !== null && (float) $h > 0) ? rtrim(rtrim(number_format((float) $h, 2), '0'), '.') : '—';
             $width = ($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—';
             $length = ($l !== null && (float) $l > 0) ? rtrim(rtrim(number_format((float) $l, 2), '0'), '.') : '—';
-            $totalLm = ($l !== null && (float) $l > 0) ? $qty * (float) $l : null;
+            $cutParts = array_values(array_filter([
+                $line->cut_length,
+                $line->cut_width,
+                $line->cut_height,
+            ], fn ($v) => $v !== null && (float) $v > 0));
+            if ($cutParts !== []) {
+                $cutStr = implode(' × ', array_map(
+                    fn ($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.'),
+                    $cutParts
+                ));
+                if ($line->cut_measurement_unit) {
+                    $cutStr .= ' '.$line->cut_measurement_unit;
+                }
+                $length = $cutStr.' (cut)';
+            }
+            $totalLm = ($l !== null && (float) $l > 0 && $cutParts === []) ? $qty * (float) $l : null;
             $lineTotal = $qty * (float) $line->cost_price;
         @endphp
         <tr>

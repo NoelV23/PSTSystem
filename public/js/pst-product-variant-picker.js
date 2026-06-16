@@ -174,7 +174,7 @@
         return invs.filter(function (inv) {
             const p = inv.product;
             if (!p) return false;
-            if (f.color !== undefined && f.color !== null) {
+            if (f.color !== undefined && f.color !== null && String(f.color) !== '') {
                 const pc = p.color != null && p.color !== '' ? String(p.color) : '';
                 if (pc !== String(f.color)) return false;
             }

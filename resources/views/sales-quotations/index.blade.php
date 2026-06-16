@@ -7,7 +7,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Sales quotations</h2>
-                    <p class="mt-1 text-sm text-gray-600">Sales quotations are formal price offers for a customer: line items, totals, tax, and terms. Use them to record what was quoted before an order becomes a sale.</p>
+                    <p class="mt-1 text-sm text-gray-600">Sales quotations are formal price offers for a customer: line items, totals, tax, and terms. Use them to record what was quoted before an order becomes a sale. <span class="text-gray-700">Items you do not stock yet (or that are not in the catalog) can still be quoted: use <strong>Description</strong> + quantity + price; linking a product is optional.</span></p>
                 </div>
                 <button type="button" id="sqNewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                     + New quotation
@@ -154,11 +154,20 @@
                             <span class="text-base font-semibold text-gray-900 sm:text-lg">Line items</span>
                             <button type="button" id="sqAddLineBtn" class="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add line</button>
                         </div>
+                        <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
+                            <p class="font-semibold text-sky-900">Supplier-sourced or not in catalog?</p>
+                            <ul class="mt-2 list-inside list-disc space-y-1 text-sky-900/90">
+                                <li>Fill <strong>Description</strong> (details for your team), <strong>Qty</strong>, and <strong>Unit ₱</strong> — you can save with no catalog product.</li>
+                                <li>Search the product field: if nothing matches, use <strong>Use as custom</strong> (or <strong>Not in catalog — add specs</strong>) to enter <strong>item name</strong> in the same search box plus color, thickness, and size/length (include units in the text, e.g. <code class="rounded bg-white/80 px-1">3 mm</code>) — saved and shown on print.</li>
+                                <li>For catalog products, <strong>cut size</strong> fields appear automatically when the item has length / sheet dimensions (same as Sales). For custom lines, click <strong>+ Cut size</strong>.</li>
+                                <li>When you convert to a sale, lines without stock must be added manually (or after you receive stock).</li>
+                            </ul>
+                        </div>
                         <div class="-mx-1 overflow-x-auto rounded-lg border border-gray-100 bg-white sm:mx-0">
                             <table class="w-full min-w-[56rem] text-sm lg:min-w-[60rem]">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product <span class="font-normal normal-case text-gray-400">(optional)</span></th>
+                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product <span class="font-normal normal-case text-gray-400">(optional — stock lookup)</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-28 text-right">Avail.</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-[20rem]">Description <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-24">Qty <span class="text-red-600">*</span></th>
@@ -219,6 +228,7 @@
 <div id="sqToast" class="fixed bottom-6 right-6 z-[100] hidden px-4 py-3 rounded-lg shadow-lg text-white bg-gray-900 text-sm"></div>
 
 <script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
+<script src="{{ asset('js/pst-cut-fields.js') }}"></script>
 <script>
 (function () {
     const Picker = window.PstProductVariantPicker;
@@ -337,7 +347,16 @@
             const seen = new Set(sqInventoryItems.map(i => String(i.product_id)));
             mergeFromQuotation.items.forEach(it => {
                 const pid = it.product_id;
-                if (!pid || seen.has(String(pid)) || !it.product) return;
+                if (!pid || !it.product) {
+                    return;
+                }
+                const existing = sqInventoryItems.find((i) => String(i.product_id) === String(pid));
+                if (existing) {
+                    if (!existing.product?.category && it.product.category) {
+                        existing.product = it.product;
+                    }
+                    return;
+                }
                 sqInventoryItems.push({
                     id: null,
                     product_id: pid,
@@ -592,6 +611,554 @@
         el('sqPreviewGrand').textContent = fmtPhp(t.grand);
     }
 
+    function sqTrimOrNull(v) {
+        if (v == null) return null;
+        const t = String(v).trim();
+        return t === '' ? null : t;
+    }
+
+    function sqLabelFromSelect(sel) {
+        if (!sel || !sel.value) return null;
+        const opt = sel.options[sel.selectedIndex];
+        if (!opt || !opt.value) return null;
+        const txt = (opt.textContent || '').trim();
+        if (!txt || txt.includes('…') || txt.includes('...')) return null;
+        return sqTrimOrNull(txt);
+    }
+
+    /** Read color / thickness / size from readonly inputs or catalog variant dropdowns. */
+    function sqReadSpecFieldsFromRow(tr) {
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const cust = tr.querySelector('.sq-line-variant-custom');
+        const catalogVisible = cat && !cat.classList.contains('hidden');
+        const customVisible = cust && !cust.classList.contains('hidden');
+
+        if (customVisible || tr.dataset.sqReadonlySpecs === '1') {
+            return {
+                color: sqTrimOrNull(tr.querySelector('.sq-custom-color')?.value),
+                thickness: sqTrimOrNull(tr.querySelector('.sq-custom-thickness')?.value),
+                measurement: sqTrimOrNull(tr.querySelector('.sq-custom-measurement')?.value),
+            };
+        }
+        if (!catalogVisible) {
+            return { color: null, thickness: null, measurement: null };
+        }
+
+        const invs = tr._sqVariants || [];
+        const selT = tr.querySelector('.sq-line-var-thick');
+        const selM = tr.querySelector('.sq-line-var-meas');
+        const f = sqBuildVariantFilter(tr);
+        let thickness = sqLabelFromSelect(selT);
+        let measurement = sqLabelFromSelect(selM);
+        const narrowed = invs.length ? Picker.narrowVariants(invs, f) : [];
+        const p = narrowed.length === 1 ? narrowed[0].product : null;
+        if (p) {
+            if (!thickness) thickness = sqTrimOrNull(Picker.thicknessLabel(p));
+            if (!measurement) measurement = sqTrimOrNull(Picker.measurementLabel(p));
+        }
+        return {
+            color: sqTrimOrNull(f.color),
+            thickness,
+            measurement,
+        };
+    }
+
+    /** Before save: resolve variant from dropdowns and switch to readonly when fully selected. */
+    function sqMaterializeCatalogLine(tr) {
+        if (tr.dataset.sqCustomMode === '1') return;
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        if (!cat || cat.classList.contains('hidden') || !(tr._sqVariants || []).length) {
+            return;
+        }
+        sqTryResolveSqVariant(tr);
+    }
+
+    function sqClearCustomSpecs(tr) {
+        if (!tr) return;
+        ['.sq-custom-color', '.sq-custom-thickness', '.sq-custom-measurement'].forEach((sel) => {
+            const inp = tr.querySelector(sel);
+            if (inp) inp.value = '';
+        });
+    }
+
+    function sqClearReadonlySpecAttrs(tr) {
+        if (!tr) return;
+        delete tr.dataset.sqReadonlySpecs;
+        ['.sq-custom-color', '.sq-custom-thickness', '.sq-custom-measurement'].forEach((sel) => {
+            const el = tr.querySelector(sel);
+            if (!el) return;
+            el.readOnly = false;
+            el.classList.remove('bg-gray-50', 'cursor-not-allowed');
+            el.removeAttribute('title');
+            if (sel === '.sq-custom-color') {
+                el.classList.remove('hidden');
+            }
+        });
+    }
+
+    function sqApplyReadonlySpecFields(tr, specs) {
+        if (!tr || !specs) return;
+        const wrap = tr.querySelector('.sq-line-variant-wrap');
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const cust = tr.querySelector('.sq-line-variant-custom');
+        if (!wrap || !cust) return;
+        delete tr.dataset.sqCustomMode;
+        tr.dataset.sqReadonlySpecs = '1';
+        if (cat) cat.classList.add('hidden');
+        cust.classList.remove('hidden');
+        wrap.classList.remove('hidden');
+        const cc = tr.querySelector('.sq-custom-color');
+        const ct = tr.querySelector('.sq-custom-thickness');
+        const cm = tr.querySelector('.sq-custom-measurement');
+        const apply = (el, val) => {
+            if (!el) return;
+            el.value = val || '';
+            el.readOnly = true;
+            el.classList.add('bg-gray-50', 'cursor-not-allowed');
+            el.title = 'Saved selection (read-only)';
+        };
+        const hideIfEmpty = (el, val) => {
+            if (!el) return;
+            if (val) {
+                el.classList.remove('hidden');
+                apply(el, val);
+            } else {
+                el.value = '';
+                el.classList.add('hidden');
+            }
+        };
+        hideIfEmpty(cc, specs.color);
+        apply(ct, specs.thickness);
+        apply(cm, specs.measurement);
+    }
+
+    /** Same layout as custom lines: color / thickness / size fields, filled from saved selection or catalog product (read-only). */
+    function sqShowCatalogSpecFieldsReadonly(tr, p, data) {
+        if (!tr || !p) return;
+        const cStr = (data?.custom_color || (p.color != null && String(p.color).trim() !== '' ? String(p.color) : '')).trim();
+        const thick = (data?.custom_thickness || Picker.thicknessLabel(p) || '').trim();
+        const meas = (data?.custom_measurement || Picker.measurementLabel(p) || '').trim();
+        sqApplyReadonlySpecFields(tr, { color: cStr, thickness: thick, measurement: meas });
+        if (p) {
+            const cutSaved = data ? sqCutPayloadFromData(data) : undefined;
+            sqRefreshCutFields(tr, p, cutSaved);
+        }
+    }
+
+    /** Restore specs from DB snapshot when product row cannot be resolved to a catalog variant. */
+    function sqShowSavedSpecFieldsReadonly(tr, data) {
+        if (!tr || !data) return;
+        sqApplyReadonlySpecFields(tr, {
+            color: (data.custom_color || '').trim(),
+            thickness: (data.custom_thickness || '').trim(),
+            measurement: (data.custom_measurement || '').trim(),
+        });
+    }
+
+    /** Resolve catalog product for edit from product_id, saved specs, or unit price. */
+    function sqResolveProductForEdit(data, variantInvs) {
+        if (!data) return null;
+        if (data.product_id) {
+            if (data.product) return data.product;
+            const fromVars = (variantInvs || []).find((v) => String(v.product_id) === String(data.product_id));
+            if (fromVars?.product) return fromVars.product;
+            const fromInv = sqInventoryItems.find((i) => String(i.product_id) === String(data.product_id));
+            if (fromInv?.product) return fromInv.product;
+        }
+        if (variantInvs?.length) {
+            const bySpecs = sqFindVariantBySavedSpecs(variantInvs, data);
+            if (bySpecs) return bySpecs;
+            const best = sqFindBestVariantProduct(data, variantInvs);
+            if (best) return best;
+        }
+        return null;
+    }
+
+    /** Restore a saved catalog line on edit (search + read-only specs). Skips variant resolve that clears product_id. */
+    function sqRestoreSavedCatalogLine(tr, data) {
+        if (tr.dataset.sqCustomMode === '1' || data.custom_item_name) {
+            return;
+        }
+        const needle = (data.description || '').trim().toLowerCase();
+        let variantInvs = [];
+        if (data.product_id || data.product) {
+            const p0 = data.product || sqInventoryItems.find((i) => String(i.product_id) === String(data.product_id))?.product;
+            if (p0) {
+                variantInvs = sqInventoryItems.filter((inv) => inv.product && Picker.groupKey(inv.product) === Picker.groupKey(p0));
+            }
+        }
+        if (!variantInvs.length && needle) {
+            const hit = sqFindCatalogProductForSavedLine(data);
+            if (hit?.variants?.length) {
+                variantInvs = hit.variants;
+            } else if (hit?.product) {
+                variantInvs = sqInventoryItems.filter((inv) => inv.product && Picker.groupKey(inv.product) === Picker.groupKey(hit.product));
+            }
+        }
+
+        const p = sqResolveProductForEdit(data, variantInvs);
+        const hid = tr.querySelector('.sq-line-product-id');
+        const bs = tr.querySelector('.sq-line-base-search');
+
+        if (p) {
+            if (hid) hid.value = String(p.id);
+            const gl = (Picker.groupLabel(p) || '').trim();
+            const slab = (sqProductDisplayLabel(p) || '').trim();
+            if (bs) {
+                bs.value = gl || slab || (String(data.description || '').trim());
+            }
+            tr.dataset.sqGroupKey = Picker.groupKey(p);
+            tr._sqVariants = sqInventoryItems.filter((inv) => inv.product && Picker.groupKey(inv.product) === tr.dataset.sqGroupKey);
+            sqShowCatalogSpecFieldsReadonly(tr, p, data);
+            const inv0 = sqInventoryItems.find((i) => String(i.product_id) === String(p.id));
+            const rem = tr.querySelector('.sq-line-rem');
+            if (rem && inv0) {
+                rem.textContent = inv0._catalogOnly ? '—' : formatSqStock(sqInvStock(inv0));
+            }
+        } else if (data.custom_thickness || data.custom_measurement || data.custom_color) {
+            sqShowSavedSpecFieldsReadonly(tr, data);
+            if (bs && !String(bs.value || '').trim()) {
+                bs.value = (String(data.description || '').trim()) || '';
+            }
+        } else if (bs && !String(bs.value || '').trim()) {
+            bs.value = (String(data.description || '').trim()) || (data.product_id ? `Product #${data.product_id}` : '');
+        }
+        sqRestoreCutUi(tr, data);
+    }
+
+    /** Find catalog product for a saved line when product_id was not stored (legacy rows). */
+    function sqFindCatalogProductForSavedLine(data) {
+        if (data.custom_item_name) {
+            return null;
+        }
+        if (data.product_id) {
+            const p = data.product || sqInventoryItems.find((i) => String(i.product_id) === String(data.product_id))?.product;
+            if (p) {
+                return { product_id: data.product_id, product: p };
+            }
+        }
+        const needle = (data.description || '').trim().toLowerCase();
+        if (!needle) {
+            return null;
+        }
+        const exact = sqInventoryItems.filter((inv) => {
+            const p = inv.product;
+            if (!p) return false;
+            const labels = [
+                sqProductDisplayLabel(p),
+                Picker.groupLabel(p),
+                String(p.name || ''),
+            ].map((s) => s.trim().toLowerCase()).filter(Boolean);
+            return labels.includes(needle);
+        });
+        if (exact.length === 1) {
+            return { product_id: exact[0].product_id, product: exact[0].product };
+        }
+        const byGroup = sqInventoryItems.filter((inv) => {
+            const p = inv.product;
+            return p && (Picker.groupLabel(p) || '').trim().toLowerCase() === needle;
+        });
+        if (byGroup.length === 1) {
+            return { product_id: byGroup[0].product_id, product: byGroup[0].product };
+        }
+        if (byGroup.length > 1) {
+            return { product_id: byGroup[0].product_id, product: byGroup[0].product, variants: byGroup };
+        }
+        return null;
+    }
+
+    /** Match a variant from saved color / thickness / size snapshot. */
+    function sqFindVariantBySavedSpecs(variantInvs, data) {
+        if (!variantInvs?.length || !data) return null;
+        const thick = (data.custom_thickness || '').trim().toLowerCase();
+        const meas = (data.custom_measurement || '').trim().toLowerCase();
+        const color = (data.custom_color || '').trim().toLowerCase();
+        if (!thick && !meas && !color) return null;
+        const matches = variantInvs.filter((v) => {
+            const p = v.product;
+            if (!p) return false;
+            if (color && String(p.color || '').trim().toLowerCase() !== color) return false;
+            if (thick && (Picker.thicknessLabel(p) || '').trim().toLowerCase() !== thick) return false;
+            if (meas && (Picker.measurementLabel(p) || '').trim().toLowerCase() !== meas) return false;
+            return true;
+        });
+        return matches.length === 1 ? matches[0].product : null;
+    }
+
+    /** Pick the best matching variant when product_id was not stored (legacy / group label only). */
+    function sqFindBestVariantProduct(data, variantInvs) {
+        if (!variantInvs?.length) return null;
+        const bySpecs = sqFindVariantBySavedSpecs(variantInvs, data);
+        if (bySpecs) return bySpecs;
+        const pid = data.product_id;
+        if (pid) {
+            const m = variantInvs.find((v) => String(v.product_id) === String(pid));
+            if (m?.product) return m.product;
+        }
+        const needle = (data.description || '').trim().toLowerCase();
+        if (needle) {
+            for (const v of variantInvs) {
+                const p = v.product;
+                if (!p) continue;
+                if (sqProductDisplayLabel(p).trim().toLowerCase() === needle) return p;
+            }
+        }
+        const up = data.unit_price != null ? parseFloat(data.unit_price) : NaN;
+        if (!Number.isNaN(up)) {
+            const byPrice = variantInvs.filter((v) => {
+                const vp = sqInvUnitPrice(v);
+                if (vp === '') return false;
+                return Math.abs(parseFloat(vp) - up) < 0.011;
+            });
+            if (byPrice.length === 1) return byPrice[0].product;
+        }
+        if (variantInvs.length === 1) return variantInvs[0].product;
+        return null;
+    }
+
+    function sqSetVariantSelectsFromProduct(tr, p) {
+        if (!tr || !p) return;
+        const selC = tr.querySelector('.sq-line-var-color');
+        const selT = tr.querySelector('.sq-line-var-thick');
+        const selM = tr.querySelector('.sq-line-var-meas');
+        const tk = Picker.thicknessKey(p);
+        const mk = Picker.measurementKey(p);
+        if (selC && !selC.classList.contains('hidden')) {
+            selC.value = (p.color != null && p.color !== '') ? String(p.color) : '';
+        }
+        if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
+        if (selM && mk) selM.value = mk;
+    }
+
+    /** Edit load: restore catalog line even when product_id is missing in DB. */
+    function sqRestoreOrResolveSavedLine(tr, data) {
+        if (data.custom_item_name && !data.product_id) {
+            sqRestoreCutUi(tr, data);
+            return;
+        }
+        const hit = sqFindCatalogProductForSavedLine(data);
+        const isCatalog = !!(data.product_id || hit || data.custom_thickness || data.custom_measurement || data.custom_color);
+        if (isCatalog) {
+            sqRestoreSavedCatalogLine(tr, data);
+            return;
+        }
+        const bs = tr.querySelector('.sq-line-base-search');
+        if (bs && data.description) {
+            bs.value = data.description;
+        }
+        sqRestoreCutUi(tr, data);
+    }
+
+    /** Resolve product_id from hidden field, variant selects, or description before save. */
+    function sqBuildVariantFilter(tr) {
+        const selC = tr.querySelector('.sq-line-var-color');
+        const selT = tr.querySelector('.sq-line-var-thick');
+        const selM = tr.querySelector('.sq-line-var-meas');
+        const f = {};
+        if (selC && !selC.classList.contains('hidden') && selC.value) {
+            f.color = selC.value;
+        }
+        if (selT && !selT.classList.contains('hidden') && selT.value) {
+            f.thicknessValue = selT.value;
+        }
+        if (selM && selM.value) {
+            f.measurementValue = selM.value;
+        }
+        return f;
+    }
+
+    function sqNarrowRowVariants(tr) {
+        const invs = tr._sqVariants || [];
+        if (!invs.length) {
+            return { narrowed: [], filter: {} };
+        }
+        const f = sqBuildVariantFilter(tr);
+        let narrowed = Picker.narrowVariants(invs, f);
+        const selM = tr.querySelector('.sq-line-var-meas');
+        if (selM && !selM.classList.contains('hidden') && !f.measurementValue) {
+            const subF = {};
+            if (f.color !== undefined) {
+                subF.color = f.color;
+            }
+            if (f.thicknessValue) {
+                subF.thicknessValue = f.thicknessValue;
+            }
+            const sub = Picker.narrowVariants(invs, subF);
+            const mo = Picker.distinctMeasurements(sub);
+            if (mo.length === 1) {
+                selM.value = mo[0].value;
+                f.measurementValue = mo[0].value;
+                narrowed = Picker.narrowVariants(invs, f);
+            }
+        }
+        return { narrowed, filter: f };
+    }
+
+    /** Best product for cut UI — works even before thickness/color/size are fully selected. */
+    function sqCutProductForRow(tr) {
+        if (tr.dataset.sqCustomMode === '1') {
+            return null;
+        }
+        const Cut = window.PstCutFields;
+        if (!Cut) {
+            return null;
+        }
+
+        const pid = String(tr.querySelector('.sq-line-product-id')?.value || '').trim();
+        if (/^\d+$/.test(pid)) {
+            const fromInv = sqInventoryItems.find((i) => String(i.product_id) === pid);
+            if (fromInv?.product) {
+                return fromInv.product;
+            }
+        }
+
+        const invs = tr._sqVariants || [];
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const readonly = tr.dataset.sqReadonlySpecs === '1';
+        const catalogActive = (cat && !cat.classList.contains('hidden')) || readonly;
+        if (!catalogActive || !invs.length) {
+            return null;
+        }
+
+        const pickFrom = (list) => {
+            if (!list?.length) return null;
+            const cuttable = list.find((inv) => inv.product && Cut.isCuttable(inv.product));
+            return (cuttable || list[0]).product || null;
+        };
+
+        const { narrowed, filter } = sqNarrowRowVariants(tr);
+        if (narrowed.length === 1) {
+            return narrowed[0].product;
+        }
+        if (narrowed.length > 1) {
+            const p = pickFrom(narrowed);
+            if (p) return p;
+        }
+
+        if (filter.thicknessValue && filter.measurementValue) {
+            const byBoth = Picker.narrowVariants(invs, {
+                thicknessValue: filter.thicknessValue,
+                measurementValue: filter.measurementValue,
+            });
+            const p = pickFrom(byBoth);
+            if (p) return p;
+        }
+        if (filter.thicknessValue) {
+            const p = pickFrom(Picker.narrowVariants(invs, { thicknessValue: filter.thicknessValue }));
+            if (p) return p;
+        }
+        if (filter.measurementValue) {
+            const p = pickFrom(Picker.narrowVariants(invs, { measurementValue: filter.measurementValue }));
+            if (p) return p;
+        }
+
+        return pickFrom(invs);
+    }
+
+    /** Resolved catalog product from hidden id or variant dropdowns. */
+    function sqResolveProductFromRow(tr) {
+        if (tr.dataset.sqCustomMode === '1') {
+            return null;
+        }
+        const pid = String(tr.querySelector('.sq-line-product-id')?.value || '').trim();
+        if (/^\d+$/.test(pid)) {
+            const fromInv = sqInventoryItems.find((i) => String(i.product_id) === pid);
+            if (fromInv?.product) {
+                return fromInv.product;
+            }
+        }
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const readonly = tr.dataset.sqReadonlySpecs === '1';
+        if ((!cat || cat.classList.contains('hidden')) && !readonly) {
+            return null;
+        }
+        const { narrowed } = sqNarrowRowVariants(tr);
+        return narrowed.length === 1 ? narrowed[0].product : null;
+    }
+
+    function sqRefreshCutFieldsForRow(tr, saved) {
+        sqRefreshCutFields(tr, sqCutProductForRow(tr), saved);
+    }
+
+    function sqResolveProductIdFromRow(tr) {
+        if (tr.dataset.sqCustomMode === '1') {
+            return null;
+        }
+        const hid = tr.querySelector('.sq-line-product-id');
+        const raw = hid ? String(hid.value).trim() : '';
+        if (/^\d+$/.test(raw) && parseInt(raw, 10) > 0) {
+            return parseInt(raw, 10);
+        }
+        const invs = tr._sqVariants || [];
+        if (invs.length) {
+            const cat = tr.querySelector('.sq-line-variant-catalog');
+            if (cat && !cat.classList.contains('hidden')) {
+                const { narrowed } = sqNarrowRowVariants(tr);
+                if (narrowed.length === 1 && narrowed[0].product?.id) {
+                    const id = narrowed[0].product.id;
+                    if (hid) {
+                        hid.value = String(id);
+                    }
+                    return id;
+                }
+            }
+        }
+        const desc = (tr.querySelector('.sq-line-desc')?.value || '').trim();
+        const bs = (tr.querySelector('.sq-line-base-search')?.value || '').trim();
+        const hit = sqFindCatalogProductForSavedLine({ description: desc || bs });
+        if (hit?.product_id && !(hit.variants && hit.variants.length > 1)) {
+            if (hid) {
+                hid.value = String(hit.product_id);
+            }
+            return hit.product_id;
+        }
+        return null;
+    }
+
+    /** Custom line: item name stays in the product search box; specs in text inputs (same row as catalog variants). */
+    function sqEnterCustomProductMode(tr) {
+        if (!tr) return;
+        const hidden = tr.querySelector('.sq-line-product-id');
+        if (hidden && hidden.value) {
+            toast('Clear the catalog product first, or pick “Use as custom” from search when there is no match.', false);
+            return;
+        }
+        tr.dataset.sqCustomMode = '1';
+        sqClearReadonlySpecAttrs(tr);
+        const wrap = tr.querySelector('.sq-line-variant-wrap');
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const cust = tr.querySelector('.sq-line-variant-custom');
+        if (wrap) wrap.classList.remove('hidden');
+        if (cat) cat.classList.add('hidden');
+        if (cust) cust.classList.remove('hidden');
+        const cc = tr.querySelector('.sq-custom-color');
+        if (cc) cc.classList.remove('hidden');
+        if (hidden) hidden.value = '';
+        delete tr.dataset.sqGroupKey;
+        tr._sqVariants = [];
+        const rem = tr.querySelector('.sq-line-rem');
+        if (rem) rem.textContent = '—';
+        const qty = tr.querySelector('.sq-line-qty');
+        if (qty) qty.removeAttribute('max');
+        const baseDd = tr.querySelector('.sq-line-base-dd');
+        if (baseDd) {
+            baseDd.classList.add('hidden');
+            baseDd.innerHTML = '';
+            baseDd._sqAnchor = null;
+        }
+        refreshSqTotals();
+        sqRefreshCutFields(tr);
+    }
+
+    function sqExitCustomProductMode(tr) {
+        if (!tr) return;
+        delete tr.dataset.sqCustomMode;
+        sqClearReadonlySpecAttrs(tr);
+        sqClearCustomSpecs(tr);
+        const cust = tr.querySelector('.sq-line-variant-custom');
+        if (cust) cust.classList.add('hidden');
+    }
+
     function sqApplyInvPick(tr, inv) {
         const p = inv?.product;
         if (!tr || !p) return;
@@ -602,8 +1169,15 @@
         const price = tr.querySelector('.sq-line-price');
         const qty = tr.querySelector('.sq-line-qty');
         const rem = tr.querySelector('.sq-line-rem');
-        if (baseSearch) baseSearch.value = Picker.groupLabel(p);
+        if (baseSearch) {
+            const gl = (Picker.groupLabel(p) || '').trim();
+            const slab = (sqProductDisplayLabel(p) || '').trim();
+            baseSearch.value = (gl || slab || String(baseSearch.value || '').trim());
+        }
         if (hidden) hidden.value = String(p.id);
+        delete tr.dataset.sqCustomMode;
+        sqClearCustomSpecs(tr);
+        sqClearReadonlySpecAttrs(tr);
         if (baseDd) {
             baseDd.classList.add('hidden');
             baseDd.innerHTML = '';
@@ -633,6 +1207,87 @@
         }
         refreshSqLineTotal(tr);
         refreshSqTotals();
+        sqShowCatalogSpecFieldsReadonly(tr, p);
+        sqRefreshCutFields(tr, p);
+    }
+
+    function sqHasSavedCut(data) {
+        if (!data) return false;
+        return [data.cut_length, data.cut_width, data.cut_height].some((v) => v != null && v !== '' && parseFloat(v) > 0);
+    }
+
+    function sqCutPayloadFromData(data) {
+        return {
+            cut_length: data?.cut_length ?? null,
+            cut_width: data?.cut_width ?? null,
+            cut_height: data?.cut_height ?? null,
+            cut_measurement_unit: data?.cut_measurement_unit ?? null,
+        };
+    }
+
+    function sqRestoreCutUi(tr, data) {
+        if (!tr) return;
+        const payload = sqCutPayloadFromData(data);
+        if (tr.dataset.sqCustomMode === '1' && sqHasSavedCut(data)) {
+            tr.dataset.sqCutOpen = '1';
+        }
+        sqRefreshCutFieldsForRow(tr, payload);
+    }
+
+    function sqToggleCutPanel(tr, forceOpen) {
+        if (!tr || tr.dataset.sqCustomMode !== '1') return;
+        const open = forceOpen != null ? !!forceOpen : tr.dataset.sqCutOpen !== '1';
+        if (open) {
+            tr.dataset.sqCutOpen = '1';
+        } else {
+            delete tr.dataset.sqCutOpen;
+            const fields = tr.querySelector('.sq-line-cut-fields');
+            if (fields) fields.innerHTML = '';
+        }
+        sqRefreshCutFields(tr);
+    }
+
+    function sqRefreshCutFields(tr, product, saved) {
+        const wrap = tr.querySelector('.sq-line-cut-wrap');
+        const fields = tr.querySelector('.sq-line-cut-fields');
+        const toggle = tr.querySelector('.sq-line-toggle-cut');
+        const Cut = window.PstCutFields;
+        if (!wrap || !fields || !Cut) {
+            return;
+        }
+        const customMode = tr.dataset.sqCustomMode === '1';
+        let p = product;
+        if (!p) {
+            p = sqCutProductForRow(tr);
+        }
+        const payload = saved || Cut.readInline(fields);
+
+        if (customMode) {
+            const isOpen = tr.dataset.sqCutOpen === '1';
+            if (toggle) {
+                toggle.classList.remove('hidden');
+                toggle.textContent = isOpen ? '− Hide cut size' : '+ Cut size';
+                toggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+            if (!isOpen) {
+                wrap.classList.add('hidden');
+                fields.innerHTML = '';
+                return;
+            }
+            wrap.classList.remove('hidden');
+            Cut.renderFreeform(fields, payload, (cur) => sqRefreshCutFields(tr, p, cur));
+            return;
+        }
+
+        if (toggle) toggle.classList.add('hidden');
+        delete tr.dataset.sqCutOpen;
+        if (!p || !Cut.isCuttable(p)) {
+            wrap.classList.add('hidden');
+            fields.innerHTML = '';
+            return;
+        }
+        wrap.classList.remove('hidden');
+        Cut.renderInline(fields, p, payload, (cur) => sqRefreshCutFields(tr, p, cur));
     }
 
     function sqPopulateVariantSelectOptions(tr) {
@@ -641,11 +1296,19 @@
         const selT = tr.querySelector('.sq-line-var-thick');
         const selM = tr.querySelector('.sq-line-var-meas');
         const invs = tr._sqVariants || [];
+        const cat = tr.querySelector('.sq-line-variant-catalog');
+        const cust = tr.querySelector('.sq-line-variant-custom');
         if (!wrap || !selC || !selT || !selM) return;
         if (!invs.length) {
             wrap.classList.add('hidden');
+            if (cat) cat.classList.add('hidden');
+            if (cust) cust.classList.add('hidden');
             return;
         }
+        delete tr.dataset.sqCustomMode;
+        sqClearReadonlySpecAttrs(tr);
+        if (cust) cust.classList.add('hidden');
+        if (cat) cat.classList.remove('hidden');
         const colors = Picker.distinctColors(invs);
         const thicks = Picker.distinctThicknesses(invs);
         const meas = Picker.distinctMeasurements(invs);
@@ -653,6 +1316,7 @@
         if (colors.length === 1 && colors[0] === '') {
             selC.classList.add('hidden');
             selC.innerHTML = '<option value="">—</option>';
+            selC.value = '';
         } else {
             selC.classList.remove('hidden');
             selC.innerHTML = '<option value="">Color…</option>' + colors.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c || '(none)')}</option>`).join('');
@@ -675,9 +1339,12 @@
         if (meas.length === 1) selM.value = meas[0].value;
 
         wrap.classList.remove('hidden');
+        sqTryResolveSqVariant(tr);
+        sqRefreshCutFieldsForRow(tr);
     }
 
     function sqFillVariantSelects(tr) {
+        sqExitCustomProductMode(tr);
         sqPopulateVariantSelectOptions(tr);
         sqTryResolveSqVariant(tr);
     }
@@ -685,39 +1352,35 @@
     function sqTryResolveSqVariant(tr) {
         const invs = tr._sqVariants || [];
         const hidden = tr.querySelector('.sq-line-product-id');
-        const selC = tr.querySelector('.sq-line-var-color');
-        const selT = tr.querySelector('.sq-line-var-thick');
-        const selM = tr.querySelector('.sq-line-var-meas');
         if (!invs.length) return;
 
-        const f = {};
-        if (selC && !selC.classList.contains('hidden')) {
-            f.color = selC.value;
-        } else {
-            f.color = '';
-        }
-        if (selT && !selT.classList.contains('hidden') && selT.value) {
-            f.thicknessValue = selT.value;
-        }
-        if (selM && selM.value) {
-            f.measurementValue = selM.value;
-        }
+        const { narrowed, filter } = sqNarrowRowVariants(tr);
 
-        let narrowed = Picker.narrowVariants(invs, f);
-        if (selM && !selM.classList.contains('hidden') && !f.measurementValue) {
-            const sub = Picker.narrowVariants(invs, { color: f.color, thicknessValue: f.thicknessValue || undefined });
-            const mo = Picker.distinctMeasurements(sub);
-            if (mo.length === 1) {
-                selM.value = mo[0].value;
-                f.measurementValue = mo[0].value;
-                narrowed = Picker.narrowVariants(invs, f);
+        let match = narrowed.length === 1 ? narrowed[0] : null;
+        if (!match && filter.thicknessValue && filter.measurementValue) {
+            const byThickMeas = Picker.narrowVariants(invs, {
+                thicknessValue: filter.thicknessValue,
+                measurementValue: filter.measurementValue,
+            });
+            if (byThickMeas.length === 1) {
+                match = byThickMeas[0];
             }
         }
 
-        if (narrowed.length === 1) {
-            sqApplyInvPick(tr, narrowed[0]);
-        } else if (hidden) {
-            hidden.value = '';
+        if (match?.product) {
+            sqApplyInvPick(tr, match);
+            return;
+        }
+
+        sqRefreshCutFieldsForRow(tr);
+
+        if (hidden && hidden.value) {
+            const pid = String(hidden.value);
+            const pool = narrowed.length ? narrowed : invs;
+            if (!pool.some((inv) => String(inv.product_id) === pid)) {
+                hidden.value = '';
+                sqRefreshCutFieldsForRow(tr);
+            }
         }
     }
 
@@ -734,7 +1397,16 @@
                 const groups = Picker.groupsMatchingQuery(sqInventoryItems, baseSearch.value);
                 const entries = [...groups.entries()].sort((a, b) => Picker.groupLabel(a[1][0].product).localeCompare(Picker.groupLabel(b[1][0].product), undefined, { sensitivity: 'base' }));
                 if (!entries.length) {
-                    baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
+                    const q = (baseSearch.value || '').trim();
+                    const safeQ = escapeHtml(q);
+                    if (q) {
+                        baseDd.innerHTML = `
+                            <div class="px-3 py-2 text-sm text-gray-700">No matching products in the catalog.</div>
+                            <div class="px-3 pb-2 text-xs text-gray-500">Not set up in the system yet? You can still quote it as a custom line.</div>
+                            <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-sq-use-custom="1">Use as custom: <span class="font-semibold">${safeQ}</span></button>`;
+                    } else {
+                        baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Type a product name to search, or use “Not in catalog” below.</div>';
+                    }
                 } else {
                     baseDd.innerHTML = entries.map(([key, invs]) => {
                         const lab = Picker.groupLabel(invs[0].product);
@@ -758,7 +1430,9 @@
                         hidden.value = '';
                         tr.dataset.sqGroupKey = '';
                         tr._sqVariants = [];
+                        sqExitCustomProductMode(tr);
                         tr.querySelector('.sq-line-variant-wrap')?.classList.add('hidden');
+                        tr.querySelector('.sq-line-variant-catalog')?.classList.add('hidden');
                         const rem = tr.querySelector('.sq-line-rem');
                         if (rem) rem.textContent = '—';
                     }
@@ -766,7 +1440,9 @@
                     hidden.value = '';
                     tr.dataset.sqGroupKey = '';
                     tr._sqVariants = [];
+                    sqExitCustomProductMode(tr);
                     tr.querySelector('.sq-line-variant-wrap')?.classList.add('hidden');
+                    tr.querySelector('.sq-line-variant-catalog')?.classList.add('hidden');
                     const rem = tr.querySelector('.sq-line-rem');
                     if (rem) rem.textContent = '—';
                 }
@@ -780,8 +1456,18 @@
             }, 200);
         });
 
-        tr.querySelectorAll('.sq-line-var-color, .sq-line-var-thick, .sq-line-var-meas').forEach((sel) => {
-            sel.addEventListener('change', () => sqTryResolveSqVariant(tr));
+        tr.querySelectorAll('.sq-line-variant-catalog .sq-line-var-color, .sq-line-variant-catalog .sq-line-var-thick, .sq-line-variant-catalog .sq-line-var-meas').forEach((sel) => {
+            sel.addEventListener('change', () => {
+                sqTryResolveSqVariant(tr);
+                sqRefreshCutFieldsForRow(tr);
+            });
+        });
+        tr.querySelector('.sq-line-enter-custom')?.addEventListener('click', () => {
+            sqEnterCustomProductMode(tr);
+            const desc = tr.querySelector('.sq-line-desc');
+            const bs = tr.querySelector('.sq-line-base-search');
+            const q = (bs?.value || '').trim();
+            if (desc && !desc.value.trim() && q) desc.value = q;
         });
     }
 
@@ -793,6 +1479,27 @@
             });
         });
         wireSqLineProductPicker(tr);
+        tr.querySelector('.sq-line-clear-product')?.addEventListener('click', () => {
+            const baseSearch = tr.querySelector('.sq-line-base-search');
+            const hidden = tr.querySelector('.sq-line-product-id');
+            if (baseSearch) baseSearch.value = '';
+            if (hidden) hidden.value = '';
+            delete tr.dataset.sqGroupKey;
+            tr._sqVariants = [];
+            sqExitCustomProductMode(tr);
+            tr.querySelector('.sq-line-variant-wrap')?.classList.add('hidden');
+            tr.querySelector('.sq-line-variant-catalog')?.classList.add('hidden');
+            const rem = tr.querySelector('.sq-line-rem');
+            if (rem) rem.textContent = '—';
+            const qty = tr.querySelector('.sq-line-qty');
+            if (qty) qty.removeAttribute('max');
+            delete tr.dataset.sqCutOpen;
+            sqRefreshCutFields(tr, null);
+            refreshSqTotals();
+        });
+        tr.querySelector('.sq-line-toggle-cut')?.addEventListener('click', () => {
+            sqToggleCutPanel(tr);
+        });
         tr.querySelector('.sq-remove-line')?.addEventListener('click', () => {
             tr.remove();
             refreshSqTotals();
@@ -814,28 +1521,52 @@
         let initBase = '';
         let initHid = '';
         let initRem = '—';
-        if (p0) {
-            initHid = String(p0.id);
-            initBase = Picker.groupLabel(p0);
-            if (inv0) {
-                initRem = inv0._catalogOnly ? '—' : formatSqStock(sqInvStock(inv0));
+        if (data.product_id) {
+            initHid = String(data.product_id);
+            if (p0) {
+                initBase = (Picker.groupLabel(p0) || sqProductDisplayLabel(p0) || '').trim();
+                if (inv0) {
+                    initRem = inv0._catalogOnly ? '—' : formatSqStock(sqInvStock(inv0));
+                }
+            } else {
+                initBase = (String(data.description || '').trim()) || (`Product #${data.product_id}`);
             }
+        } else if (data.custom_item_name) {
+            initBase = String(data.custom_item_name);
+        } else if (data.description && !data.custom_color && !data.custom_thickness && !data.custom_measurement) {
+            initBase = String(data.description);
         }
         tr.innerHTML = `
             <td class="py-3 pr-2 align-top w-[22rem]">
                 <div class="relative w-full min-w-0 space-y-2">
-                    <input type="text" autocomplete="off" class="sq-line-base-search block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Search product name…" value="${escapeHtml(initBase)}">
+                    <input type="text" autocomplete="off" class="sq-line-base-search block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Search catalog or type a custom item name…" value="${escapeHtml(initBase)}">
                     <div class="sq-line-base-dd hidden max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg"></div>
-                    <div class="sq-line-variant-wrap hidden flex flex-wrap items-center gap-2">
-                        <select class="sq-line-var-color min-w-[5.5rem] max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
-                        <select class="sq-line-var-thick min-w-[5.5rem] max-w-[8rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
-                        <select class="sq-line-var-meas min-w-[6rem] max-w-[10rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
+                    <div class="sq-line-variant-wrap hidden w-full flex-col gap-2">
+                        <div class="sq-line-variant-catalog hidden flex flex-wrap items-center gap-2">
+                            <select class="sq-line-var-color min-w-[5.5rem] max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
+                            <select class="sq-line-var-thick min-w-[5.5rem] max-w-[8rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
+                            <select class="sq-line-var-meas min-w-[6rem] max-w-[10rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
+                        </div>
+                        <div class="sq-line-variant-custom hidden flex flex-wrap items-center gap-2">
+                            <input type="text" class="sq-custom-color min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Color" maxlength="255" title="Free text, e.g. White">
+                            <input type="text" class="sq-custom-thickness min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Thickness (e.g. 3 mm)" maxlength="255">
+                            <input type="text" class="sq-custom-measurement min-w-[6rem] max-w-[12rem] flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Size / length (e.g. 2440×1220 mm)" maxlength="255">
+                        </div>
                     </div>
+                    <button type="button" class="sq-line-toggle-cut hidden text-left text-xs font-medium text-amber-800 hover:text-amber-950 hover:underline" aria-expanded="false">+ Cut size</button>
+                    <div class="sq-line-cut-wrap hidden w-full">
+                        <p class="mt-1 mb-1 text-xs font-medium text-amber-900">Cut size <span class="font-normal text-amber-800">(optional — e.g. one piece cut to length)</span></p>
+                        <div class="sq-line-cut-fields flex flex-wrap items-center gap-2"></div>
+                    </div>
+                    <button type="button" class="sq-line-enter-custom text-left text-xs font-medium text-gray-600 hover:text-blue-800 hover:underline">Not in catalog — add specs</button>
                     <input type="hidden" class="sq-line-product-id" value="${escapeHtml(initHid)}">
+                    <button type="button" class="sq-line-clear-product text-left text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline">Clear product / custom item</button>
                 </div>
             </td>
             <td class="py-3 px-2 align-top text-right"><span class="sq-line-rem whitespace-nowrap text-xs tabular-nums text-gray-700">${escapeHtml(initRem)}</span></td>
-            <td class="py-3 px-2 align-top w-[20rem]"><input type="text" class="sq-line-desc block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Description"></td>
+            <td class="py-3 px-2 align-top w-[20rem]">
+                    <input type="text" class="sq-line-desc block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Description / notes for this line (required). Shown on print with item details.">
+                </td>
             <td class="py-3 px-2 align-top"><input type="number" step="1" min="1" class="sq-line-qty block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></td>
             <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></td>
             <td class="py-3 px-2 align-top text-right"><span class="sq-line-total text-sm font-semibold tabular-nums text-gray-800">₱0.00</span></td>
@@ -845,35 +1576,29 @@
         const desc = tr.querySelector('.sq-line-desc');
         const qty = tr.querySelector('.sq-line-qty');
         const price = tr.querySelector('.sq-line-price');
-        const hidden = tr.querySelector('.sq-line-product-id');
         desc.value = data.description || '';
         qty.value = data.quantity != null ? data.quantity : 1;
         price.value = data.unit_price != null ? data.unit_price : '';
-        if (p0) {
-            tr.dataset.sqGroupKey = Picker.groupKey(p0);
-            tr._sqVariants = sqInventoryItems.filter((inv) => Picker.groupKey(inv.product) === tr.dataset.sqGroupKey);
-            if (tr._sqVariants.length) {
-                sqPopulateVariantSelectOptions(tr);
-                const selC = tr.querySelector('.sq-line-var-color');
-                const selT = tr.querySelector('.sq-line-var-thick');
-                const selM = tr.querySelector('.sq-line-var-meas');
-                const tk = Picker.thicknessKey(p0);
-                const mk = Picker.measurementKey(p0);
-                if (selC && !selC.classList.contains('hidden')) {
-                    selC.value = (p0.color != null && p0.color !== '') ? String(p0.color) : '';
-                }
-                if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
-                if (selM && mk) selM.value = mk;
-                sqTryResolveSqVariant(tr);
-                if (!hidden.value && inv0) sqApplyInvPick(tr, inv0);
-            } else if (inv0) {
-                sqApplyInvPick(tr, inv0);
-            } else {
-                hidden.value = String(p0.id);
-                tr.querySelector('.sq-line-base-search').value = sqProductDisplayLabel(p0) + (p0.sku ? ` (${p0.sku})` : '');
-            }
+        if (data.custom_item_name && !data.product_id) {
+            tr.dataset.sqCustomMode = '1';
+            sqClearReadonlySpecAttrs(tr);
+            const bs = tr.querySelector('.sq-line-base-search');
+            if (bs && data.custom_item_name) bs.value = data.custom_item_name;
+            tr.querySelector('.sq-line-variant-wrap')?.classList.remove('hidden');
+            tr.querySelector('.sq-line-variant-catalog')?.classList.add('hidden');
+            tr.querySelector('.sq-line-variant-custom')?.classList.remove('hidden');
+            const cc = tr.querySelector('.sq-custom-color');
+            const ct = tr.querySelector('.sq-custom-thickness');
+            const cm = tr.querySelector('.sq-custom-measurement');
+            if (cc) cc.value = data.custom_color || '';
+            if (ct) ct.value = data.custom_thickness || '';
+            if (cm) cm.value = data.custom_measurement || '';
+            sqRestoreCutUi(tr, data);
+        } else {
+            sqRestoreOrResolveSavedLine(tr, data);
         }
         wireSqLineRow(tr);
+        sqRefreshCutFieldsForRow(tr);
         refreshSqLineTotal(tr);
         refreshSqTotals();
     }
@@ -881,11 +1606,50 @@
     function gatherLines() {
         const rows = [...document.querySelectorAll('#sqLinesBody tr')];
         return rows.map(tr => {
+            sqMaterializeCatalogLine(tr);
+            const resolvedId = sqResolveProductIdFromRow(tr);
             const hid = tr.querySelector('.sq-line-product-id');
-            const pid = hid ? hid.value.trim() : '';
+            const pidRaw = resolvedId != null ? String(resolvedId) : (hid ? String(hid.value).trim() : '');
+            const parsedId = /^\d+$/.test(pidRaw) ? parseInt(pidRaw, 10) : NaN;
+            let productId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
+            const customMode = tr.dataset.sqCustomMode === '1';
+            const baseSearch = (tr.querySelector('.sq-line-base-search')?.value || '').trim();
+            const specs = sqReadSpecFieldsFromRow(tr);
+            if (productId && (!specs.thickness || !specs.measurement)) {
+                const p = sqInventoryItems.find((i) => String(i.product_id) === String(productId))?.product;
+                if (p) {
+                    if (!specs.thickness) specs.thickness = sqTrimOrNull(Picker.thicknessLabel(p));
+                    if (!specs.measurement) specs.measurement = sqTrimOrNull(Picker.measurementLabel(p));
+                    if (!specs.color) specs.color = sqTrimOrNull(p.color);
+                }
+            }
+            let cutPayload = { cut_length: null, cut_width: null, cut_height: null, cut_measurement_unit: null };
+            if (window.PstCutFields) {
+                const cutWrap = tr.querySelector('.sq-line-cut-wrap');
+                const cutFields = tr.querySelector('.sq-line-cut-fields');
+                const readCut = cutWrap && cutFields && !cutWrap.classList.contains('hidden')
+                    && (customMode ? tr.dataset.sqCutOpen === '1' : true);
+                if (readCut) {
+                    cutPayload = PstCutFields.readInline(cutFields);
+                }
+            }
+            let description = (tr.querySelector('.sq-line-desc')?.value || '').trim();
+            if (!description) {
+                if (productId != null) {
+                    description = baseSearch || `Product #${productId}`;
+                }
+            }
             return {
-                product_id: pid ? parseInt(pid, 10) : null,
-                description: tr.querySelector('.sq-line-desc').value.trim(),
+                product_id: productId,
+                description,
+                custom_item_name: productId == null && customMode ? sqTrimOrNull(tr.querySelector('.sq-line-base-search')?.value) : null,
+                custom_color: specs.color,
+                custom_thickness: specs.thickness,
+                custom_measurement: specs.measurement,
+                cut_length: cutPayload.cut_length,
+                cut_width: cutPayload.cut_width,
+                cut_height: cutPayload.cut_height,
+                cut_measurement_unit: cutPayload.cut_measurement_unit,
                 quantity: parseFloat(tr.querySelector('.sq-line-qty').value),
                 unit_price: parseFloat(tr.querySelector('.sq-line-price').value),
             };
@@ -917,6 +1681,17 @@
 
     async function saveQuotation() {
         const id = el('sqId').value;
+        const rows = [...document.querySelectorAll('#sqLinesBody tr')];
+        for (const tr of rows) {
+            if (tr.dataset.sqCustomMode === '1') continue;
+            const cat = tr.querySelector('.sq-line-variant-catalog');
+            if (!cat || cat.classList.contains('hidden')) continue;
+            const selT = tr.querySelector('.sq-line-var-thick');
+            if (selT && !selT.classList.contains('hidden') && !selT.value) {
+                toast('Select thickness for each catalog product line before saving.', false);
+                return;
+            }
+        }
         const lines = gatherLines();
         if (!lines.length) {
             toast('Add at least one line item with description, qty, and price.', false);
@@ -961,7 +1736,12 @@
             toast(data.error || data.message || 'Save failed', false);
             return;
         }
-        toast(id ? 'Quotation updated.' : 'Quotation saved. You can print it from the list for the customer.');
+        const descOnlyCount = lines.filter((l) => !l.product_id).length;
+        let okMsg = id ? 'Quotation updated.' : 'Quotation saved. You can print it from the list for the customer.';
+        if (descOnlyCount > 0) {
+            okMsg += ` ${descOnlyCount} line${descOnlyCount === 1 ? ' has' : 's have'} no linked product (OK for supplier-sourced items).`;
+        }
+        toast(okMsg, true);
         closeModal();
         loadList();
     }
@@ -991,6 +1771,14 @@
                 product_id: it.product_id,
                 product: it.product,
                 description: it.description,
+                custom_item_name: it.custom_item_name,
+                custom_color: it.custom_color,
+                custom_thickness: it.custom_thickness,
+                custom_measurement: it.custom_measurement,
+                cut_length: it.cut_length,
+                cut_width: it.cut_width,
+                cut_height: it.cut_height,
+                cut_measurement_unit: it.cut_measurement_unit,
                 quantity: it.quantity,
                 unit_price: it.unit_price,
             }));
@@ -1024,6 +1812,18 @@
     if (sqLinesBody && !sqLinesBody.dataset.sqPickBound) {
         sqLinesBody.dataset.sqPickBound = '1';
         sqLinesBody.addEventListener('mousedown', (e) => {
+            const useCustom = e.target.closest('[data-sq-use-custom]');
+            if (useCustom && sqLinesBody.contains(useCustom)) {
+                e.preventDefault();
+                const tr = useCustom.closest('tr');
+                if (!tr) return;
+                sqEnterCustomProductMode(tr);
+                const baseSearch = tr.querySelector('.sq-line-base-search');
+                const desc = tr.querySelector('.sq-line-desc');
+                const q = (baseSearch?.value || '').trim();
+                if (desc && !desc.value.trim() && q) desc.value = q;
+                return;
+            }
             const pick = e.target.closest('[data-sq-pick-group]');
             if (!pick || !sqLinesBody.contains(pick)) return;
             e.preventDefault();
@@ -1041,6 +1841,8 @@
                 baseDd._sqAnchor = null;
             }
             sqFillVariantSelects(tr);
+            const desc = tr.querySelector('.sq-line-desc');
+            if (desc && !desc.value.trim() && baseSearch?.value?.trim()) desc.value = baseSearch.value.trim();
         });
     }
 

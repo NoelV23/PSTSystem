@@ -287,10 +287,55 @@
     </div>
 </div>
 
+<!-- PO: save remainder from supplier pre-cut delivery -->
+<div id="poCutRemainderModal" class="fixed inset-0 z-[60] hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+    <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
+        <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-w-xl">
+            <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-gray-900">Save remainder to inventory</h2>
+                <button type="button" id="closePoCutRemainderModal" class="rounded-lg p-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
+            </div>
+            <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+                <p class="text-sm leading-relaxed text-gray-600">This PO includes pre-cut items from the supplier. The off-cut pieces can be saved as remainders in inventory.</p>
+                <div class="flex flex-col gap-1.5">
+                    <label for="poCutRemainderNote" class="text-sm font-medium text-gray-700">Location note <span class="font-normal text-gray-500">(optional)</span></label>
+                    <input id="poCutRemainderNote" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="e.g. Rack A, bay 3">
+                </div>
+                <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4">
+                    <button type="button" id="poDiscardCutRemainderBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 sm:w-auto">Mark as discarded</button>
+                    <button type="button" id="poSaveCutRemainderBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">Save remainder</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="poDiscardCutReasonModal" class="fixed inset-0 z-[70] hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+    <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
+        <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-w-xl">
+            <div class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-gray-900">Discard remainder</h2>
+                <button type="button" id="closePoDiscardCutReasonModal" class="rounded-lg p-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
+            </div>
+            <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
+                <p class="text-sm text-gray-600">Please provide a reason for discarding the off-cut remainder.</p>
+                <div class="flex flex-col gap-1.5">
+                    <label for="poDiscardCutReasonInput" class="text-sm font-medium text-gray-700">Reason <span class="text-red-600">*</span></label>
+                    <textarea id="poDiscardCutReasonInput" rows="4" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Reason for discarding…"></textarea>
+                </div>
+                <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4">
+                    <button type="button" id="poCancelDiscardCutBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Cancel</button>
+                    <button type="button" id="poConfirmDiscardCutBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">Discard</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- View Purchase Details Modal -->
 <div id="viewPurchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
-        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+        <div class="w-full max-w-6xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] xl:max-w-7xl">
             <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
                 <h3 id="viewModalTitle" class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">Purchase order details</h3>
                 <button type="button" id="closeViewModal" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">
@@ -300,10 +345,10 @@
                 </button>
             </div>
             <div class="flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6 lg:px-8">
-                <div id="purchaseDetails" class="space-y-6">
+                <div id="purchaseDetails" class="space-y-8">
                     <!-- Purchase details will be loaded here -->
                 </div>
-                <div class="mt-8 flex flex-col-reverse border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
+                <div class="mt-10 flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end">
                     <button type="button" id="closeViewBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Close</button>
                 </div>
             </div>
@@ -327,6 +372,7 @@
 </div>
 
 <script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
+<script src="{{ asset('js/pst-cut-fields.js') }}"></script>
 <script>
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 let purchases = [];
@@ -335,6 +381,8 @@ let branches = [];
 let purchaseModalMode = 'quick'; // 'quick' | 'draft'
 let receiveLoadedPo = null;
 let receiveLineItems = [];
+let poCutSubmitCallback = null;
+let isSubmittingPoCutAction = false;
 let selectedBranchId = '';
 let isEditMode = false;
 let currentPurchaseId = null;
@@ -413,6 +461,7 @@ function poPopulateVariantSelectOptionsForRow(row, index) {
     if (thicks.length === 1) selT.value = thicks[0].value;
     if (meas.length === 1) selM.value = meas[0].value;
     wrap.classList.remove('hidden');
+    poRefreshCutFields(index);
 }
 
 function poTryResolveVariant(index) {
@@ -446,6 +495,7 @@ function poTryResolveVariant(index) {
     } else {
         it.product_id = '';
     }
+    poRefreshCutFields(index);
 }
 
 function poWireVariantSelects(row, index) {
@@ -563,6 +613,8 @@ function setupEventListeners() {
                     if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
                     if (selM && mk) selM.value = mk;
                     poTryResolveVariant(index);
+                } else {
+                    poRefreshCutFields(index);
                 }
             }
         });
@@ -658,6 +710,46 @@ function setupEventListeners() {
     if (receiveSelect) receiveSelect.addEventListener('change', onReceivePoSelected);
     const submitReceive = document.getElementById('submitReceiveBtn');
     if (submitReceive) submitReceive.addEventListener('click', submitReceivePurchase);
+
+    const closePoCutModal = document.getElementById('closePoCutRemainderModal');
+    if (closePoCutModal) closePoCutModal.addEventListener('click', () => {
+        if (isSubmittingPoCutAction) return;
+        document.getElementById('poCutRemainderModal').classList.add('hidden');
+        poCutSubmitCallback = null;
+    });
+    const poSaveCutBtn = document.getElementById('poSaveCutRemainderBtn');
+    if (poSaveCutBtn) poSaveCutBtn.addEventListener('click', async () => {
+        if (isSubmittingPoCutAction || !poCutSubmitCallback) return;
+        const note = document.getElementById('poCutRemainderNote').value.trim();
+        await poRunCutSubmitCallback({ location_note: note || null, status: 'available', discard_reason: null });
+    });
+    const poDiscardCutBtn = document.getElementById('poDiscardCutRemainderBtn');
+    if (poDiscardCutBtn) poDiscardCutBtn.addEventListener('click', () => {
+        if (isSubmittingPoCutAction) return;
+        document.getElementById('poDiscardCutReasonInput').value = '';
+        document.getElementById('poDiscardCutReasonModal').classList.remove('hidden');
+    });
+    const closePoDiscardModal = document.getElementById('closePoDiscardCutReasonModal');
+    if (closePoDiscardModal) closePoDiscardModal.addEventListener('click', () => {
+        if (isSubmittingPoCutAction) return;
+        document.getElementById('poDiscardCutReasonModal').classList.add('hidden');
+    });
+    const poCancelDiscardBtn = document.getElementById('poCancelDiscardCutBtn');
+    if (poCancelDiscardBtn) poCancelDiscardBtn.addEventListener('click', () => {
+        if (isSubmittingPoCutAction) return;
+        document.getElementById('poDiscardCutReasonModal').classList.add('hidden');
+    });
+    const poConfirmDiscardBtn = document.getElementById('poConfirmDiscardCutBtn');
+    if (poConfirmDiscardBtn) poConfirmDiscardBtn.addEventListener('click', async () => {
+        if (isSubmittingPoCutAction || !poCutSubmitCallback) return;
+        const reason = document.getElementById('poDiscardCutReasonInput').value.trim();
+        if (!reason) {
+            showToast('Please provide a reason for discarding.', 'error');
+            return;
+        }
+        const note = document.getElementById('poCutRemainderNote').value.trim();
+        await poRunCutSubmitCallback({ location_note: note || null, status: 'discarded', discard_reason: reason });
+    });
 }
 
 function syncReceiptFieldRequirement() {
@@ -924,6 +1016,21 @@ async function handleFormSubmit(e) {
         }
     }
 
+    poSyncCutFieldsFromDom();
+
+    if (!isDraft && purchaseItems.some(poLineHasCut)) {
+        poShowCutRemainderModal((cutMeta) => attemptSavePurchase(e, cutMeta));
+        return;
+    }
+
+    await attemptSavePurchase(e, null);
+}
+
+async function attemptSavePurchase(e, cutMeta) {
+    const formData = new FormData(e.target);
+    const isDraft = !!document.getElementById('isDraftPo')?.checked;
+    const receipt = (formData.get('purchase_receipt_no') || '').trim();
+
     const purchaseData = {
         supplier_name: formData.get('supplier_name'),
         branch_id: document.getElementById('selectedBranchId').value,
@@ -933,17 +1040,14 @@ async function handleFormSubmit(e) {
         ship_to: formData.get('ship_to') || null,
         payment_terms: formData.get('payment_terms') || null,
         is_draft: isDraft,
-        items: purchaseItems.map(item => ({
-            product_id: item.product_id,
-            quantity: item.quantity,
-            cost_price: item.cost_price
-        }))
+        items: poMapItemsWithCutMeta(purchaseItems, cutMeta)
     };
-    
+
     try {
+        isSubmittingPoCutAction = true;
         const url = isEditMode ? `/api/purchases/${currentPurchaseId}` : '/api/purchases';
         const method = isEditMode ? 'PUT' : 'POST';
-        
+
         const response = await fetch(url, {
             method: method,
             headers: {
@@ -953,7 +1057,7 @@ async function handleFormSubmit(e) {
             },
             body: JSON.stringify(purchaseData)
         });
-        
+
         if (!response.ok) {
             const errorData = await response.json();
             if (errorData.errors) {
@@ -962,16 +1066,20 @@ async function handleFormSubmit(e) {
             }
             throw new Error(errorData.error || 'Failed to save purchase order');
         }
-        
-        const result = await response.json();
+
+        await response.json();
         closeModal();
         const wasDraft = !!document.getElementById('isDraftPo')?.checked;
         showToast(isEditMode ? 'Draft PO updated.' : (wasDraft ? 'Draft PO saved. You can print it and send to the supplier.' : 'Purchase recorded and stock updated.'), 'success');
         loadPurchases();
-        
     } catch (error) {
         console.error('Error saving purchase order:', error);
         showToast(error.message, 'error');
+    } finally {
+        isSubmittingPoCutAction = false;
+        document.getElementById('poCutRemainderModal')?.classList.add('hidden');
+        document.getElementById('poDiscardCutReasonModal')?.classList.add('hidden');
+        poCutSubmitCallback = null;
     }
 }
 
@@ -979,9 +1087,147 @@ function addPurchaseItem() {
     purchaseItems.push({
         product_id: '',
         quantity: 1,
-        cost_price: 0
+        cost_price: 0,
+        cut_length: null,
+        cut_width: null,
+        cut_height: null,
+        cut_measurement_unit: null,
     });
     renderPurchaseItems();
+}
+
+function poCutProductForRow(index) {
+    const it = purchaseItems[index];
+    const row = document.querySelector(`[data-po-line-index="${index}"]`);
+    const Cut = window.PstCutFields;
+    if (!it || !row || !Cut) {
+        return null;
+    }
+
+    if (it.product_id) {
+        const fromId = products.find((x) => String(x.id) === String(it.product_id));
+        if (fromId) {
+            return fromId;
+        }
+    }
+
+    const invs = it._poVariants || [];
+    if (!invs.length || !Picker) {
+        return null;
+    }
+
+    const pickFrom = (list) => {
+        if (!list?.length) {
+            return null;
+        }
+        const cuttable = list.find((inv) => inv.product && Cut.isCuttable(inv.product));
+        return (cuttable || list[0]).product || null;
+    };
+
+    const selC = row.querySelector('.po-line-var-color');
+    const selT = row.querySelector('.po-line-var-thick');
+    const selM = row.querySelector('.po-line-var-meas');
+    const f = {};
+    if (selC && !selC.classList.contains('hidden')) {
+        f.color = selC.value;
+    } else {
+        f.color = '';
+    }
+    if (selT && !selT.classList.contains('hidden') && selT.value) {
+        f.thicknessValue = selT.value;
+    }
+    if (selM && selM.value) {
+        f.measurementValue = selM.value;
+    }
+
+    let narrowed = Picker.narrowVariants(invs, f);
+    if (selM && !selM.classList.contains('hidden') && !f.measurementValue) {
+        const sub = Picker.narrowVariants(invs, { color: f.color, thicknessValue: f.thicknessValue || undefined });
+        const mo = Picker.distinctMeasurements(sub);
+        if (mo.length === 1) {
+            f.measurementValue = mo[0].value;
+            narrowed = Picker.narrowVariants(invs, f);
+        }
+    }
+
+    if (narrowed.length === 1) {
+        return narrowed[0].product;
+    }
+    if (narrowed.length > 1) {
+        const p = pickFrom(narrowed);
+        if (p) {
+            return p;
+        }
+    }
+    if (f.thicknessValue && f.measurementValue) {
+        const p = pickFrom(Picker.narrowVariants(invs, {
+            thicknessValue: f.thicknessValue,
+            measurementValue: f.measurementValue,
+        }));
+        if (p) {
+            return p;
+        }
+    }
+    if (f.thicknessValue) {
+        const p = pickFrom(Picker.narrowVariants(invs, { thicknessValue: f.thicknessValue }));
+        if (p) {
+            return p;
+        }
+    }
+    if (f.measurementValue) {
+        const p = pickFrom(Picker.narrowVariants(invs, { measurementValue: f.measurementValue }));
+        if (p) {
+            return p;
+        }
+    }
+
+    return pickFrom(invs);
+}
+
+function poRefreshCutFields(index) {
+    const row = document.querySelector(`[data-po-line-index="${index}"]`);
+    const it = purchaseItems[index];
+    const wrap = row?.querySelector('.po-line-cut-wrap');
+    const fields = row?.querySelector('.po-line-cut-fields');
+    const Cut = window.PstCutFields;
+    if (!row || !wrap || !fields || !Cut) {
+        return;
+    }
+    const p = poCutProductForRow(index);
+    if (!p || !Cut.isCuttable(p)) {
+        wrap.classList.add('hidden');
+        fields.innerHTML = '';
+        return;
+    }
+    wrap.classList.remove('hidden');
+    Cut.renderInline(fields, p, {
+        cut_length: it.cut_length,
+        cut_width: it.cut_width,
+        cut_height: it.cut_height,
+        cut_measurement_unit: it.cut_measurement_unit,
+    }, (cur) => {
+        Object.assign(it, cur);
+        poRefreshCutFields(index);
+    });
+}
+
+function poSyncCutFieldsFromDom() {
+    if (!window.PstCutFields) {
+        return;
+    }
+    purchaseItems.forEach((it, index) => {
+        const row = document.querySelector(`[data-po-line-index="${index}"]`);
+        const fields = row?.querySelector('.po-line-cut-fields');
+        const wrap = row?.querySelector('.po-line-cut-wrap');
+        if (!fields || !wrap || wrap.classList.contains('hidden')) {
+            it.cut_length = null;
+            it.cut_width = null;
+            it.cut_height = null;
+            it.cut_measurement_unit = null;
+            return;
+        }
+        Object.assign(it, PstCutFields.readInline(fields));
+    });
 }
 
 function removePurchaseItem(index) {
@@ -1088,6 +1334,10 @@ function renderPurchaseItems() {
                         <select class="po-line-var-meas max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" data-index="${index}"></select>
                     </div>
                 </div>
+                <div class="po-line-cut-wrap hidden mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
+                    <p class="mb-1 text-xs font-medium text-amber-900">Cut size <span class="font-normal text-amber-800">(optional)</span></p>
+                    <div class="po-line-cut-fields flex flex-wrap items-center gap-2"></div>
+                </div>
             </div>
             <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Qty</label>
@@ -1122,6 +1372,7 @@ function renderPurchaseItems() {
                 if (inp.value.trim() !== expected.trim()) {
                     purchaseItems[index].product_id = '';
                     delete purchaseItems[index]._poVariants;
+                    poRefreshCutFields(index);
                 }
             }
             renderPoProductDropdown(inp, dd, index, inp.value);
@@ -1152,7 +1403,10 @@ function renderPurchaseItems() {
 
     container.querySelectorAll('[data-po-line-index]').forEach((row) => {
         const idx = parseInt(row.dataset.poLineIndex, 10);
-        if (!Number.isNaN(idx)) poWireVariantSelects(row, idx);
+        if (!Number.isNaN(idx)) {
+            poWireVariantSelects(row, idx);
+            poRefreshCutFields(idx);
+        }
     });
 }
 
@@ -1209,6 +1463,55 @@ function closeReceiveModal() {
     document.getElementById('receivePurchaseModal').classList.add('hidden');
 }
 
+function poLineHasCut(row) {
+    return [row.cut_length, row.cut_width, row.cut_height].some(v => v != null && v !== '' && parseFloat(v) > 0);
+}
+
+function poFormatCutDisplay(row) {
+    if (!poLineHasCut(row) || !window.PstCutFields) return '';
+    return PstCutFields.formatDisplay({
+        cut_length: row.cut_length,
+        cut_width: row.cut_width,
+        cut_height: row.cut_height,
+        cut_measurement_unit: row.cut_measurement_unit,
+    });
+}
+
+function poMapItemsWithCutMeta(items, cutMeta) {
+    return items.map(item => {
+        const row = {
+            product_id: item.product_id,
+            quantity: item.quantity,
+            cost_price: Number(item.cost_price),
+            cut_length: item.cut_length,
+            cut_width: item.cut_width,
+            cut_height: item.cut_height,
+            cut_measurement_unit: item.cut_measurement_unit,
+        };
+        if (cutMeta && poLineHasCut(item)) {
+            row.location_note = cutMeta.location_note;
+            row.status = cutMeta.status;
+            row.discard_reason = cutMeta.discard_reason;
+        }
+        return row;
+    });
+}
+
+function poShowCutRemainderModal(callback) {
+    poCutSubmitCallback = callback;
+    const noteEl = document.getElementById('poCutRemainderNote');
+    if (noteEl) noteEl.value = '';
+    document.getElementById('poCutRemainderModal').classList.remove('hidden');
+}
+
+async function poRunCutSubmitCallback(cutMeta) {
+    if (!poCutSubmitCallback) return;
+    const cb = poCutSubmitCallback;
+    poCutSubmitCallback = null;
+    document.getElementById('poDiscardCutReasonModal').classList.add('hidden');
+    await cb(cutMeta);
+}
+
 async function onReceivePoSelected() {
     const id = document.getElementById('receivePoSelect').value;
     receiveLoadedPo = null;
@@ -1232,7 +1535,11 @@ async function onReceivePoSelected() {
             product_name: it.product?.name || '',
             sku: it.product?.sku || '',
             quantity: Number(it.quantity),
-            cost_price: Number(it.cost_price) > 0 ? Number(it.cost_price) : ''
+            cost_price: Number(it.cost_price) > 0 ? Number(it.cost_price) : '',
+            cut_length: it.cut_length,
+            cut_width: it.cut_width,
+            cut_height: it.cut_height,
+            cut_measurement_unit: it.cut_measurement_unit,
         }));
         document.getElementById('receivePoSummary').innerHTML = `
             <strong>PO:</strong> ${escapeHtml(p.po_number || ('#' + p.id))}<br>
@@ -1250,11 +1557,17 @@ async function onReceivePoSelected() {
 
 function renderReceiveItems() {
     const container = document.getElementById('receiveItemsList');
-    container.innerHTML = receiveLineItems.map((row, idx) => `
+    container.innerHTML = receiveLineItems.map((row, idx) => {
+        const cutLabel = poFormatCutDisplay(row);
+        const cutHtml = cutLabel
+            ? `<div class="w-full text-xs text-amber-800 bg-amber-50 border border-amber-100 rounded px-2 py-1 mt-1"><span class="font-medium">Supplier cut:</span> ${escapeHtml(cutLabel)}</div>`
+            : '';
+        return `
         <div class="flex flex-wrap gap-2 items-end p-2 bg-white rounded border">
             <div class="flex-1 min-w-[180px]">
                 <div class="text-xs text-gray-500">${escapeHtml(row.sku || 'SKU')}</div>
                 <div class="font-medium text-gray-900">${escapeHtml(row.product_name)}</div>
+                ${cutHtml}
             </div>
             <div class="w-24">
                 <label class="text-xs text-gray-600">Qty</label>
@@ -1269,7 +1582,8 @@ function renderReceiveItems() {
                 <div class="recv-line-total text-sm font-semibold text-gray-900" data-idx="${idx}">₱${((Number(row.quantity) || 0) * (Number(row.cost_price) || 0)).toFixed(2)}</div>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 
     container.querySelectorAll('.recv-qty, .recv-cost').forEach(inp => {
         inp.addEventListener('input', () => {
@@ -1306,16 +1620,21 @@ async function submitReceivePurchase() {
         showToast('Each line needs quantity and unit cost greater than 0.', 'error');
         return;
     }
+    if (receiveLineItems.some(poLineHasCut)) {
+        poShowCutRemainderModal((cutMeta) => attemptReceivePurchase(cutMeta));
+        return;
+    }
+    await attemptReceivePurchase(null);
+}
+
+async function attemptReceivePurchase(cutMeta) {
     const body = {
-        purchase_receipt_no: inv,
+        purchase_receipt_no: document.getElementById('receiveInvoiceNo').value.trim(),
         note: document.getElementById('receiveNote').value.trim() || null,
-        items: receiveLineItems.map(r => ({
-            product_id: r.product_id,
-            quantity: r.quantity,
-            cost_price: Number(r.cost_price)
-        }))
+        items: poMapItemsWithCutMeta(receiveLineItems, cutMeta)
     };
     try {
+        isSubmittingPoCutAction = true;
         const res = await fetch(`/api/purchases/${receiveLoadedPo.id}/receive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken },
@@ -1328,8 +1647,28 @@ async function submitReceivePurchase() {
         loadPurchases();
     } catch (e) {
         showToast(e.message || 'Receive failed', 'error');
+    } finally {
+        isSubmittingPoCutAction = false;
+        document.getElementById('poCutRemainderModal')?.classList.add('hidden');
+        document.getElementById('poDiscardCutReasonModal')?.classList.add('hidden');
+        poCutSubmitCallback = null;
     }
 }
+
+function poViewFormatPhp(n) {
+    return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(n) || 0);
+}
+
+function poViewStatusBadge(status) {
+    const s = String(status || 'received').toLowerCase();
+    const styles = {
+        draft: 'bg-amber-50 text-amber-900 ring-amber-200',
+        received: 'bg-emerald-50 text-emerald-900 ring-emerald-200',
+    };
+    const cls = styles[s] || 'bg-gray-100 text-gray-800 ring-gray-200';
+    return `<span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wide ring-1 ring-inset ${cls}">${escapeHtml(s)}</span>`;
+}
+
 
 async function viewPurchase(id) {
     try {
@@ -1340,72 +1679,109 @@ async function viewPurchase(id) {
         document.getElementById('viewModalTitle').textContent = `${purchase.po_number || ('PO #' + purchase.id)}`;
         
         const formattedDate = new Date(purchase.order_date).toLocaleDateString();
-        const formattedCost = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(purchase.total_cost);
+        const formattedCost = poViewFormatPhp(purchase.total_cost);
         const st = purchase.status || 'received';
-        
+        const branchName = purchase.branch?.name || '—';
+        const items = purchase.purchase_items || [];
+
         document.getElementById('purchaseDetails').innerHTML = `
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-4">Order Information</h4>
-                    <div class="space-y-3">
-                        <div>
-                            <span class="font-medium text-gray-700">Status:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(st)}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">PO number:</span>
-                            <span class="ml-2 text-gray-600 font-mono">${escapeHtml(purchase.po_number || '—')}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">Supplier:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.supplier_name)}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">Branch:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.branch.name)}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">Order Date:</span>
-                            <span class="ml-2 text-gray-600">${formattedDate}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">Supplier invoice / DR:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.purchase_receipt_no || '—')}</span>
-                        </div>
-                        <div>
-                            <span class="font-medium text-gray-700">Total Cost:</span>
-                            <span class="ml-2 text-gray-600 font-bold text-red-600">${formattedCost}</span>
-                        </div>
-                        ${purchase.ship_to ? `<div>
-                            <span class="font-medium text-gray-700">Ship to / site:</span>
-                            <span class="ml-2 text-gray-600 whitespace-pre-wrap">${escapeHtml(purchase.ship_to)}</span>
-                        </div>` : ''}
-                        ${purchase.payment_terms ? `<div>
-                            <span class="font-medium text-gray-700">Payment terms:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.payment_terms)}</span>
-                        </div>` : ''}
-                        ${purchase.note ? `<div>
-                            <span class="font-medium text-gray-700">Note:</span>
-                            <span class="ml-2 text-gray-600">${escapeHtml(purchase.note)}</span>
-                        </div>` : ''}
-                    </div>
+            <div class="flex flex-col gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex flex-wrap items-center gap-3">
+                    ${poViewStatusBadge(st)}
+                    <span class="text-sm text-gray-500">Ordered <span class="font-medium text-gray-700">${formattedDate}</span></span>
                 </div>
-                <div>
-                    <h4 class="text-lg font-medium text-gray-900 mb-4">Purchase Items</h4>
-                    <div class="space-y-2">
-                        ${purchase.purchase_items.map(item => `
-                            <div class="flex justify-between items-center p-3 bg-gray-50 rounded">
-                                <div>
-                                    <div class="font-medium text-gray-900">${escapeHtml(item.product.name)}</div>
-                                    <div class="text-sm text-gray-600">${escapeHtml(item.product.sku || 'No SKU')} • ${escapeHtml(item.product.category?.name || 'No Category')}</div>
-                                </div>
-                                <div class="text-right">
-                                    <div class="font-medium text-gray-900">${item.quantity} × ₱${parseFloat(item.cost_price).toFixed(2)}</div>
-                                    <div class="text-sm font-semibold text-gray-900">Line total: ₱${(item.quantity * item.cost_price).toFixed(2)}</div>
-                                </div>
-                            </div>
-                        `).join('')}
+                <div class="text-left sm:text-right">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-gray-500">PO total</p>
+                    <p class="text-2xl font-bold tabular-nums text-red-600">${formattedCost}</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
+                <div class="lg:col-span-5">
+                    <h4 class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Order details</h4>
+                    <dl class="divide-y divide-gray-100 overflow-hidden rounded-xl border border-gray-200 bg-gray-50/40">
+                        <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">PO number</dt>
+                            <dd class="text-sm font-mono text-gray-900 sm:col-span-2">${escapeHtml(purchase.po_number || '—')}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Supplier</dt>
+                            <dd class="text-sm text-gray-900 sm:col-span-2">${escapeHtml(purchase.supplier_name)}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Branch</dt>
+                            <dd class="text-sm text-gray-900 sm:col-span-2">${escapeHtml(branchName)}</dd>
+                        </div>
+                        <div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Invoice / DR</dt>
+                            <dd class="text-sm text-gray-900 sm:col-span-2">${escapeHtml(purchase.purchase_receipt_no || '—')}</dd>
+                        </div>
+                        ${purchase.ship_to ? `<div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Ship to</dt>
+                            <dd class="whitespace-pre-wrap text-sm text-gray-900 sm:col-span-2">${escapeHtml(purchase.ship_to)}</dd>
+                        </div>` : ''}
+                        ${purchase.payment_terms ? `<div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Payment terms</dt>
+                            <dd class="text-sm text-gray-900 sm:col-span-2">${escapeHtml(purchase.payment_terms)}</dd>
+                        </div>` : ''}
+                        ${purchase.note ? `<div class="grid grid-cols-1 gap-1 px-4 py-3 sm:grid-cols-3 sm:gap-4 sm:px-5">
+                            <dt class="text-xs font-medium uppercase tracking-wide text-gray-500">Note</dt>
+                            <dd class="whitespace-pre-wrap text-sm text-gray-900 sm:col-span-2">${escapeHtml(purchase.note)}</dd>
+                        </div>` : ''}
+                    </dl>
+                </div>
+                <div class="lg:col-span-7">
+                    <div class="mb-3 flex items-end justify-between gap-3">
+                        <h4 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Line items</h4>
+                        <span class="text-xs text-gray-500">${items.length} item${items.length === 1 ? '' : 's'}</span>
                     </div>
+                    ${items.length === 0 ? '<p class="rounded-xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center text-sm text-gray-500">No line items.</p>' : `
+                    <div class="overflow-hidden rounded-xl border border-gray-200 bg-white">
+                        <div class="max-h-[min(42vh,18rem)] overflow-auto overscroll-contain sm:max-h-[min(48vh,22rem)] lg:max-h-[min(52vh,26rem)]">
+                            <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                                <thead class="sticky top-0 z-[1] border-b border-gray-200 bg-gray-100/95 backdrop-blur-sm">
+                                    <tr class="text-xs font-semibold uppercase tracking-wide text-gray-600">
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Product</th>
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Color</th>
+                                        <th scope="col" class="hidden whitespace-nowrap px-3 py-3 sm:table-cell sm:px-4">Thickness</th>
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 text-right sm:px-4">Qty</th>
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 text-right sm:px-4">Unit</th>
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 text-right sm:px-4">Line</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    ${items.map((item) => {
+                            const p = item.product;
+                            const name = p?.name || 'Product';
+                            const sku = p?.sku || 'No SKU';
+                            const cat = p?.category?.name || '—';
+                            const colorRaw = p?.color != null && String(p.color).trim() !== '' ? String(p.color).trim() : '';
+                            const thickRaw = p?.thickness != null && String(p.thickness).trim() !== '' ? String(p.thickness).trim() : '';
+                            const colorStr = colorRaw ? escapeHtml(colorRaw) : '—';
+                            const thickStr = thickRaw ? escapeHtml(thickRaw) : '—';
+                            const qty = Number(item.quantity) || 0;
+                            const unit = Number(item.cost_price) || 0;
+                            const line = qty * unit;
+                            const titleEsc = (s) => (s ? escapeHtml(s).replace(/"/g, '&quot;') : '');
+                            return `
+                                    <tr class="transition-colors hover:bg-gray-50/80">
+                                        <td class="max-w-[12rem] px-3 py-3 align-top sm:max-w-none sm:px-4">
+                                            <div class="font-medium leading-snug text-gray-900">${escapeHtml(name)}</div>
+                                            <div class="mt-0.5 text-xs text-gray-500">${escapeHtml(sku)} · ${escapeHtml(cat)}</div>
+                                            ${thickRaw ? `<div class="mt-1 text-xs text-gray-600 sm:hidden"><span class="font-medium text-gray-500">Thick:</span> ${escapeHtml(thickRaw)}</div>` : ''}
+                                        </td>
+                                        <td class="px-3 py-3 align-top text-gray-800 sm:px-4" title="${titleEsc(colorRaw)}"><span class="line-clamp-2 break-words">${colorStr}</span></td>
+                                        <td class="hidden px-3 py-3 align-top text-gray-800 sm:table-cell sm:px-4" title="${titleEsc(thickRaw)}"><span class="line-clamp-2 max-w-[10rem] break-words">${thickStr}</span></td>
+                                        <td class="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-900 sm:px-4">${qty}</td>
+                                        <td class="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-800 sm:px-4">${poViewFormatPhp(unit)}</td>
+                                        <td class="whitespace-nowrap px-3 py-3 text-right text-base font-semibold tabular-nums text-gray-900 sm:px-4">${poViewFormatPhp(line)}</td>
+                                    </tr>`;
+                        }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    `}
                 </div>
             </div>
         `;
@@ -1458,7 +1834,11 @@ async function editPurchase(id) {
         purchaseItems = purchase.purchase_items.map(item => ({
             product_id: item.product_id,
             quantity: item.quantity,
-            cost_price: item.cost_price
+            cost_price: item.cost_price,
+            cut_length: item.cut_length,
+            cut_width: item.cut_width,
+            cut_height: item.cut_height,
+            cut_measurement_unit: item.cut_measurement_unit,
         }));
         purchaseItems.forEach(poHydrateLineVariantBucket);
 
