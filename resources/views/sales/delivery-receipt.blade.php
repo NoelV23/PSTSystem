@@ -198,21 +198,37 @@
     };
 
     $describeLine = function ($item) {
+        if ($item->isCustomLine()) {
+            $name = $item->lineDisplayName();
+            $specs = $item->lineSpecLabel();
+            if ($specs) {
+                $name .= ' ('.$specs.')';
+            }
+            if ($cut = $item->lineCutLabel()) {
+                $name .= ' @ '.$cut;
+            }
+
+            return trim($name);
+        }
+
         $p = $item->product;
+        if (! $p) {
+            return $item->lineDisplayName();
+        }
         $name = $p->name ?? '';
         $suffix = '';
 
         if (! is_null($item->cut_length)) {
-            $cutUnit = $p->measurement_unit ?: 'm';
-            $suffix = ' @ ' . number_format((float) $item->cut_length, 2) . ($cutUnit ? ' ' . $cutUnit : '');
+            $cutUnit = $item->cut_measurement_unit ?: ($p->measurement_unit ?: 'm');
+            $suffix = ' @ '.number_format((float) $item->cut_length, 2).($cutUnit ? ' '.$cutUnit : '');
         } elseif (($p->measurement_unit ?? '') === 'sq ft' && $p->default_width && $p->default_height) {
-            $suffix = ' ' . $p->default_width . '×' . $p->default_height . ' sq ft';
+            $suffix = ' '.$p->default_width.'×'.$p->default_height.' sq ft';
         } elseif ($p->default_length) {
             $unit = $p->measurement_unit ?: preg_replace('/^per\s+/i', '', $p->base_unit ?? '');
-            $suffix = ' @ ' . rtrim(rtrim(number_format((float) $p->default_length, 2), '0'), '.') . ($unit ? ' ' . $unit : '');
+            $suffix = ' @ '.rtrim(rtrim(number_format((float) $p->default_length, 2), '0'), '.').($unit ? ' '.$unit : '');
         }
 
-        return trim($name . $suffix);
+        return trim($name.$suffix);
     };
 
     $itemsList = $sale->saleItems;
@@ -285,16 +301,16 @@
             @php
                 $p = $item->product;
                 $isFree = (float) $item->unit_price <= 0 && (float) $item->total_price <= 0;
-                $colorRaw = $p->color ?? '';
+                $colorRaw = $item->isCustomLine() ? ($item->custom_color ?? '') : ($p->color ?? '');
                 $desc = $describeLine($item);
                 if ($isFree && $desc === '') {
-                    $desc = $p->name ?? '';
+                    $desc = $item->lineDisplayName();
                 }
             @endphp
             <tr class="{{ $isFree ? 'row-free' : '' }}">
                 <td>{{ $idx + 1 }}</td>
                 <td>{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td>
-                <td>{{ $unitLabel($p) }}</td>
+                <td>{{ $p ? $unitLabel($p) : 'PCS' }}</td>
                 <td class="desc">{{ $desc }}</td>
                 <td class="color-col {{ $colorToneClass($colorRaw) }}">{{ $colorRaw !== '' ? $colorRaw : ($isFree ? 'FREE' : '—') }}</td>
             </tr>

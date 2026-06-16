@@ -11,6 +11,14 @@ class SalesQuotationItem extends Model
         'sales_quotation_id',
         'product_id',
         'description',
+        'custom_item_name',
+        'custom_color',
+        'custom_thickness',
+        'custom_measurement',
+        'cut_length',
+        'cut_width',
+        'cut_height',
+        'cut_measurement_unit',
         'quantity',
         'unit_price',
         'line_total',
@@ -21,6 +29,9 @@ class SalesQuotationItem extends Model
         'quantity' => 'decimal:3',
         'unit_price' => 'decimal:2',
         'line_total' => 'decimal:2',
+        'cut_length' => 'decimal:3',
+        'cut_width' => 'decimal:3',
+        'cut_height' => 'decimal:3',
     ];
 
     public function salesQuotation(): BelongsTo

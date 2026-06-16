@@ -92,7 +92,7 @@
 
         <!-- Search & Filters -->
         <div class="flex flex-col sm:flex-row gap-2 mb-4">
-            <input id="searchInput" type="text" placeholder="Search by product name or SKU..." class="w-full sm:w-64 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <input id="searchInput" type="text" placeholder="Search name, SKU, group label, color, thickness…" class="w-full sm:w-72 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
             <select id="categoryFilter" class="w-full sm:w-48 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
                 <option value="">All Categories</option>
             </select>
@@ -138,21 +138,24 @@
         <!-- Inventory Table -->
         <div class="bg-white rounded-xl shadow p-4 sm:p-6">
             <div class="relative overflow-x-auto">
-                <table class="w-full text-sm text-left text-gray-500" id="inventoryTable" data-current-page="1">
-                    <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                <table class="w-full text-sm text-left text-gray-600 min-w-[1020px]" id="inventoryTable" data-current-page="1">
+                    <thead class="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Base Unit</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Measurement</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Available Stock</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Remainders</th>
-                            @if(auth()->user()->role !== 'staff')<th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Cost</th>@endif
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Retail Price</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Wholesale Price</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Reorder Level</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                            @if(auth()->user()->role !== 'staff')<th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>@endif
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">SKU</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Product</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">Base unit</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Size / length</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Color</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Thickness</th>
+                            <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600 tabular-nums">Stock</th>
+                            <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600">Remainders</th>
+                            @if(auth()->user()->role !== 'staff')<th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600 tabular-nums">Cost</th>@endif
+                            <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600 tabular-nums">Retail</th>
+                            <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600 tabular-nums">Wholesale</th>
+                            <th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600 tabular-nums">Reorder</th>
+                            <th scope="col" class="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                            @if(auth()->user()->role !== 'staff')<th scope="col" class="px-4 py-3 text-right font-semibold text-gray-600">Actions</th>@endif
                         </tr>
                     </thead>
                     <tbody id="inventoryTbody" class="divide-y divide-gray-100">
@@ -675,35 +678,37 @@ function renderInventoryPagination(totalPages, currentPage) {
 
 function createInventoryRow(item) {
     const stockStatus = getStockStatus(item);
-    const statusClass = stockStatus === 'Low Stock' ? 'text-yellow-600' : 
-                       stockStatus === 'Out of Stock' ? 'text-red-600' : 'text-green-600';
-    
+    const statusClass = stockStatus === 'Low Stock' ? 'text-amber-700' :
+                       stockStatus === 'Out of Stock' ? 'text-red-700' : 'text-emerald-700';
+    const rowBgClass = stockStatus === 'Out of Stock' ? 'bg-red-50/70 hover:bg-red-50' :
+        stockStatus === 'Low Stock' ? 'bg-amber-50/70 hover:bg-amber-50' :
+        'bg-emerald-50/40 hover:bg-gray-50';
+
     // For set products, show calculated stock
-    let availableStock = '-';
+    let availableStock = '—';
     if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
         // Use calculated stock for set products with components
         availableStock = item.calculated_stock ? `${formatDecimal(item.calculated_stock)} sets` : '0 sets';
     } else {
-        availableStock = item.available_stock ? `${formatDecimal(item.available_stock)}` : '-';
+        availableStock = item.available_stock != null ? `${formatDecimal(item.available_stock)}` : '—';
     }
-    
-    let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '-';
-    let price = '-';
-    let wholesalePrice = '-';
+
+    let cost = item.cost ? `₱${parseFloat(item.cost).toFixed(2)}` : '—';
+    let price = '—';
+    let wholesalePrice = '—';
     if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
         // For set products with components, show calculated price
-        price = item.calculated_price ? `₱${parseFloat(item.calculated_price).toFixed(2)}` : '-';
-        wholesalePrice = '-';
+        price = item.calculated_price ? `₱${parseFloat(item.calculated_price).toFixed(2)}` : '—';
+        wholesalePrice = '—';
     } else {
         // For regular products, show inventory price
-        price = item.price ? `₱${parseFloat(item.price).toFixed(2)}` : '-';
-        wholesalePrice = item.wholesale_price ? `₱${parseFloat(item.wholesale_price).toFixed(2)}` : '-';
+        price = item.price ? `₱${parseFloat(item.price).toFixed(2)}` : '—';
+        wholesalePrice = item.wholesale_price ? `₱${parseFloat(item.wholesale_price).toFixed(2)}` : '—';
     }
-    
-    // Build measurement display
-    let measurementDisplay = '-';
+
+    // Build measurement display (dimensions / length only)
+    let measurementDisplay = '—';
     if (item.product.measurement_unit === 'sq ft') {
-        // For square feet, show width x height
         if (item.product.default_width && item.product.default_height) {
             measurementDisplay = `${item.product.default_width}×${item.product.default_height} sq ft`;
         } else if (item.product.default_width) {
@@ -712,70 +717,62 @@ function createInventoryRow(item) {
             measurementDisplay = `${item.product.default_height} sq ft`;
         }
     } else if (item.product.default_length) {
-        // For other units, show length with unit
-        measurementDisplay = `${item.product.default_length} ${item.product.measurement_unit || item.product.base_unit.replace('per ', '')}`;
+        const mu = item.product.measurement_unit || (item.product.base_unit || '').replace(/^per\s+/i, '');
+        measurementDisplay = `${item.product.default_length} ${mu}`.trim();
     }
-    
-    // Build additional product info (only color now)
-    let additionalInfo = [];
-    if (item.product.color) {
-        additionalInfo.push(`Color: ${item.product.color}`);
-    }
-    
-    const additionalInfoText = additionalInfo.length > 0 ? additionalInfo.join(' | ') : '';
-    
+
+    const vg = (item.product.variant_group_label || '').trim();
+    const colorCell = item.product.color ? escapeHtml(item.product.color) : '—';
+    const thickCell = item.product.thickness ? escapeHtml(item.product.thickness) : '—';
+
     // Create view components button for set products
-    const viewComponentsButton = (item.product.base_unit === 'per set' && item.product.set_components_count > 0) ? 
-        `<button onclick="viewSetComponents(${item.product.id}, '${escapeHtml(item.product.name)}')" class="text-blue-600 hover:text-blue-900 text-sm mt-1">(View Components)</button>` : '';
-    // color row based on stock status
-    let rowColor = '#F0FDF4';
-    if (stockStatus === 'Out of Stock') {
-        rowColor = '#FEF2F2';
-    } else if (stockStatus === 'Low Stock') {
-        rowColor = '#FFFBEB';
-    }
+    const viewComponentsButton = (item.product.base_unit === 'per set' && item.product.set_components_count > 0) ?
+        `<button type="button" onclick="viewSetComponents(${item.product.id}, '${escapeHtml(item.product.name)}')" class="text-blue-600 hover:text-blue-900 text-xs font-medium mt-1">View components</button>` : '';
+
+    const groupLabelLine = vg
+        ? `<div class="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">${escapeHtml(vg)}</div>`
+        : '';
+
     return `
-        <tr class="bg-white border-b hover:bg-gray-50" style= "background-color: ${rowColor};">
-            <td class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
-                <div class="flex flex-col">
-                    <div class="font-semibold">${escapeHtml(item.product.name)} ${viewComponentsButton}</div>
-                    <div class="text-sm text-gray-500">${escapeHtml(item.product.sku || 'No SKU')}</div>
-                    ${additionalInfoText ? `<div class="text-xs text-gray-400 mt-1">${escapeHtml(additionalInfoText)}</div>` : ''}
-                    
+        <tr class="border-b border-gray-100 transition-colors ${rowBgClass}">
+            <td class="px-4 py-3 align-top font-mono text-xs text-gray-800 whitespace-nowrap">${escapeHtml(item.product.sku || '—')}</td>
+            <td class="px-4 py-3 align-top">
+                <div class="max-w-xs sm:max-w-md">
+                    ${groupLabelLine}
+                    <div class="font-semibold text-gray-900 leading-snug">${escapeHtml(item.product.name)}</div>
+                    ${viewComponentsButton}
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.category?.name || '-')}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(item.product.base_unit || '-')}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${measurementDisplay}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">
-                <div class="flex items-center space-x-2">
-                    <span>${availableStock}</span>
+            <td class="px-4 py-3 align-top text-gray-600">${escapeHtml(item.product.category?.name || '—')}</td>
+            <td class="px-4 py-3 align-top text-gray-600 whitespace-nowrap">${escapeHtml(item.product.base_unit || '—')}</td>
+            <td class="px-4 py-3 align-top text-gray-700 whitespace-nowrap">${measurementDisplay}</td>
+            <td class="px-4 py-3 align-top text-gray-800">${colorCell}</td>
+            <td class="px-4 py-3 align-top text-gray-800 whitespace-nowrap">${thickCell}</td>
+            <td class="px-4 py-3 align-top text-right tabular-nums text-gray-900">
+                <div class="inline-flex items-center justify-end gap-2 flex-wrap">
+                    <span class="font-medium">${availableStock}</span>
                     ${item.product.set_components_count == 0 && (userRole === 'admin' || userRole === 'manager') ? `
-                        <div class="flex space-x-1">
-                            <button onclick="adjustStock(${item.id}, 'increase')" class="text-green-600 hover:text-green-800 p-1 rounded hover:bg-green-50" title="Increase Stock">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                                </svg>
+                        <span class="inline-flex rounded-md border border-gray-200 bg-white shadow-sm">
+                            <button type="button" onclick="adjustStock(${item.id}, 'increase')" class="text-green-600 hover:text-green-800 p-1.5 rounded-l-md hover:bg-green-50 border-r border-gray-200" title="Increase stock">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
                             </button>
-                            <button onclick="adjustStock(${item.id}, 'decrease')" class="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50" title="Decrease Stock">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
-                                </svg>
+                            <button type="button" onclick="adjustStock(${item.id}, 'decrease')" class="text-red-600 hover:text-red-800 p-1.5 rounded-r-md hover:bg-red-50" title="Decrease stock">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
                             </button>
-                        </div>
+                        </span>
                     ` : ''}
                 </div>
             </td>
-            <td class="px-6 py-4 text-sm text-gray-500" id="remainderCol-${item.product.id}">-</td>
-            ${userRole !== 'staff' ?`<td class="px-6 py-4 text-sm text-gray-500">${cost}</td>` : ''}
-            <td class="px-6 py-4 text-sm text-gray-500">${price}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${wholesalePrice}</td>
-            <td class="px-6 py-4 text-sm text-gray-500">${item.reorder_level ? formatDecimal(item.reorder_level) : '-'}</td>
-            <td class="px-6 py-4 text-sm font-medium ${statusClass}">${stockStatus}</td>
-            <td class="px-6 py-4 text-right">
-                ${userRole !== 'staff' ? `<button onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
-                <button onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>` : ''}
-            </td>
+            <td class="px-4 py-3 align-top text-right text-sm text-gray-600" id="remainderCol-${item.product.id}">—</td>
+            ${userRole !== 'staff' ? `<td class="px-4 py-3 align-top text-right tabular-nums text-gray-700">${cost}</td>` : ''}
+            <td class="px-4 py-3 align-top text-right tabular-nums text-gray-900 font-medium">${price}</td>
+            <td class="px-4 py-3 align-top text-right tabular-nums text-gray-700">${wholesalePrice}</td>
+            <td class="px-4 py-3 align-top text-right tabular-nums text-gray-700">${item.reorder_level != null ? formatDecimal(item.reorder_level) : '—'}</td>
+            <td class="px-4 py-3 align-top text-sm font-medium ${statusClass}">${stockStatus}</td>
+            ${userRole !== 'staff' ? `<td class="px-4 py-3 align-top text-right text-sm whitespace-nowrap">
+                <button type="button" onclick="editInventory(${item.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                <button type="button" onclick="deleteInventory(${item.id})" class="text-red-600 hover:text-red-900">Delete</button>
+            </td>` : ''}
         </tr>
     `;
 }

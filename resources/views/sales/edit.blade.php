@@ -107,47 +107,48 @@
                         @foreach($sale->saleItems as $item)
                         <tr id="sale-item-{{ $item->id }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                @php
-                                    $p = $item->product;
-                                    $measurementText = '';
-                                    if (($p->measurement_unit === 'sq ft') && $p->default_width && $p->default_height) {
-                                        $measurementText = $p->default_width . '×' . $p->default_height . ' sq ft';
-                                    } elseif ($p->default_length) {
-                                        $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
-                                        $measurementText = $p->default_length . ' ' . $unit;
-                                    }
-                                @endphp
-                                {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif @if($measurementText) <span class="text-gray-500">({{ $measurementText }})</span>@endif @if($p->sku) <span class="text-gray-400">(SKU: {{ $p->sku }})</span>@endif
-                                @if($p->base_unit === 'per set')
-                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>
+                                @if($item->isCustomLine())
+                                    <span class="text-red-700">{{ $item->lineDisplayName() }}</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 ml-1">Custom</span>
+                                    @if($item->lineSpecLabel())
+                                        <div class="text-xs text-gray-500 mt-1">{{ $item->lineSpecLabel() }}</div>
+                                    @endif
+                                @else
+                                    @php $p = $item->product; @endphp
+                                    {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif
+                                    @if($item->lineSpecLabel())
+                                        <span class="text-gray-500">({{ $item->lineSpecLabel() }})</span>
+                                    @endif
+                                    @if($p->sku) <span class="text-gray-400">(SKU: {{ $p->sku }})</span>@endif
+                                    @if($p->base_unit === 'per set')
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 ml-1">Set</span>
+                                    @endif
                                 @endif
-                                @php
-                                    $cutText = '';
-                                    if (!is_null($item->cut_length)) {
-                                        $unit = $p->measurement_unit ?: (str_replace('per ', '', $p->base_unit));
-                                        $cutText = number_format($item->cut_length, 2) . ($unit ? ' ' . $unit : '');
-                                    } elseif (!is_null($item->cut_width) && !is_null($item->cut_height)) {
-                                        $unit = ($p->measurement_unit === 'sq ft') ? 'sq ft' : ($p->measurement_unit ?: '');
-                                        $cutText = number_format($item->cut_width, 2) . '×' . number_format($item->cut_height, 2) . ($unit ? ' ' . $unit : '');
-                                    }
-                                @endphp
-                                @if($cutText)
-                                    <div class="text-xs text-gray-500 mt-1">Cut: {{ $cutText }}</div>
+                                @if($item->lineCutLabel())
+                                    <div class="text-xs text-gray-500 mt-1">Cut: {{ $item->lineCutLabel() }}</div>
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->quantity }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->unit_price, 2) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->total_price, 2) }}</td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ ($item->fulfillment_source ?? 'inventory') === 'inventory' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800' }}">
-                                    {{ ucfirst($item->fulfillment_source ?? 'inventory') }}
+                                @php
+                                    $source = $item->fulfillment_source ?? 'inventory';
+                                    $sourceClass = match ($source) {
+                                        'custom' => 'bg-red-100 text-red-800',
+                                        'remainder' => 'bg-blue-100 text-blue-800',
+                                        default => 'bg-green-100 text-green-800',
+                                    };
+                                @endphp
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $sourceClass }}">
+                                    {{ ucfirst($source) }}
                                 </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <button 
                                     type="button"
                                     data-item-id="{{ $item->id }}"
-                                    data-product-name="{{ $item->product->name }}"
+                                    data-product-name="{{ $item->lineDisplayName() }}"
                                     data-quantity="{{ $item->quantity }}"
                                     data-fulfillment-source="{{ $item->fulfillment_source ?? 'inventory' }}"
                                     class="remove-item-btn inline-flex items-center px-3 py-1.5 border border-red-300 text-red-700 bg-red-50 hover:bg-red-100 hover:border-red-400 rounded-md text-sm font-medium transition duration-200"

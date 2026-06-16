@@ -79,9 +79,12 @@ class ProductFactory extends Factory
         return [
             'name' => $productName,
             'sku' => strtoupper(fake()->bothify('??-####-??')),
+            'variant_group_label' => null,
             'category_id' => $categoryId,
             'base_unit' => $baseUnit,
             'color' => $colors[array_rand($colors)],
+            'thickness' => null,
+            'thickness_spec_label' => null,
             'measurement_unit' => $measurementUnit,
             'default_length' => $length,
             'default_width' => $width,

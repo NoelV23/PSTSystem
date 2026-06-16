@@ -218,7 +218,12 @@ class SaleController extends Controller
             'items.*.quantity' => 'nullable|numeric|min:0',
             'items.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.total_price' => 'nullable|numeric|min:0',
-            'items.*.item_type' => 'nullable|in:inventory,remainder',
+            'items.*.item_type' => 'nullable|in:inventory,remainder,custom',
+            'items.*.description' => 'nullable|string',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
@@ -248,6 +253,13 @@ class SaleController extends Controller
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         "items.{$index}.remainder_id" => ['The remainder_id field is required and must exist for remainder items.']
                     ]);
+                    }
+                } elseif ($item['item_type'] === 'custom') {
+                    $name = trim((string) ($item['custom_item_name'] ?? $item['description'] ?? ''));
+                    if ($name === '') {
+                        throw \Illuminate\Validation\ValidationException::withMessages([
+                            "items.{$index}.custom_item_name" => ['A name or description is required for custom items.']
+                        ]);
                     }
                 }
             }
@@ -280,12 +292,35 @@ class SaleController extends Controller
             // Only process items if this is not an installation sale or if items are provided
             if (!($validated['is_installation'] ?? false) && $request->input('items')) {
             foreach ($request->input('items') as $item) {
+                $itemType = $item['item_type'] ?? 'inventory';
+
+                if ($itemType === 'custom') {
+                    $sale->saleItems()->create([
+                        'product_id' => null,
+                        'description' => $item['description'] ?? $item['custom_item_name'] ?? null,
+                        'custom_item_name' => $item['custom_item_name'] ?? null,
+                        'custom_color' => $item['custom_color'] ?? null,
+                        'custom_thickness' => $item['custom_thickness'] ?? null,
+                        'custom_measurement' => $item['custom_measurement'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'cut_length' => $item['cut_length'] ?? null,
+                        'cut_width' => $item['cut_width'] ?? null,
+                        'cut_height' => $item['cut_height'] ?? null,
+                        'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
+                        'total_price' => $item['total_price'],
+                        'fulfillment_source' => 'custom',
+                    ]);
+
+                    continue;
+                }
+
                 // Get product_id based on item type
                 $productId = null;
-                if ($item['item_type'] === 'inventory') {
+                if ($itemType === 'inventory') {
                     $inventory = \App\Models\Inventory::find($item['inventory_id']);
                     $productId = $inventory->product_id;
-                } elseif ($item['item_type'] === 'remainder') {
+                } elseif ($itemType === 'remainder') {
                     $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
                     $productId = $remainder->product_id;
                 }
@@ -302,7 +337,7 @@ class SaleController extends Controller
                 ]);
                 
                 // If this is a remainder item, handle it differently
-                if ($item['item_type'] === 'remainder') {
+                if ($itemType === 'remainder') {
                     if (isset($item['remainder_id'])) {
                         $remainder = \App\Models\CutRemainder::find($item['remainder_id']);
                         if ($remainder) {
@@ -846,7 +881,7 @@ class SaleController extends Controller
                 'items' => 'required|array|min:1',
                 'items.*.item_id' => 'required|exists:sale_items,id',
                 'items.*.quantity' => 'required|numeric|min:0.01',
-                'items.*.fulfillment_source' => 'required|in:inventory,remainder',
+                'items.*.fulfillment_source' => 'required|in:inventory,remainder,custom',
             ]);
         } else {
             $validated = $request->validate([
@@ -874,14 +909,20 @@ class SaleController extends Controller
                 
                 // Determine fulfillment source
                 $fulfillmentSource = $hasFulfillmentSource ? $itemData['fulfillment_source'] : 'inventory';
-                
+                if ($saleItem->isCustomLine()) {
+                    $fulfillmentSource = 'custom';
+                }
+
+                // Custom lines were never deducted from stock — just delete the row
+                if ($fulfillmentSource !== 'custom') {
                 // Return stock to inventory based on fulfillment source, and undo remainder effects
                 if ($fulfillmentSource === 'inventory') {
-                    if ($product->base_unit === 'per set') {
+                    if ($product && $product->base_unit === 'per set') {
                         // For set products, return components to inventory
                         $this->returnSetComponents($product, $sale->branch_id, $quantity);
                     } else {
                         // For regular products, return to main inventory
+                        if ($product) {
                         $inventory = \App\Models\Inventory::where('product_id', $product->id)
                             ->where('branch_id', $sale->branch_id)
                             ->first();
@@ -895,6 +936,7 @@ class SaleController extends Controller
                         if (!empty($saleItem->created_remainder_id)) {
                             $createdRem = \App\Models\CutRemainder::find($saleItem->created_remainder_id);
                             if ($createdRem) { $createdRem->delete(); }
+                        }
                         }
                     }
                 } elseif ($fulfillmentSource === 'remainder') {
@@ -911,7 +953,7 @@ class SaleController extends Controller
                     if ($beforeJson) {
                         // Restore the prior remainder state by creating a new record with the previous dimensions
                         $restoreData = [
-                            'product_id' => $beforeJson['product_id'] ?? $product->id,
+                            'product_id' => $beforeJson['product_id'] ?? ($product?->id),
                             'branch_id' => $beforeJson['branch_id'] ?? $sale->branch_id,
                             'length_remaining' => $beforeJson['length_remaining'] ?? null,
                             'width_remaining' => $beforeJson['width_remaining'] ?? null,
@@ -923,6 +965,7 @@ class SaleController extends Controller
                         \App\Models\CutRemainder::create($restoreData);
                     } else {
                         // Fallback: cannot reconstruct exact remainder, return to main inventory
+                        if ($product) {
                         $inventory = \App\Models\Inventory::where('product_id', $product->id)
                             ->where('branch_id', $sale->branch_id)
                             ->first();
@@ -930,7 +973,9 @@ class SaleController extends Controller
                             $inventory->available_stock += $quantity;
                             $inventory->save();
                         }
+                        }
                     }
+                }
                 }
                 
                 // Subtract from sale total

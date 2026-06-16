@@ -14,11 +14,18 @@ class PurchaseItem extends Model
         'product_id',
         'quantity',
         'cost_price',
+        'cut_length',
+        'cut_width',
+        'cut_height',
+        'cut_measurement_unit',
     ];
 
     protected $casts = [
         'quantity' => 'float',
         'cost_price' => 'decimal:2',
+        'cut_length' => 'decimal:3',
+        'cut_width' => 'decimal:3',
+        'cut_height' => 'decimal:3',
     ];
 
     public function purchaseOrder()

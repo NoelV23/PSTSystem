@@ -68,12 +68,14 @@
                     <thead class="text-xs text-gray-700 uppercase bg-gray-50">
                         <tr>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Search group</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Base Unit</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Length</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Width</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Height</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Thickness</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Color</th>
                             <th class="px-6 py-4 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
@@ -121,6 +123,12 @@
                     <label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name *</label>
                     <input type="text" id="productName" name="name" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     <div id="nameError" class="text-red-500 text-sm mt-1 hidden"></div>
+                </div>
+                <div>
+                    <label for="productVariantGroupLabel" class="block text-sm font-medium text-gray-700 mb-1">Variant search group (optional)</label>
+                    <input type="text" id="productVariantGroupLabel" name="variant_group_label" maxlength="255" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Same on all SKUs = one line in Sales / PO / SQ — e.g. Plain Sheets - Metal">
+                    <p class="text-xs text-gray-500 mt-1">Leave blank to group by full product name only. Use the same group label on each SKU so Sales / PO / SQ show one line; color, thickness, and size still pick the exact item.</p>
+                    <div id="variant_group_labelError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div id="skuSection" class="hidden">
                     <label for="productSKU" class="block text-sm font-medium text-gray-700 mb-1">SKU</label>
@@ -200,6 +208,16 @@
                             <div id="default_heightError" class="text-red-500 text-sm mt-1 hidden"></div>
                         </div>
                     </div>
+                </div>
+                <div>
+                    <label for="productThicknessSpecLabel" class="block text-sm font-medium text-gray-700 mb-1">Spec label (optional)</label>
+                    <input type="text" id="productThicknessSpecLabel" name="thickness_spec_label" maxlength="64" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="e.g. Thickness, Gauge, Wall — shown in SQ/PO/Sales">
+                    <div id="thickness_spec_labelError" class="text-red-500 text-sm mt-1 hidden"></div>
+                </div>
+                <div>
+                    <label for="productThickness" class="block text-sm font-medium text-gray-700 mb-1">Thickness / spec value (optional)</label>
+                    <input type="text" id="productThickness" name="thickness" maxlength="255" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="e.g. 0.30mm — used to narrow variants">
+                    <div id="thicknessError" class="text-red-500 text-sm mt-1 hidden"></div>
                 </div>
                 <div>
                     <label for="productColor" class="block text-sm font-medium text-gray-700 mb-1">Color</label>
@@ -745,12 +763,14 @@ function createProductRow(product) {
                 ${escapeHtml(product.name)} ${setBadge}
                 ${setComponents ? `<br><small class="text-gray-500">${escapeHtml(setComponents)}</small>` : ''}
             </td>
+            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.variant_group_label || '—')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.sku || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.category?.name || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.base_unit || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_length || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_width || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${product.default_height || '-'} ${product.measurement_unit ? `(${product.measurement_unit})` : ''}</td>
+            <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.thickness || '-')}</td>
             <td class="px-6 py-4 text-sm text-gray-500">${escapeHtml(product.color || '-')}</td>
             <td class="px-6 py-4 text-right">
                 @if(auth()->user()->role !== 'staff')
@@ -789,9 +809,12 @@ function openEditModal(product) {
     document.getElementById('modalTitle').textContent = 'Edit Product';
     document.getElementById('submitBtn').textContent = 'Update Product';
     document.getElementById('productName').value = product.name;
+    document.getElementById('productVariantGroupLabel').value = product.variant_group_label || '';
     document.getElementById('productSKU').value = product.sku || '';
     document.getElementById('productCategory').value = product.category_id || '';
     document.getElementById('productBaseUnit').value = product.base_unit || '';
+    document.getElementById('productThicknessSpecLabel').value = product.thickness_spec_label || '';
+    document.getElementById('productThickness').value = product.thickness || '';
     document.getElementById('productColor').value = product.color || '';
     {
         let mu = product.measurement_unit || '';

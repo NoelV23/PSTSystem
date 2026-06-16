@@ -28,7 +28,9 @@ class ProductController extends Controller
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                  ->orWhere('variant_group_label', 'like', "%{$search}%")
+                  ->orWhere('sku', 'like', "%{$search}%")
+                  ->orWhere('thickness', 'like', "%{$search}%");
             });
         }
         
@@ -64,10 +66,13 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'variant_group_label' => 'nullable|string|max:255',
             'sku' => 'nullable|string|max:100', // SKU is now optional as it will be auto-generated
             'category_id' => 'required|exists:categories,id',
             'base_unit' => 'required|string|max:30',
             'color' => 'nullable|string|max:255',
+            'thickness' => 'nullable|string|max:255',
+            'thickness_spec_label' => 'nullable|string|max:64',
             'measurement_unit' => 'nullable|string|max:30',
             'default_length' => 'nullable|numeric',
             'default_width' => 'nullable|numeric',
@@ -172,10 +177,13 @@ class ProductController extends Controller
         
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'variant_group_label' => 'nullable|string|max:255',
             'sku' => 'nullable|string|max:100',
             'category_id' => 'required|exists:categories,id',
             'base_unit' => 'required|string|max:30',
             'color' => 'nullable|string|max:255',
+            'thickness' => 'nullable|string|max:255',
+            'thickness_spec_label' => 'nullable|string|max:64',
             'measurement_unit' => 'nullable|string|max:30',
             'default_length' => 'nullable|numeric',
             'default_width' => 'nullable|numeric',

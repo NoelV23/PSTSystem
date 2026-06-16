@@ -11,10 +11,13 @@ class Product extends Model
 
     protected $fillable = [
         'name',
+        'variant_group_label',
         'sku',
         'category_id',
         'base_unit',
         'color',
+        'thickness',
+        'thickness_spec_label',
         'measurement_unit',
         'default_length',
         'default_width',
