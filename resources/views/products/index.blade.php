@@ -149,6 +149,7 @@
                         <option value="per pc">Per pc</option>
                         <option value="per length">Per length</option>
                         <option value="per meter">Per meter</option>
+                        <option value="per LS">Per LS (long span)</option>
                         <option value="per sheet">Per sheet</option>
                         <option value="per ft">Per ft</option>
                         <option value="per sq ft">Per sq ft</option>

@@ -156,7 +156,7 @@
                         <div class="mb-3">
                             <span class="text-base font-semibold text-gray-900 sm:text-lg">Line items</span>
                         </div>
-                        <p class="mb-3 text-xs text-gray-500">Unit ₱ auto-fills at <strong>list retail</strong>. Lower it to quote a better price — customer discount auto-calculates the savings for print. <strong>Grand total</strong> = sum of quoted line totals (what customer pays).</p>
+                        <p class="mb-3 text-xs text-gray-500">Unit ₱ auto-fills at list retail. Pick <strong>Unit</strong> per line (pc, lmtrs, LS, kg, gallon, etc.) — long-span roofing uses <strong>lmtrs</strong> or <strong>LS</strong>.</p>
                         <div class="-mx-1 overflow-x-auto rounded-lg border border-gray-100 bg-white sm:mx-0">
                             <table class="w-full min-w-[58rem] text-sm lg:min-w-[62rem]">
                                 <thead>
@@ -165,9 +165,9 @@
                                         <th class="whitespace-nowrap py-3 px-2 w-28 text-right">Avail.</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-[20rem]">Description <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-36 min-w-[9rem]">Qty <span class="text-red-600">*</span></th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-20">Unit</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-28" title="Quoted unit price — starts at list retail; lower to give customer a better price">Unit ₱ <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-16 text-center">Free</th>
-                                        <th class="whitespace-nowrap py-3 px-2 w-16 text-center" title="Long span — qty in linear meters, price per meter">LS</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-24 text-right">Line total</th>
                                         <th class="w-8 py-3"></th>
                                     </tr>
@@ -313,6 +313,93 @@
         }
         if (Number.isNaN(n) || n < 0) return '';
         return n.toFixed(2);
+    }
+
+    const SQ_LINE_UNIT_OPTS = [
+        ['pc', 'pc'],
+        ['lmtrs', 'lmtrs'],
+        ['LS', 'LS'],
+        ['kg', 'kg'],
+        ['liter', 'liter'],
+        ['gallon', 'gallon'],
+        ['pail', 'pail'],
+        ['roll', 'roll'],
+        ['sheet', 'sheet'],
+        ['ft', 'ft'],
+        ['sq ft', 'sq ft'],
+        ['m', 'm'],
+        ['set', 'set'],
+        ['box', 'box'],
+        ['bottle', 'bottle'],
+    ];
+
+    function sqUnitIsLongSpan(unit) {
+        const k = String(unit || '').toLowerCase().trim();
+        return ['ls', 'lmtrs', 'lm', 'meter', 'meters', 'metre', 'metres', 'length', 'm'].includes(k);
+    }
+
+    function sqBaseUnitToLineUnit(baseUnit) {
+        const u = String(baseUnit || '').toLowerCase().trim();
+        if (u === 'per ls' || u === 'ls') return 'LS';
+        if (['per meter', 'per length', 'meter', 'meters', 'metre', 'metres'].includes(u)) return 'lmtrs';
+        if (u === 'per kg' || u === 'kg') return 'kg';
+        if (u === 'per liter' || u === 'liter') return 'liter';
+        if (u === 'per gallon' || u === 'gallon') return 'gallon';
+        if (u === 'per pail' || u === 'pail') return 'pail';
+        if (u === 'per roll' || u === 'roll') return 'roll';
+        if (u === 'per sheet' || u === 'sheet') return 'sheet';
+        if (u === 'per ft' || u === 'ft') return 'ft';
+        if (u === 'per sq ft' || u === 'sq ft') return 'sq ft';
+        if (u === 'per set' || u === 'set') return 'set';
+        if (u === 'per pc' || u === 'pc' || u === 'pcs') return 'pc';
+        if (u.startsWith('per ')) return u.replace(/^per\s+/, '');
+        return u || 'pc';
+    }
+
+    function sqLineUnitSelectOptions(selected) {
+        const sel = selected || 'pc';
+        const known = new Set(SQ_LINE_UNIT_OPTS.map((o) => o[0]));
+        let html = SQ_LINE_UNIT_OPTS.map(([v, l]) =>
+            `<option value="${escapeHtml(v)}"${v === sel ? ' selected' : ''}>${escapeHtml(l)}</option>`
+        ).join('');
+        if (sel && !known.has(sel)) {
+            html += `<option value="${escapeHtml(sel)}" selected>${escapeHtml(sel)}</option>`;
+        }
+        return html;
+    }
+
+    function sqSetLineUnit(tr, unit) {
+        const sel = tr?.querySelector('.sq-line-unit');
+        if (!sel || !unit) return;
+        if ([...sel.options].some((o) => o.value === unit)) {
+            sel.value = unit;
+        } else {
+            const opt = document.createElement('option');
+            opt.value = unit;
+            opt.textContent = unit;
+            opt.selected = true;
+            sel.appendChild(opt);
+        }
+        sqApplyLineUnitHints(tr);
+    }
+
+    function sqRefreshLineUnitFromProduct(tr, product) {
+        if (!tr || !product) return;
+        sqSetLineUnit(tr, sqBaseUnitToLineUnit(product.base_unit));
+    }
+
+    function sqReadLineUnit(tr) {
+        return tr.querySelector('.sq-line-unit')?.value || 'pc';
+    }
+
+    function sqApplyLineUnitHints(tr) {
+        const unit = sqReadLineUnit(tr);
+        const qty = tr.querySelector('.sq-line-qty');
+        const price = tr.querySelector('.sq-line-price');
+        const isLs = sqUnitIsLongSpan(unit);
+        if (qty) qty.placeholder = isLs ? 'Total lmtrs' : 'Qty';
+        if (price) price.placeholder = isLs ? 'Per meter' : 'Unit price';
+        tr.classList.toggle('sq-row-long-span', isLs);
     }
 
     function formatSqStock(n) {
@@ -1305,6 +1392,7 @@
         refreshSqTotals();
         sqShowCatalogSpecFieldsReadonly(tr, p);
         sqRefreshCutFields(tr, p);
+        sqRefreshLineUnitFromProduct(tr, p);
     }
 
     function sqHasSavedCut(data) {
@@ -1595,9 +1683,9 @@
             refreshSqLineTotal(tr);
             refreshSqTotals();
         });
-        tr.querySelector('.sq-line-long-span')?.addEventListener('change', () => {
+        tr.querySelector('.sq-line-unit')?.addEventListener('change', () => {
+            sqApplyLineUnitHints(tr);
             refreshSqLineTotal(tr);
-            refreshSqTotals();
         });
         wireSqLineProductPicker(tr);
         tr.querySelector('.sq-line-clear-product')?.addEventListener('click', () => {
@@ -1627,15 +1715,6 @@
         });
     }
 
-    function sqApplyLongSpanRowHints(tr) {
-        const isLs = !!tr.querySelector('.sq-line-long-span')?.checked;
-        const qty = tr.querySelector('.sq-line-qty');
-        const price = tr.querySelector('.sq-line-price');
-        if (qty) qty.placeholder = isLs ? 'Total lmtrs' : 'Qty';
-        if (price) price.placeholder = isLs ? 'Per meter' : '';
-        tr.classList.toggle('sq-row-long-span', isLs);
-    }
-
     function sqApplyFreeRowStyle(tr) {
         const isFree = !!tr.querySelector('.sq-line-free')?.checked;
         tr.classList.toggle('sq-row-free', isFree);
@@ -1643,7 +1722,7 @@
 
     function refreshSqLineTotal(tr) {
         sqApplyFreeRowStyle(tr);
-        sqApplyLongSpanRowHints(tr);
+        sqApplyLineUnitHints(tr);
         const isFree = !!tr.querySelector('.sq-line-free')?.checked;
         const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value) || 0;
         const retail = sqLineRetail(tr);
@@ -1727,17 +1806,14 @@
             <td class="py-3 px-2 align-top w-36 min-w-[9rem]">
                 <input type="number" step="0.001" min="0.001" inputmode="decimal" class="sq-line-qty block w-full min-w-[7rem] rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Qty">
             </td>
+            <td class="py-3 px-2 align-top">
+                <select class="sq-line-unit block w-full min-w-[4.5rem] rounded-lg border border-gray-300 px-2 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">${sqLineUnitSelectOptions('pc')}</select>
+            </td>
             <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Unit price" title="Quoted price — auto-fills at list retail"></td>
             <td class="py-3 px-2 align-top text-center">
                 <label class="inline-flex cursor-pointer items-center justify-center gap-1.5" title="Mark as free — shown in red on print, not charged">
                     <input type="checkbox" class="sq-line-free h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
                     <span class="text-xs font-medium text-red-700">Free</span>
-                </label>
-            </td>
-            <td class="py-3 px-2 align-top text-center">
-                <label class="inline-flex cursor-pointer flex-col items-center justify-center gap-0.5" title="Long span (LS) — qty = total linear meters, unit price = per meter">
-                    <input type="checkbox" class="sq-line-long-span h-4 w-4 rounded border-gray-300 text-amber-700 focus:ring-amber-500">
-                    <span class="text-xs font-medium text-amber-900">LS</span>
                 </label>
             </td>
             <td class="py-3 px-2 align-top text-right"><span class="sq-line-total text-sm font-semibold tabular-nums text-gray-800">₱0.00</span></td>
@@ -1760,8 +1836,10 @@
         }
         const freeCb = tr.querySelector('.sq-line-free');
         if (freeCb) freeCb.checked = !!data.is_free;
-        const lsCb = tr.querySelector('.sq-line-long-span');
-        if (lsCb) lsCb.checked = !!data.is_long_span;
+        let initUnit = data.line_unit || (data.is_long_span ? 'lmtrs' : '');
+        if (!initUnit && p0) initUnit = sqBaseUnitToLineUnit(p0.base_unit);
+        if (!initUnit) initUnit = 'pc';
+        sqSetLineUnit(tr, initUnit);
         if (data.custom_item_name && !data.product_id) {
             tr.dataset.sqCustomMode = '1';
             sqClearReadonlySpecAttrs(tr);
@@ -1841,10 +1919,11 @@
                 cut_height: cutPayload.cut_height,
                 cut_measurement_unit: cutPayload.cut_measurement_unit,
                 quantity: parseFloat(tr.querySelector('.sq-line-qty').value),
+                line_unit: sqReadLineUnit(tr),
                 unit_price: quoted,
                 retail_unit_price: retail,
                 is_free: !!tr.querySelector('.sq-line-free')?.checked,
-                is_long_span: !!tr.querySelector('.sq-line-long-span')?.checked,
+                is_long_span: sqUnitIsLongSpan(sqReadLineUnit(tr)),
             };
         }).filter(l => (l.description || l.custom_item_name) && !isNaN(l.quantity) && l.quantity > 0 && !isNaN(l.unit_price) && l.unit_price >= 0);
     }
@@ -1991,6 +2070,7 @@
                 cut_height: it.cut_height,
                 cut_measurement_unit: it.cut_measurement_unit,
                 quantity: it.quantity,
+                line_unit: it.line_unit,
                 unit_price: it.unit_price,
                 retail_unit_price: it.retail_unit_price,
                 is_free: it.is_free,

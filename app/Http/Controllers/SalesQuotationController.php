@@ -116,6 +116,7 @@ class SalesQuotationController extends Controller
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
+            'items.*.line_unit' => 'nullable|string|max:32',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.retail_unit_price' => 'nullable|numeric|min:0',
             'items.*.is_free' => 'nullable|boolean',
@@ -193,6 +194,7 @@ class SalesQuotationController extends Controller
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
+            'items.*.line_unit' => 'nullable|string|max:32',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.retail_unit_price' => 'nullable|numeric|min:0',
             'items.*.is_free' => 'nullable|boolean',
@@ -410,7 +412,7 @@ class SalesQuotationController extends Controller
                 ? (float) $row['retail_unit_price']
                 : $unit;
             $isFree = ! empty($row['is_free']);
-            $isLongSpan = ! empty($row['is_long_span']);
+            [$lineUnit, $isLongSpan] = $this->resolveLineUnitAndLongSpan($row);
             $lineTotal = $isFree ? 0 : round($qty * $unit, 2);
             $productId = $row['product_id'] ?? null;
 
@@ -427,6 +429,7 @@ class SalesQuotationController extends Controller
                 'cut_height' => $this->nullableNumeric($row['cut_height'] ?? null),
                 'cut_measurement_unit' => $this->nullableString($row['cut_measurement_unit'] ?? null),
                 'quantity' => $qty,
+                'line_unit' => $lineUnit,
                 'unit_price' => $unit,
                 'retail_unit_price' => $retailUnit,
                 'line_total' => $lineTotal,
@@ -455,6 +458,23 @@ class SalesQuotationController extends Controller
         $n = (float) $value;
 
         return $n > 0 ? $n : null;
+    }
+
+    /** @return array{0: string, 1: bool} */
+    protected function resolveLineUnitAndLongSpan(array $row): array
+    {
+        $lineUnit = trim((string) ($row['line_unit'] ?? ''));
+        if ($lineUnit === '' && ! empty($row['is_long_span'])) {
+            $lineUnit = 'lmtrs';
+        }
+        if ($lineUnit === '') {
+            $lineUnit = 'pc';
+        }
+        $key = strtolower($lineUnit);
+        $isLongSpan = in_array($key, ['ls', 'lmtrs', 'lm', 'l.m.', 'linear meters', 'linear metres', 'meter', 'meters', 'metre', 'metres'], true)
+            || ! empty($row['is_long_span']);
+
+        return [$lineUnit, $isLongSpan];
     }
 
     protected function recalculateTotals(SalesQuotation $quotation): void

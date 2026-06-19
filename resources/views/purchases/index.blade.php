@@ -143,9 +143,9 @@
 </div>
 
 <!-- Add/Edit Purchase Modal -->
-<div id="purchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
+<div id="purchaseModal" class="pointer-events-none fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
-        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+        <div class="pointer-events-auto w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
             <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
                 <h3 id="modalTitle" class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">New Purchase Order</h3>
                 <button type="button" id="closeModal" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">
@@ -430,6 +430,89 @@ function poHydrateLineVariantBucket(it) {
     it._poVariants = poProductsAsRows().filter((r) => Picker.groupKey(r.product) === gk);
 }
 
+function poBaseUnitIsLongSpan(baseUnit) {
+    const u = String(baseUnit || '').toLowerCase().trim();
+    return u === 'per ls' || u === 'ls'
+        || ['per meter', 'per length', 'meter', 'meters', 'metre', 'metres', 'length'].includes(u);
+}
+
+function poProductIsLongSpan(p) {
+    return !!(p && poBaseUnitIsLongSpan(p.base_unit));
+}
+
+function poLineProduct(item) {
+    if (!item?.product_id) return null;
+    return products.find((x) => String(x.id) === String(item.product_id)) || null;
+}
+
+function poTotalLm(item) {
+    const manual = parseFloat(item.total_linear_meters);
+    if (!Number.isNaN(manual) && manual > 0) return manual;
+    return null;
+}
+
+function poUsesLmPricing(item) {
+    const lm = poTotalLm(item);
+    return lm != null && lm > 0;
+}
+
+function poLineAmount(item) {
+    const cost = Number(item.cost_price) || 0;
+    const lm = poTotalLm(item);
+    if (lm != null && lm > 0) return lm * cost;
+    return (Number(item.quantity) || 0) * cost;
+}
+
+function poApplyLongSpanFromProduct(it, p) {
+    if (!it || !p) return;
+    it.is_long_span = poProductIsLongSpan(p);
+    if (it.is_long_span) {
+        const len = parseFloat(p.default_length);
+        if (!Number.isNaN(len) && len > 0 && !(parseFloat(it.cut_length) > 0)) {
+            it.cut_length = len;
+        }
+    }
+}
+
+function poRefreshTotalLmDisplay(index) {
+    const item = purchaseItems[index];
+    const row = document.querySelector(`[data-po-line-index="${index}"]`);
+    if (!item || !row) return;
+    const lm = poTotalLm(item);
+    const valEl = row.querySelector('.po-total-lm-val');
+    if (valEl) {
+        valEl.textContent = lm != null ? lm.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—';
+    }
+    const lmInp = row.querySelector('.po-total-lm-input');
+    if (lmInp && document.activeElement !== lmInp) {
+        lmInp.value = lm != null && lm > 0 ? lm : '';
+    }
+    const costInp = row.querySelector('.item-cost');
+    if (costInp) {
+        costInp.placeholder = poUsesLmPricing(item) ? 'Per meter' : '0.00';
+    }
+}
+
+function poSqPrefillLongSpanLine(it, cut) {
+    if (!it.is_long_span) return;
+    const totalLmFromSq = Number(it.quantity) || 0;
+    let lengthPer = parseFloat(cut.cut_length) || 0;
+    if (!lengthPer && it.product?.default_length) {
+        lengthPer = parseFloat(it.product.default_length) || 0;
+    }
+    if (!lengthPer && it.custom_measurement) {
+        const m = String(it.custom_measurement).match(/^([\d.]+)/);
+        if (m) lengthPer = parseFloat(m[1]) || 0;
+    }
+    if (lengthPer > 0) {
+        cut.cut_length = lengthPer;
+        it.quantity = Math.round((totalLmFromSq / lengthPer) * 1000) / 1000;
+    } else if (totalLmFromSq > 0) {
+        cut.cut_length = totalLmFromSq;
+        it.quantity = 1;
+    }
+}
+
 function poPopulateVariantSelectOptionsForRow(row, index) {
     const it = purchaseItems[index];
     const wrap = row.querySelector('.po-variant-wrap');
@@ -496,11 +579,32 @@ function poTryResolveVariant(index) {
     if (narrowed.length === 1) {
         const p = narrowed[0].product;
         it.product_id = p.id;
+        poApplyLongSpanFromProduct(it, p);
         if (inp) inp.value = Picker.groupLabel(p);
-    } else {
-        it.product_id = '';
+    } else if (it.product_id) {
+        const stillValid = invs.some((r) => String(r.product.id) === String(it.product_id));
+        if (!stillValid) {
+            it.product_id = '';
+        }
     }
     poRefreshCutFields(index);
+}
+
+function poHideAllProductDropdowns() {
+    document.querySelectorAll('.item-product-dropdown').forEach((dd) => {
+        dd.classList.add('hidden');
+        dd.innerHTML = '';
+        dd._poAnchor = null;
+        dd.removeAttribute('style');
+    });
+}
+
+function poDismissOverlays() {
+    document.getElementById('viewPurchaseModal')?.classList.add('hidden');
+    document.getElementById('receivePurchaseModal')?.classList.add('hidden');
+    document.getElementById('poCutRemainderModal')?.classList.add('hidden');
+    document.getElementById('poDiscardCutReasonModal')?.classList.add('hidden');
+    poHideAllProductDropdowns();
 }
 
 function poWireVariantSelects(row, index) {
@@ -521,7 +625,6 @@ function poWireVariantSelects(row, index) {
             if (selT && !selT.classList.contains('hidden') && tk) selT.value = tk;
             if (selM && mk) selM.value = mk;
         }
-        poTryResolveVariant(index);
     }
 }
 
@@ -640,6 +743,7 @@ function setupEventListeners() {
                 }
                 if (Picker && p) {
                     poHydrateLineVariantBucket(purchaseItems[index]);
+                    poApplyLongSpanFromProduct(purchaseItems[index], p);
                     poPopulateVariantSelectOptionsForRow(row, index);
                     const selC = row.querySelector('.po-line-var-color');
                     const selT = row.querySelector('.po-line-var-thick');
@@ -674,7 +778,7 @@ function setupEventListeners() {
                 document.getElementById('submitBtn').textContent = purchaseModalMode === 'draft' ? 'Save draft PO' : 'Save & add to stock';
             }
             syncReceiptFieldRequirement();
-            if (purchaseItems.length) {
+            if (purchaseItems.length && !isEditMode) {
                 renderPurchaseItems();
             }
         });
@@ -994,6 +1098,7 @@ function goToPage(page) {
 
 async function openAddModal(mode = 'quick') {
     await ensureProductsLoaded();
+    poDismissOverlays();
     isEditMode = false;
     currentPurchaseId = null;
     purchaseItems = [];
@@ -1002,7 +1107,10 @@ async function openAddModal(mode = 'quick') {
     document.getElementById('submitBtn').textContent = purchaseModalMode === 'draft' ? 'Save draft PO' : 'Save & add to stock';
     document.getElementById('purchaseForm').reset();
     const isDraftEl = document.getElementById('isDraftPo');
-    if (isDraftEl) isDraftEl.checked = purchaseModalMode === 'draft';
+    if (isDraftEl) {
+        isDraftEl.disabled = false;
+        isDraftEl.checked = purchaseModalMode === 'draft';
+    }
     syncReceiptFieldRequirement();
     clearFormErrors();
     purchaseModal.classList.remove('hidden');
@@ -1019,9 +1127,14 @@ async function openAddModal(mode = 'quick') {
 
 function closeModal() {
     purchaseModal.classList.add('hidden');
+    poDismissOverlays();
     clearFormErrors();
     isEditMode = false;
     currentPurchaseId = null;
+    isSubmittingPoCutAction = false;
+    poCutSubmitCallback = null;
+    const isDraftEl = document.getElementById('isDraftPo');
+    if (isDraftEl) isDraftEl.disabled = false;
 }
 
 function closeViewModal() {
@@ -1158,6 +1271,7 @@ function addPurchaseItem() {
         custom_measurement: '',
         quantity: 1,
         cost_price: 0,
+        total_linear_meters: null,
         cut_length: null,
         cut_width: null,
         cut_height: null,
@@ -1401,6 +1515,9 @@ function poRefreshCutFields(index) {
             cut_measurement_unit: it.cut_measurement_unit,
         }, (cur) => {
             Object.assign(it, cur);
+            poRefreshTotalLmDisplay(index);
+            updateItemSubtotal(index);
+            updateTotalCost();
         });
         return;
     }
@@ -1418,23 +1535,34 @@ function poRefreshCutFields(index) {
         cut_measurement_unit: it.cut_measurement_unit,
     }, (cur) => {
         Object.assign(it, cur);
-        poRefreshCutFields(index);
+        poRefreshTotalLmDisplay(index);
+        updateItemSubtotal(index);
+        updateTotalCost();
     });
 }
 
 function poSyncCutFieldsFromDom() {
-    if (!window.PstCutFields) {
-        return;
-    }
     purchaseItems.forEach((it, index) => {
         const row = document.querySelector(`[data-po-line-index="${index}"]`);
-        const fields = row?.querySelector('.po-line-cut-fields');
-        const wrap = row?.querySelector('.po-line-cut-wrap');
+        if (!row) {
+            return;
+        }
+        const lmInp = row.querySelector('.po-total-lm-input');
+        if (lmInp) {
+            const v = parseFloat(lmInp.value);
+            it.total_linear_meters = !Number.isNaN(v) && v > 0 ? v : null;
+        }
+        if (!window.PstCutFields) {
+            return;
+        }
+        const fields = row.querySelector('.po-line-cut-fields');
+        const wrap = row.querySelector('.po-line-cut-wrap');
         if (!fields || !wrap || wrap.classList.contains('hidden')) {
-            it.cut_length = null;
-            it.cut_width = null;
-            it.cut_height = null;
-            it.cut_measurement_unit = null;
+            if (!it.cut_length && !it.is_long_span) {
+                it.cut_width = null;
+                it.cut_height = null;
+                it.cut_measurement_unit = null;
+            }
             return;
         }
         Object.assign(it, PstCutFields.readInline(fields));
@@ -1457,26 +1585,21 @@ function poLineProductInputValue(productId) {
 
 function positionPoFloatingDd(anchorEl, panelEl) {
     if (!anchorEl || !panelEl || panelEl.classList.contains('hidden')) return;
-    const r = anchorEl.getBoundingClientRect();
-    const gap = 4;
-    const spaceAbove = r.top - gap - 8;
-    const maxH = Math.min(280, Math.max(80, spaceAbove));
-    panelEl.style.position = 'fixed';
-    panelEl.style.left = `${Math.max(4, r.left)}px`;
-    panelEl.style.top = 'auto';
-    panelEl.style.bottom = `${window.innerHeight - r.top + gap}px`;
-    panelEl.style.width = `${r.width}px`;
-    panelEl.style.zIndex = '10050';
-    panelEl.style.maxHeight = `${maxH}px`;
+    panelEl.style.position = 'absolute';
+    panelEl.style.left = '0';
+    panelEl.style.right = '0';
+    panelEl.style.top = '100%';
+    panelEl.style.bottom = 'auto';
+    panelEl.style.width = '100%';
+    panelEl.style.zIndex = '50';
+    panelEl.style.maxHeight = '12rem';
     panelEl.style.overflowY = 'auto';
     panelEl.style.boxSizing = 'border-box';
+    panelEl.style.marginTop = '4px';
 }
 
 function repositionPoProductDropdowns() {
-    document.querySelectorAll('.item-product-dropdown:not(.hidden)').forEach(panel => {
-        const a = panel._poAnchor;
-        if (a && document.body.contains(a)) positionPoFloatingDd(a, panel);
-    });
+    /* dropdowns are absolute within row — no reposition needed */
 }
 
 function renderPoProductDropdown(anchorInput, dropdown, index, query) {
@@ -1536,6 +1659,7 @@ function renderPoProductDropdown(anchorInput, dropdown, index, query) {
 
 function renderPurchaseItems() {
     const container = document.getElementById('purchaseItemsList');
+    poHideAllProductDropdowns();
 
     if (purchaseItems.length === 0) {
         container.innerHTML = '<div class="text-gray-500 text-center py-4">No items added yet. Click "Add Item" to start.</div>';
@@ -1544,12 +1668,14 @@ function renderPurchaseItems() {
 
     const costMin = (isEditMode || purchaseModalMode === 'draft') ? '0' : '0.01';
 
-    const lineTotal = (item) => (Number(item.quantity) || 0) * (Number(item.cost_price) || 0);
+    const lineTotal = (item) => poLineAmount(item);
 
     container.innerHTML = purchaseItems.map((item, index) => {
         const isCustom = poIsLineCustom(item);
+        const totalLm = poTotalLm(item);
+        const usesLm = poUsesLmPricing(item);
         return `
-        <div class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-12 sm:items-center sm:gap-4" data-po-line-index="${index}">
+        <div class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-12 sm:items-start sm:gap-4 ${usesLm ? 'po-row-long-span' : ''}" data-po-line-index="${index}">
             <div class="sm:col-span-5">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Product</label>
                 <div class="flex flex-wrap items-end gap-2">
@@ -1569,19 +1695,22 @@ function renderPurchaseItems() {
                     </div>
                 </div>
                 ${isCustom ? '<span class="mt-1 inline-block text-xs text-blue-600">Special order</span>' : ''}
-                ${item.is_long_span ? '<span class="mt-1 ml-1 inline-block text-xs text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">Long span (lmtrs)</span>' : ''}
+                ${item.is_long_span ? '<span class="mt-1 ml-1 inline-block text-xs text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">Long span</span>' : ''}
                 <div class="po-line-cut-wrap hidden mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
                     <p class="mb-1 text-xs font-medium text-amber-900">Cut size</p>
                     <div class="po-line-cut-fields flex flex-wrap items-center gap-2"></div>
                 </div>
             </div>
             <div class="sm:col-span-2">
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Qty</label>
-                <input type="number" class="item-quantity block w-full min-w-[7rem] rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.quantity}" min="0.001" step="0.001" inputmode="decimal" placeholder="${item.is_long_span ? 'Total lmtrs' : 'Qty'}">
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">${usesLm ? 'Qty (pcs)' : 'Qty'}</label>
+                <input type="number" class="item-quantity block w-full min-w-[7rem] rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.quantity}" min="0.001" step="0.001" inputmode="decimal" placeholder="${usesLm ? 'Qty (pcs)' : 'Qty'}">
+                <label class="mb-1 mt-2 block text-xs font-medium text-indigo-900 sm:sr-only">Total LM</label>
+                <input type="number" class="po-total-lm-input mt-1 block w-full rounded-lg border border-indigo-200 bg-indigo-50/40 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/25" data-index="${index}" value="${totalLm != null && totalLm > 0 ? totalLm : ''}" min="0" step="0.01" inputmode="decimal" placeholder="Total LM">
+                <p class="po-total-lm mt-1 text-xs text-gray-500">When Total LM is filled: <span class="font-medium text-indigo-900">LM × unit cost</span> (<span class="po-total-lm-val tabular-nums">${totalLm != null ? totalLm.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}</span>)</p>
             </div>
             <div class="sm:col-span-2">
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Unit cost</label>
-                <input type="number" class="item-cost block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="0.00">
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">${usesLm ? 'Unit cost (per m)' : 'Unit cost'}</label>
+                <input type="number" class="item-cost block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="${usesLm ? 'Per meter' : '0.00'}">
             </div>
             <div class="sm:col-span-2 sm:text-right">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Line total</label>
@@ -1599,6 +1728,7 @@ function renderPurchaseItems() {
         if (!dd || !dd.classList.contains('item-product-dropdown')) return;
 
         inp.addEventListener('focus', () => {
+            poHideAllProductDropdowns();
             renderPoProductDropdown(inp, dd, index, inp.value);
         });
         inp.addEventListener('input', () => {
@@ -1627,17 +1757,20 @@ function renderPurchaseItems() {
         });
     });
 
-    container.querySelectorAll('.item-quantity, .item-cost').forEach(input => {
+    container.querySelectorAll('.item-quantity, .item-cost, .po-total-lm-input').forEach(input => {
         input.addEventListener('input', function() {
             const index = parseInt(this.dataset.index);
             const value = parseFloat(this.value) || 0;
             
             if (this.classList.contains('item-quantity')) {
                 purchaseItems[index].quantity = value;
+            } else if (this.classList.contains('po-total-lm-input')) {
+                purchaseItems[index].total_linear_meters = value > 0 ? value : null;
             } else {
                 purchaseItems[index].cost_price = value;
             }
             
+            poRefreshTotalLmDisplay(index);
             updateItemSubtotal(index);
             updateTotalCost();
         });
@@ -1654,7 +1787,7 @@ function renderPurchaseItems() {
 
 function updateItemSubtotal(index) {
     const item = purchaseItems[index];
-    const subtotal = item.quantity * (Number(item.cost_price) || 0);
+    const subtotal = poLineAmount(item);
     const subtotalElement = document.querySelector(`.item-subtotal[data-index="${index}"]`);
     if (subtotalElement) {
         subtotalElement.textContent = `₱${subtotal.toFixed(2)}`;
@@ -1662,7 +1795,7 @@ function updateItemSubtotal(index) {
 }
 
 function updateTotalCost() {
-    const total = purchaseItems.reduce((sum, item) => sum + (item.quantity * (Number(item.cost_price) || 0)), 0);
+    const total = purchaseItems.reduce((sum, item) => sum + poLineAmount(item), 0);
     document.getElementById('totalCost').textContent = `₱${total.toFixed(2)}`;
 }
 
@@ -1704,10 +1837,12 @@ function mapReceiveLineItems(lines, cutMeta) {
             product_id: isCustom ? null : (item.product_id || null),
             quantity: item.quantity,
             cost_price: Number(item.cost_price),
+            total_linear_meters: item.total_linear_meters,
             cut_length: item.cut_length,
             cut_width: item.cut_width,
             cut_height: item.cut_height,
             cut_measurement_unit: item.cut_measurement_unit,
+            is_long_span: !!item.is_long_span,
         };
         if (isCustom) {
             row.custom_item_name = item.custom_item_name || item.product_name || item.description || null;
@@ -1786,6 +1921,7 @@ function poMapItemsWithCutMeta(items, cutMeta) {
             product_id: isCustom ? null : (item.product_id || null),
             quantity: item.quantity,
             cost_price: Number(item.cost_price),
+            total_linear_meters: item.total_linear_meters,
             cut_length: item.cut_length,
             cut_width: item.cut_width,
             cut_height: item.cut_height,
@@ -1858,6 +1994,8 @@ async function onReceivePoSelected() {
                 category_id: isCustom ? defaultCategory : '',
                 quantity: Number(it.quantity),
                 cost_price: Number(it.cost_price) > 0 ? Number(it.cost_price) : '',
+                total_linear_meters: it.total_linear_meters != null && parseFloat(it.total_linear_meters) > 0 ? parseFloat(it.total_linear_meters) : null,
+                is_long_span: !!it.is_long_span,
                 cut_length: it.cut_length,
                 cut_width: it.cut_width,
                 cut_height: it.cut_height,
@@ -1887,6 +2025,8 @@ function renderReceiveItems() {
             : '';
         const isCustom = poReceiveLineIsCustom(row);
         const specLine = isCustom ? poReceiveSpecLine(row) : '';
+        const usesLm = poUsesLmPricing(row);
+        const totalLm = poTotalLm(row);
         const promoteBlock = isCustom ? `
             <div class="w-full mt-2 rounded-lg border border-blue-200 bg-blue-50/70 p-2 space-y-2">
                 <label class="flex items-start gap-2 text-sm text-blue-900 cursor-pointer">
@@ -1907,16 +2047,20 @@ function renderReceiveItems() {
                 ${promoteBlock}
             </div>
             <div class="w-24">
-                <label class="text-xs text-gray-600">Qty</label>
-                <input type="number" class="recv-qty w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="1" step="1" value="${row.quantity}">
+                <label class="text-xs text-gray-600">${usesLm ? 'Qty (pcs)' : 'Qty'}</label>
+                <input type="number" class="recv-qty w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="0.001" step="0.001" value="${row.quantity}">
+            </div>
+            <div class="w-24">
+                <label class="text-xs text-indigo-800">Total LM</label>
+                <input type="number" class="recv-total-lm w-full px-2 py-1 border border-indigo-200 rounded text-sm bg-indigo-50/40" data-idx="${idx}" min="0" step="0.01" value="${totalLm != null && totalLm > 0 ? totalLm : ''}" placeholder="LM">
             </div>
             <div class="w-28">
-                <label class="text-xs text-gray-600">Unit cost *</label>
-                <input type="number" class="recv-cost w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="0.01" step="0.01" value="${row.cost_price}">
+                <label class="text-xs text-gray-600">${usesLm ? 'Unit cost (per m)' : 'Unit cost *'}</label>
+                <input type="number" class="recv-cost w-full px-2 py-1 border rounded text-sm" data-idx="${idx}" min="0.01" step="0.01" value="${row.cost_price}" placeholder="${usesLm ? 'Per meter' : ''}">
             </div>
             <div class="w-28 text-right">
                 <label class="text-xs text-gray-600">Line total</label>
-                <div class="recv-line-total text-sm font-semibold text-gray-900" data-idx="${idx}">₱${((Number(row.quantity) || 0) * (Number(row.cost_price) || 0)).toFixed(2)}</div>
+                <div class="recv-line-total text-sm font-semibold text-gray-900" data-idx="${idx}">₱${poLineAmount(row).toFixed(2)}</div>
             </div>
         </div>
     `;
@@ -1937,11 +2081,14 @@ function renderReceiveItems() {
         });
     });
 
-    container.querySelectorAll('.recv-qty, .recv-cost').forEach(inp => {
+    container.querySelectorAll('.recv-qty, .recv-cost, .recv-total-lm').forEach(inp => {
         inp.addEventListener('input', () => {
             const i = parseInt(inp.dataset.idx, 10);
             if (inp.classList.contains('recv-qty')) receiveLineItems[i].quantity = parseFloat(inp.value) || 0;
-            else receiveLineItems[i].cost_price = inp.value === '' ? '' : parseFloat(inp.value);
+            else if (inp.classList.contains('recv-total-lm')) {
+                const v = parseFloat(inp.value);
+                receiveLineItems[i].total_linear_meters = !Number.isNaN(v) && v > 0 ? v : null;
+            } else receiveLineItems[i].cost_price = inp.value === '' ? '' : parseFloat(inp.value);
             updateReceiveTotal();
         });
     });
@@ -1949,13 +2096,12 @@ function renderReceiveItems() {
 }
 
 function updateReceiveTotal() {
-    const t = receiveLineItems.reduce((s, r) => s + (Number(r.quantity) || 0) * (Number(r.cost_price) || 0), 0);
+    const t = receiveLineItems.reduce((s, r) => s + poLineAmount(r), 0);
     document.getElementById('receiveTotalCost').textContent = `₱${t.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     receiveLineItems.forEach((r, i) => {
         const el = document.querySelector(`.recv-line-total[data-idx="${i}"]`);
         if (el) {
-            const line = (Number(r.quantity) || 0) * (Number(r.cost_price) || 0);
-            el.textContent = `₱${line.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            el.textContent = `₱${poLineAmount(r).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         }
     });
 }
@@ -1968,7 +2114,12 @@ async function submitReceivePurchase() {
         return;
     }
     const bad = receiveLineItems.some((r) => {
-        if (r.quantity <= 0 || !r.cost_price || Number(r.cost_price) <= 0) return true;
+        if (!r.cost_price || Number(r.cost_price) <= 0) return true;
+        if (poUsesLmPricing(r)) {
+            if (!poTotalLm(r) || poTotalLm(r) <= 0) return true;
+        } else if (r.quantity <= 0) {
+            return true;
+        }
         if (poReceiveLineIsCustom(r)) {
             if (r.promote_to_catalog && !r.category_id) return true;
             return false;
@@ -1976,7 +2127,7 @@ async function submitReceivePurchase() {
         return !r.product_id;
     });
     if (bad) {
-        showToast('Check quantity, cost, and product category on special-order lines.', 'error');
+        showToast('Check quantity, Total LM, cost, and product category on special-order lines.', 'error');
         return;
     }
     if (receiveLineItems.some(poLineHasCut)) {
@@ -2032,8 +2183,47 @@ function poViewStatusBadge(status) {
 }
 
 
+function poViewLineTotal(item) {
+    const cost = Number(item.cost_price) || 0;
+    const tlm = parseFloat(item.total_linear_meters);
+    if (!Number.isNaN(tlm) && tlm > 0) return tlm * cost;
+    return (Number(item.quantity) || 0) * cost;
+}
+
+function poViewLineSize(item) {
+    const parts = [];
+    const tlm = parseFloat(item.total_linear_meters);
+    if (!Number.isNaN(tlm) && tlm > 0) {
+        parts.push(tlm.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' LM');
+    }
+    const cut = poFormatCutDisplay(item);
+    if (cut) parts.push('Cut ' + cut);
+    const p = item.product;
+    if (p) {
+        const mu = String(p.measurement_unit || '').toLowerCase();
+        if ((mu === 'sq ft' || mu === 'sqft') && p.default_width && p.default_height) {
+            const fmt = (v) => {
+                const n = parseFloat(v);
+                return Number.isInteger(n) ? String(n) : String(n);
+            };
+            parts.push(`${fmt(p.default_width)}×${fmt(p.default_height)} sq ft`);
+        } else if (Picker && Picker.measurementLabel(p)) {
+            parts.push(Picker.measurementLabel(p));
+        } else if (p.default_length) {
+            const u = p.measurement_unit || String(p.base_unit || '').replace(/^per\s+/i, '') || '';
+            parts.push(`${p.default_length}${u ? ' ' + u : ''}`.trim());
+        } else if (p.default_width && item.is_long_span) {
+            parts.push(String(p.default_width) + 'm width');
+        }
+    }
+    const cm = String(item.custom_measurement || '').trim();
+    if (cm && !parts.some((x) => x.includes(cm))) parts.push(cm);
+    return parts.length ? parts.join(' · ') : '—';
+}
+
 async function viewPurchase(id) {
     try {
+        poDismissOverlays();
         const response = await fetch(`/api/purchases/${id}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load purchase details');
         const purchase = await response.json();
@@ -2104,6 +2294,7 @@ async function viewPurchase(id) {
                                 <thead class="sticky top-0 z-[1] border-b border-gray-200 bg-gray-100/95 backdrop-blur-sm">
                                     <tr class="text-xs font-semibold uppercase tracking-wide text-gray-600">
                                         <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Product</th>
+                                        <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Size / LM</th>
                                         <th scope="col" class="whitespace-nowrap px-3 py-3 sm:px-4">Color</th>
                                         <th scope="col" class="hidden whitespace-nowrap px-3 py-3 sm:table-cell sm:px-4">Thickness</th>
                                         <th scope="col" class="whitespace-nowrap px-3 py-3 text-right sm:px-4">Qty</th>
@@ -2127,22 +2318,23 @@ async function viewPurchase(id) {
                                 ? (item.custom_thickness != null && String(item.custom_thickness).trim() !== '' ? String(item.custom_thickness).trim() : '')
                                 : (p?.thickness != null && String(p.thickness).trim() !== '' ? String(p.thickness).trim() : '');
                             const measRaw = isCustom ? (item.custom_measurement || '') : '';
+                            const sizeStr = escapeHtml(poViewLineSize(item));
                             const colorStr = colorRaw ? escapeHtml(colorRaw) : '—';
                             const thickStr = thickRaw ? escapeHtml(thickRaw) : '—';
                             const cutLabel = poFormatCutDisplay(item);
                             const qty = Number(item.quantity) || 0;
                             const unit = Number(item.cost_price) || 0;
-                            const line = qty * unit;
+                            const line = poViewLineTotal(item);
                             const titleEsc = (s) => (s ? escapeHtml(s).replace(/"/g, '&quot;') : '');
                             return `
                                     <tr class="transition-colors hover:bg-gray-50/80">
                                         <td class="max-w-[12rem] px-3 py-3 align-top sm:max-w-none sm:px-4">
                                             <div class="font-medium leading-snug text-gray-900">${escapeHtml(name)}</div>
                                             <div class="mt-0.5 text-xs text-gray-500">${escapeHtml(sku)} · ${escapeHtml(cat)}</div>
-                                            ${measRaw ? `<div class="mt-1 text-xs text-gray-600"><span class="font-medium text-gray-500">Size:</span> ${escapeHtml(measRaw)}</div>` : ''}
+                                            ${item.is_long_span ? '<div class="mt-1 text-xs text-indigo-700">Long span</div>' : ''}
                                             ${thickRaw ? `<div class="mt-1 text-xs text-gray-600 sm:hidden"><span class="font-medium text-gray-500">Thick:</span> ${escapeHtml(thickRaw)}</div>` : ''}
-                                            ${cutLabel ? `<div class="mt-1 text-xs font-medium text-amber-800">Cut: ${escapeHtml(cutLabel)}</div>` : ''}
                                         </td>
+                                        <td class="max-w-[9rem] px-3 py-3 align-top text-xs text-gray-700 sm:max-w-none sm:px-4" title="${titleEsc(poViewLineSize(item))}"><span class="line-clamp-3 break-words">${sizeStr}</span></td>
                                         <td class="px-3 py-3 align-top text-gray-800 sm:px-4" title="${titleEsc(colorRaw)}"><span class="line-clamp-2 break-words">${colorStr}</span></td>
                                         <td class="hidden px-3 py-3 align-top text-gray-800 sm:table-cell sm:px-4" title="${titleEsc(thickRaw)}"><span class="line-clamp-2 max-w-[10rem] break-words">${thickStr}</span></td>
                                         <td class="whitespace-nowrap px-3 py-3 text-right tabular-nums text-gray-900 sm:px-4">${qty}</td>
@@ -2169,6 +2361,7 @@ async function viewPurchase(id) {
 
 async function editPurchase(id) {
     try {
+        poDismissOverlays();
         const response = await fetch(`/api/purchases/${id}`, { headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' } });
         if (!response.ok) throw new Error('Failed to load purchase details');
         const purchase = await response.json();
@@ -2184,6 +2377,8 @@ async function editPurchase(id) {
 
         document.getElementById('modalTitle').textContent = 'Edit draft PO';
         document.getElementById('submitBtn').textContent = 'Update draft PO';
+        const purchaseIdEl = document.getElementById('purchaseId');
+        if (purchaseIdEl) purchaseIdEl.value = id;
 
         document.getElementById('supplierName').value = purchase.supplier_name;
         document.getElementById('orderDate').value = (purchase.order_date || '').toString().split('T')[0];
@@ -2199,12 +2394,16 @@ async function editPurchase(id) {
         if (sbid) sbid.value = purchase.branch_id;
 
         const isDraftEl = document.getElementById('isDraftPo');
-        if (isDraftEl) isDraftEl.checked = true;
+        if (isDraftEl) {
+            isDraftEl.checked = true;
+            isDraftEl.disabled = true;
+        }
         syncReceiptFieldRequirement();
 
         await ensureProductsLoaded();
 
-        purchaseItems = purchase.purchase_items.map(item => ({
+        const rawItems = purchase.purchase_items || purchase.purchaseItems || [];
+        purchaseItems = rawItems.map(item => ({
             product_id: item.product_id,
             isCustom: !item.product_id && !!(item.custom_item_name || item.custom_color || item.custom_thickness || item.custom_measurement || item.description),
             custom_item_name: item.custom_item_name || item.description || '',
@@ -2214,17 +2413,26 @@ async function editPurchase(id) {
             custom_measurement: item.custom_measurement || '',
             quantity: item.quantity,
             cost_price: item.cost_price,
+            total_linear_meters: item.total_linear_meters,
+            is_long_span: !!item.is_long_span,
             cut_length: item.cut_length,
             cut_width: item.cut_width,
             cut_height: item.cut_height,
             cut_measurement_unit: item.cut_measurement_unit,
         }));
-        purchaseItems.forEach((it) => { if (!poIsLineCustom(it)) poHydrateLineVariantBucket(it); });
+        purchaseItems.forEach((it) => {
+            if (!poIsLineCustom(it)) {
+                poHydrateLineVariantBucket(it);
+                const p = poLineProduct(it);
+                if (p && !it.is_long_span) poApplyLongSpanFromProduct(it, p);
+            }
+        });
 
         renderPurchaseItems();
         updateTotalCost();
 
         purchaseModal.classList.remove('hidden');
+        document.getElementById('supplierName')?.focus();
 
     } catch (error) {
         console.error('Error loading purchase for edit:', error);
@@ -2274,8 +2482,9 @@ async function prefillPurchaseFromQuotation(q) {
     }
     purchaseItems = [];
     for (const it of (q.items || [])) {
-        const qty = Number(it.quantity) || 1;
+        let qty = Number(it.quantity) || 1;
         const cost = Number(it.unit_price) || 0;
+        let totalLmPrefill = null;
         const cut = {
             cut_length: it.cut_length,
             cut_width: it.cut_width,
@@ -2284,6 +2493,12 @@ async function prefillPurchaseFromQuotation(q) {
         };
         const isCustomLine = !it.product_id && !!(it.custom_item_name || it.description || it.custom_color || it.custom_thickness || it.custom_measurement);
         const isLongSpan = !!it.is_long_span;
+        const sqLine = { quantity: qty, is_long_span: isLongSpan, product: it.product, custom_measurement: it.custom_measurement };
+        if (isLongSpan) {
+            totalLmPrefill = qty;
+            poSqPrefillLongSpanLine(sqLine, cut);
+            qty = sqLine.quantity;
+        }
         if (isCustomLine) {
             purchaseItems.push({
                 product_id: '',
@@ -2295,6 +2510,7 @@ async function prefillPurchaseFromQuotation(q) {
                 custom_measurement: it.custom_measurement || '',
                 quantity: qty,
                 cost_price: cost,
+                total_linear_meters: totalLmPrefill,
                 is_long_span: isLongSpan,
                 ...cut,
             });
@@ -2331,6 +2547,7 @@ async function prefillPurchaseFromQuotation(q) {
                 custom_measurement: it.custom_measurement || (it.product && Picker ? Picker.measurementLabel(it.product) : ''),
                 quantity: qty,
                 cost_price: cost,
+                total_linear_meters: totalLmPrefill,
                 is_long_span: isLongSpan,
                 ...cut,
             });
@@ -2346,11 +2563,14 @@ async function prefillPurchaseFromQuotation(q) {
             custom_measurement: '',
             quantity: qty,
             cost_price: cost,
+            total_linear_meters: totalLmPrefill,
             is_long_span: isLongSpan,
             ...cut,
         });
     }
-    purchaseItems.forEach((it) => { if (!poIsLineCustom(it)) poHydrateLineVariantBucket(it); });
+    purchaseItems.forEach((it) => {
+        if (!poIsLineCustom(it)) poHydrateLineVariantBucket(it);
+    });
     renderPurchaseItems();
     updateTotalCost();
     showToast(`Loaded ${purchaseItems.length} line(s) from quotation ${q.quotation_number || q.id}. Review and save.`, 'success');

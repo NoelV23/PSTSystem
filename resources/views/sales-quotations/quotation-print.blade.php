@@ -201,6 +201,9 @@
     $quoteNo = $quotation->quotation_number ?? ('SQ-' . $quotation->id);
 
     $unitLabel = function ($p, $line = null) {
+        if ($line && method_exists($line, 'displayLineUnit')) {
+            return $line->displayLineUnit();
+        }
         if ($line && $line->is_long_span) {
             return 'lmtrs';
         }

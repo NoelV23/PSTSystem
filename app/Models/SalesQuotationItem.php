@@ -20,6 +20,7 @@ class SalesQuotationItem extends Model
         'cut_height',
         'cut_measurement_unit',
         'quantity',
+        'line_unit',
         'unit_price',
         'retail_unit_price',
         'line_total',
@@ -87,5 +88,29 @@ class SalesQuotationItem extends Model
         $cat = $this->product?->category?->name;
 
         return $cat ? strtoupper($cat) : 'OTHER MATERIALS';
+    }
+
+    public function displayLineUnit(): string
+    {
+        $u = trim((string) ($this->line_unit ?? ''));
+        if ($u !== '') {
+            return $u;
+        }
+        if ($this->is_long_span) {
+            return 'lmtrs';
+        }
+        $p = $this->product;
+        if (! $p) {
+            return 'pc';
+        }
+        $base = strtolower(preg_replace('/^per\s+/i', '', (string) ($p->base_unit ?? '')) ?: 'pc');
+        if (in_array($base, ['ls'], true)) {
+            return 'LS';
+        }
+        if (in_array($base, ['meter', 'meters', 'metre', 'metres', 'm', 'length'], true)) {
+            return 'lmtrs';
+        }
+
+        return $base ?: 'pc';
     }
 }
