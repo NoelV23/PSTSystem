@@ -155,7 +155,7 @@
     <!-- Top Selling Products -->
     @if($productStats->count() > 0)
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Selling Products</h3>
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Top Selling Items</h3>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
@@ -171,6 +171,9 @@
                     <tr>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                             {{ $product['product_name'] }}
+                            @if(!empty($product['is_custom']))
+                                <span class="ml-1 text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded">Custom</span>
+                            @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $product['product_sku'] }}

@@ -18,7 +18,7 @@
                 <div class="flex items-center justify-between">
                     <div>
                         <h2 class="text-2xl font-bold text-gray-900">Edit Sale #{{ $sale->id }}</h2>
-                        <p class="text-gray-600 mt-1">Add items to existing sale</p>
+                        <p class="text-gray-600 mt-1">Add items to this sale</p>
                     </div>
                     <a href="{{ route('sales.index') }}" class="inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-medium rounded-lg transition duration-200">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -177,9 +177,20 @@
                 <label for="productSearch" class="block text-sm font-medium text-gray-700 mb-1">Search Product</label>
                 <div class="relative">
                     <input type="text" id="productSearch" placeholder="Type product name or SKU to search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                    <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden">
-                        <!-- Product options will be populated here -->
-                    </div>
+                    <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+                </div>
+                <div id="editCustomModeBar" class="mt-2 hidden">
+                    <button type="button" id="editEnterCustomBtn" class="text-sm text-blue-700 hover:underline">Add custom item</button>
+                </div>
+                <div id="editVariantStrip" class="mt-2 hidden flex flex-wrap items-end gap-2">
+                    <select id="editVarColor" class="max-w-[8rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
+                    <select id="editVarThick" class="max-w-[10rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
+                    <select id="editVarMeas" class="max-w-[11rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
+                </div>
+                <div id="editCustomSection" class="mt-2 hidden grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <input type="text" id="editCustomColor" placeholder="Color" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
+                    <input type="text" id="editCustomThickness" placeholder="Thickness" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
+                    <input type="text" id="editCustomMeasurement" placeholder="Size / length" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
                 </div>
             </div>
 
@@ -208,21 +219,9 @@
                 </div>
 
                 <!-- Cut Fields -->
-                <div id="cutFields" class="hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label for="cutLength" class="block text-sm font-medium text-gray-700 mb-1">Cut Length</label>
-                            <input type="number" id="cutLength" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label for="cutWidth" class="block text-sm font-medium text-gray-700 mb-1">Cut Width</label>
-                            <input type="number" id="cutWidth" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                        </div>
-                        <div>
-                            <label for="cutHeight" class="block text-sm font-medium text-gray-700 mb-1">Cut Height</label>
-                            <input type="number" id="cutHeight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-                        </div>
-                    </div>
+                <div id="cutFields" class="hidden rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-3">
+                    <p class="mb-2 text-xs font-medium text-amber-900">Cut size</p>
+                    <div id="cutFieldsInputs" class="flex flex-wrap items-center gap-2"></div>
                 </div>
 
                 <button type="submit" class="bg-blue-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition duration-200">
@@ -249,8 +248,14 @@
     </div>
 </div>
 
+<script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
+<script src="{{ asset('js/pst-cut-fields.js') }}"></script>
 <script>
 let selectedProduct = null;
+let editCustomMode = false;
+let editInvVariantBucket = [];
+let catalogRows = [];
+const Picker = window.PstProductVariantPicker;
 let inventory = [];
 let remainders = [];
 const saleId = {{ $sale->id }};
@@ -286,42 +291,216 @@ async function loadData() {
         const remaindersData = await remaindersResponse.json();
         remainders = remaindersData.data || remaindersData;
 
-        console.log('Data loaded:', { inventory: inventory.length, remainders: remainders.length });
+        await mergeCatalogRows();
+        console.log('Data loaded:', { inventory: inventory.length, remainders: remainders.length, catalog: catalogRows.length });
     } catch (error) {
         console.error('Error loading data:', error);
         showToast('Failed to load inventory data', 'error');
     }
 }
 
+async function mergeCatalogRows() {
+    catalogRows = inventory.map((row) => ({ ...row }));
+    const inBranch = new Set(catalogRows.map((r) => String(r.product_id)));
+    try {
+        const pres = await fetch('/api/products?per_page=5000', { headers: { 'X-CSRF-TOKEN': csrfToken, Accept: 'application/json' } });
+        if (pres.ok) {
+            const pdata = await pres.json();
+            const plist = pdata.data || pdata;
+            plist.forEach((p) => {
+                const pid = String(p.id);
+                if (!inBranch.has(pid)) {
+                    catalogRows.push({ product_id: p.id, product: p, available_stock: 0, _catalogOnly: true });
+                }
+            });
+        }
+    } catch (_) { /* optional */ }
+}
+
+function editHideVariantStrip() {
+    editInvVariantBucket = [];
+    document.getElementById('editVariantStrip')?.classList.add('hidden');
+}
+
+function editEnterCustomMode(name) {
+    editCustomMode = true;
+    selectedProduct = null;
+    editHideVariantStrip();
+    document.getElementById('productDropdown')?.classList.add('hidden');
+    document.getElementById('editCustomSection')?.classList.remove('hidden');
+    document.getElementById('editCustomModeBar')?.classList.add('hidden');
+    document.getElementById('productDetailsSection')?.classList.add('hidden');
+    document.getElementById('cutFields')?.classList.add('hidden');
+    document.getElementById('cutFieldsInputs').innerHTML = '';
+    const ps = document.getElementById('productSearch');
+    if (ps && name) ps.value = name;
+    const cutInputs = document.getElementById('cutFieldsInputs');
+    if (window.PstCutFields && cutInputs) {
+        document.getElementById('cutFields')?.classList.remove('hidden');
+        PstCutFields.renderFreeform(cutInputs, {}, () => {});
+    }
+}
+
+function editExitCustomMode() {
+    editCustomMode = false;
+    document.getElementById('editCustomSection')?.classList.add('hidden');
+}
+
+function editPopulateVariantStrip() {
+    const strip = document.getElementById('editVariantStrip');
+    const selC = document.getElementById('editVarColor');
+    const selT = document.getElementById('editVarThick');
+    const selM = document.getElementById('editVarMeas');
+    if (!strip || !selC || !selT || !selM || !Picker) return;
+    const invs = editInvVariantBucket;
+    if (!invs.length) { strip.classList.add('hidden'); return; }
+    const colors = Picker.distinctColors(invs);
+    const thicks = Picker.distinctThicknesses(invs);
+    const meas = Picker.distinctMeasurements(invs);
+    selC.classList.toggle('hidden', colors.length === 1 && colors[0] === '');
+    selC.innerHTML = '<option value="">Color…</option>' + colors.map((c) => `<option value="${c}">${c || '(none)'}</option>`).join('');
+    selT.classList.toggle('hidden', !thicks.length);
+    selT.innerHTML = `<option value="">Thickness…</option>` + thicks.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+    selM.innerHTML = '<option value="">Size…</option>' + meas.map((m) => `<option value="${m.value}">${m.label}</option>`).join('');
+    if (colors.length === 1) selC.value = colors[0];
+    if (thicks.length === 1) selT.value = thicks[0].value;
+    if (meas.length === 1) selM.value = meas[0].value;
+    strip.classList.remove('hidden');
+}
+
+function editTryResolveVariant() {
+    if (!Picker || !editInvVariantBucket.length) return;
+    const selC = document.getElementById('editVarColor');
+    const selT = document.getElementById('editVarThick');
+    const selM = document.getElementById('editVarMeas');
+    const f = {};
+    if (selC && !selC.classList.contains('hidden')) f.color = selC.value;
+    if (selT && !selT.classList.contains('hidden') && selT.value) f.thicknessValue = selT.value;
+    if (selM && selM.value) f.measurementValue = selM.value;
+    let narrowed = Picker.narrowVariants(editInvVariantBucket, f);
+    if (narrowed.length === 1) {
+        const row = narrowed[0];
+        const stockInv = row.id ? row : inventory.find((i) => String(i.product_id) === String(row.product_id));
+        if (stockInv?.id) {
+            window.selectProduct('inventory', stockInv.id);
+        } else if (row.product) {
+            editEnterCustomMode(Picker.groupLabel(row.product));
+            document.getElementById('editCustomColor').value = row.product.color || '';
+            document.getElementById('editCustomThickness').value = Picker.thicknessLabel(row.product);
+            document.getElementById('editCustomMeasurement').value = Picker.measurementLabel(row.product);
+            showToast('No stock — use custom line.', 'info');
+        }
+    }
+}
+
 // Product search functionality
 document.getElementById('productSearch').addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    if (searchTerm.length < 2) {
+    const searchTerm = this.value.trim().toLowerCase();
+    editHideVariantStrip();
+    if (editCustomMode) return;
+    if (searchTerm.length < 1) {
         document.getElementById('productDropdown').classList.add('hidden');
+        document.getElementById('editCustomModeBar')?.classList.add('hidden');
         return;
     }
 
-    const filteredItems = [];
-    
-    // Filter inventory items
-    inventory.forEach(item => {
-        if (item.product.name.toLowerCase().includes(searchTerm) || 
-            (item.product.sku && item.product.sku.toLowerCase().includes(searchTerm))) {
-            filteredItems.push({ ...item, type: 'inventory' });
-        }
-    });
-    
-    // Filter remainder items
-    remainders.forEach(item => {
-        if (item.product.name.toLowerCase().includes(searchTerm) || 
-            (item.product.sku && item.product.sku.toLowerCase().includes(searchTerm))) {
-            filteredItems.push({ ...item, type: 'remainder' });
-        }
-    });
+    const filteredRemainders = remainders.filter((item) =>
+        item.product.name.toLowerCase().includes(searchTerm) ||
+        (item.product.sku && item.product.sku.toLowerCase().includes(searchTerm))
+    );
 
-    displayProductDropdown(filteredItems);
+    let invParts = [];
+    window.__editInvGroupMap = new Map();
+    if (Picker) {
+        const gmap = Picker.groupsMatchingQuery(catalogRows, searchTerm);
+        const entries = [...gmap.entries()].sort((a, b) => Picker.groupLabel(a[1][0].product).localeCompare(Picker.groupLabel(b[1][0].product)));
+        entries.forEach(([key, invs]) => {
+            if (invs.length <= 1) {
+                const row = invs[0];
+                const stockInv = row.id ? row : inventory.find((i) => String(i.product_id) === String(row.product_id));
+                if (stockInv?.id) {
+                    invParts.push({ type: 'inventory', id: stockInv.id, product: row.product, label: Picker.groupLabel(row.product) });
+                } else {
+                    invParts.push({ type: 'catalog', product: row.product, label: Picker.groupLabel(row.product), _noStock: true });
+                }
+            } else {
+                window.__editInvGroupMap.set(key, invs);
+                invParts.push({ type: 'group', key, label: Picker.groupLabel(invs[0].product), count: invs.length });
+            }
+        });
+    } else {
+        inventory.forEach((item) => {
+            if (item.product.name.toLowerCase().includes(searchTerm) || (item.product.sku && item.product.sku.toLowerCase().includes(searchTerm))) {
+                invParts.push({ type: 'inventory', id: item.id, product: item.product, label: item.product.name });
+            }
+        });
+    }
+
+    const dropdown = document.getElementById('productDropdown');
+    if (!invParts.length && !filteredRemainders.length) {
+        dropdown.innerHTML = `
+            <div class="px-4 py-2 text-gray-500">No products found</div>
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer text-sm text-blue-700 font-medium" data-edit-use-custom="1">Add as custom: “${this.value.trim()}”</div>`;
+    } else {
+        let html = invParts.map((p) => {
+            if (p.type === 'group') {
+                return `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" data-edit-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count}</span></div>`;
+            }
+            if (p._noStock) {
+                return `<div class="px-4 py-2 hover:bg-amber-50 cursor-pointer border-b bg-amber-50/50" data-edit-catalog-custom="${p.product.id}">${p.label} <span class="text-xs text-amber-800">no stock · custom</span></div>`;
+            }
+            return `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" onclick="selectProduct('${p.type}', ${p.id})">${p.label}</div>`;
+        }).join('');
+        html += filteredRemainders.map((item) => `
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" onclick="selectProduct('remainder', ${item.id})">${item.product.name} [Remainder]</div>
+        `).join('');
+        dropdown.innerHTML = html;
+    }
+    dropdown.classList.remove('hidden');
+    document.getElementById('editCustomModeBar')?.classList.remove('hidden');
 });
 
+document.getElementById('productDropdown').addEventListener('mousedown', function(e) {
+    const custom = e.target.closest('[data-edit-use-custom]');
+    if (custom) {
+        e.preventDefault();
+        editEnterCustomMode(document.getElementById('productSearch').value.trim());
+        return;
+    }
+    const catCustom = e.target.closest('[data-edit-catalog-custom]');
+    if (catCustom) {
+        e.preventDefault();
+        const pid = catCustom.dataset.editCatalogCustom;
+        const p = catalogRows.find((r) => String(r.product_id) === String(pid))?.product;
+        if (p) {
+            editEnterCustomMode(Picker ? Picker.groupLabel(p) : p.name);
+            document.getElementById('editCustomColor').value = p.color || '';
+            document.getElementById('editCustomThickness').value = Picker ? Picker.thicknessLabel(p) : '';
+            document.getElementById('editCustomMeasurement').value = Picker ? Picker.measurementLabel(p) : '';
+        }
+        return;
+    }
+    const gpick = e.target.closest('[data-edit-pick-group]');
+    if (gpick) {
+        e.preventDefault();
+        const key = decodeURIComponent(gpick.dataset.editPickGroup);
+        const invs = window.__editInvGroupMap?.get(key);
+        if (!invs) return;
+        editInvVariantBucket = invs;
+        document.getElementById('productSearch').value = Picker.groupLabel(invs[0].product);
+        document.getElementById('productDropdown').classList.add('hidden');
+        editPopulateVariantStrip();
+        ['editVarColor', 'editVarThick', 'editVarMeas'].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.onchange = () => editTryResolveVariant();
+        });
+        editTryResolveVariant();
+    }
+});
+
+document.getElementById('editEnterCustomBtn')?.addEventListener('click', () => editEnterCustomMode(document.getElementById('productSearch').value.trim()));
+
+// Legacy display helper (unused but kept for remainder rows)
 function displayProductDropdown(items) {
     const dropdown = document.getElementById('productDropdown');
     if (items.length === 0) {
@@ -352,6 +531,7 @@ function displayProductDropdown(items) {
 }
 
 window.selectProduct = function(type, id) {
+    editExitCustomMode();
     let item;
     if (type === 'inventory') {
         item = inventory.find(i => i.id === id);
@@ -418,28 +598,18 @@ window.selectProduct = function(type, id) {
     
     document.getElementById('saleQuantity').value = '';
     
-    // Show cut fields if needed
-    const hasLength = !!item.product.default_length;
-    const hasWidth = !!item.product.default_width;
-    const hasHeight = !!item.product.default_height;
     const cutFields = document.getElementById('cutFields');
-    
-    if (hasLength || hasWidth || hasHeight) {
+    const cutFieldsInputs = document.getElementById('cutFieldsInputs');
+    const Cut = window.PstCutFields;
+    if (Cut && item.type === 'inventory' && Cut.isCuttable(item.product)) {
         cutFields.classList.remove('hidden');
-        const cutLengthInput = document.getElementById('cutLength');
-        const cutWidthInput = document.getElementById('cutWidth');
-        const cutHeightInput = document.getElementById('cutHeight');
-        
-        if (hasLength) cutLengthInput.style.display = 'block';
-        else cutLengthInput.style.display = 'none';
-        
-        if (hasWidth) cutWidthInput.style.display = 'block';
-        else cutWidthInput.style.display = 'none';
-        
-        if (hasHeight) cutHeightInput.style.display = 'block';
-        else cutHeightInput.style.display = 'none';
+        Cut.renderInline(cutFieldsInputs, item.product, {}, () => {});
+    } else if (item.type === 'remainder' && Cut && (item.length_remaining || (item.width_remaining && item.height_remaining))) {
+        cutFields.classList.remove('hidden');
+        Cut.renderFreeform(cutFieldsInputs, {}, () => {});
     } else {
         cutFields.classList.add('hidden');
+        if (cutFieldsInputs) cutFieldsInputs.innerHTML = '';
     }
 };
 
@@ -458,6 +628,35 @@ function calculateTotal() {
 document.getElementById('addItemForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     
+    if (editCustomMode) {
+        const name = document.getElementById('productSearch').value.trim();
+        if (!name) return showToast('Enter item name', 'error');
+        const qty = Number(document.getElementById('saleQuantity').value);
+        if (!qty || qty <= 0) return showToast('Enter a valid quantity', 'error');
+        const unitPrice = Number(document.getElementById('productPrice').value);
+        if (!unitPrice || unitPrice <= 0) return showToast('Enter a valid unit price', 'error');
+        const totalPrice = unitPrice * qty;
+        let cutPayload = {};
+        const cutWrap = document.getElementById('cutFields');
+        if (cutWrap && !cutWrap.classList.contains('hidden') && window.PstCutFields) {
+            cutPayload = PstCutFields.readInline(document.getElementById('cutFieldsInputs'));
+        }
+        const itemData = {
+            item_type: 'custom',
+            description: name,
+            custom_item_name: name,
+            custom_color: document.getElementById('editCustomColor')?.value.trim() || null,
+            custom_thickness: document.getElementById('editCustomThickness')?.value.trim() || null,
+            custom_measurement: document.getElementById('editCustomMeasurement')?.value.trim() || null,
+            quantity: qty,
+            unit_price: unitPrice,
+            total_price: totalPrice,
+            ...cutPayload,
+        };
+        await submitEditItem(itemData);
+        return;
+    }
+
     if (!selectedProduct) {
         showToast('Please select a product first', 'error');
         return;
@@ -487,7 +686,12 @@ document.getElementById('addItemForm').addEventListener('submit', async function
     
     const totalPrice = unitPrice * qty;
     
-    // Prepare item data
+    let cutPayload = {};
+    const cutWrap = document.getElementById('cutFields');
+    if (cutWrap && !cutWrap.classList.contains('hidden') && window.PstCutFields) {
+        cutPayload = PstCutFields.readInline(document.getElementById('cutFieldsInputs'));
+    }
+    const p = selectedProduct.product;
     const itemData = {
         inventory_id: selectedProduct.type === 'inventory' ? selectedProduct.id : null,
         remainder_id: selectedProduct.type === 'remainder' ? selectedProduct.id : null,
@@ -495,11 +699,19 @@ document.getElementById('addItemForm').addEventListener('submit', async function
         quantity: qty,
         unit_price: unitPrice,
         total_price: totalPrice,
-        cut_length: document.getElementById('cutLength')?.value || null,
-        cut_width: document.getElementById('cutWidth')?.value || null,
-        cut_height: document.getElementById('cutHeight')?.value || null,
+        custom_color: p.color || null,
+        custom_thickness: Picker ? Picker.thicknessLabel(p) : (p.thickness || null),
+        custom_measurement: Picker ? Picker.measurementLabel(p) : null,
+        cut_length: cutPayload.cut_length ?? null,
+        cut_width: cutPayload.cut_width ?? null,
+        cut_height: cutPayload.cut_height ?? null,
+        cut_measurement_unit: cutPayload.cut_measurement_unit ?? null,
     };
     
+    await submitEditItem(itemData);
+});
+
+async function submitEditItem(itemData) {
     try {
         const response = await fetch(`/api/sales/${saleId}/add-items`, {
             method: 'POST',
@@ -508,9 +720,7 @@ document.getElementById('addItemForm').addEventListener('submit', async function
                 'X-CSRF-TOKEN': csrfToken,
                 'Accept': 'application/json'
             },
-            body: JSON.stringify({
-                items: [itemData]
-            })
+            body: JSON.stringify({ items: [itemData] })
         });
         
         const result = await response.json();
@@ -528,7 +738,7 @@ document.getElementById('addItemForm').addEventListener('submit', async function
         console.error('Error adding item:', error);
         showToast('Failed to add item. Please try again.', 'error');
     }
-});
+}
 
 // Toast notification
 function showToast(message, type = 'success') {

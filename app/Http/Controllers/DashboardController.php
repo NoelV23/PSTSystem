@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Sale;
 use App\Models\Inventory;
 use App\Models\Branch;
+use App\Models\PurchaseOrder;
+use App\Models\SalesQuotation;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
@@ -29,6 +31,7 @@ class DashboardController extends Controller
         }
 
         $summary = $this->getSummaryData($today, $currentUser);
+        $pipeline = $this->getPipelineData($today, $currentUser);
         $branches = $this->getBranchPerformanceData($currentUser, $period);
         $inventoryAlerts = $this->getInventoryAlerts($currentUser);
         $outOfStockItems = $this->getOutOfStockItems($currentUser);
@@ -37,6 +40,7 @@ class DashboardController extends Controller
 
         return response()->json([
             'summary' => $summary,
+            'pipeline' => $pipeline,
             'branches' => $branches,
             'inventoryAlerts' => $inventoryAlerts,
             'outOfStockItems' => $outOfStockItems,
@@ -132,6 +136,27 @@ class DashboardController extends Controller
             'salesThisWeek' => $salesThisWeek,
             'salesThisMonth' => $salesThisMonth,
             'productsTracked' => $productsTracked,
+        ];
+    }
+
+    private function getPipelineData($today, $user)
+    {
+        $sqQuery = SalesQuotation::query();
+        $poDraftQuery = PurchaseOrder::where('status', 'draft');
+        $poReceivedTodayQuery = PurchaseOrder::where('status', 'received')->whereDate('order_date', $today);
+
+        if ($user->role === 'manager' || $user->role === 'staff') {
+            $sqQuery->where('branch_id', $user->branch_id);
+            $poDraftQuery->where('branch_id', $user->branch_id);
+            $poReceivedTodayQuery->where('branch_id', $user->branch_id);
+        }
+
+        return [
+            'quotationsPendingApproval' => (clone $sqQuery)->where('status', 'pending_approval')->count(),
+            'quotationsDraft' => (clone $sqQuery)->where('status', 'draft')->count(),
+            'quotationsApprovedOpen' => (clone $sqQuery)->where('status', 'approved')->whereNull('sale_id')->count(),
+            'purchaseOrdersDraft' => $poDraftQuery->count(),
+            'purchaseOrdersReceivedToday' => $poReceivedTodayQuery->count(),
         ];
     }
 

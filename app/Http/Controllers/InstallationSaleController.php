@@ -91,6 +91,7 @@ class InstallationSaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
         ]);
         
         DB::beginTransaction();
@@ -120,6 +121,7 @@ class InstallationSaleController extends Controller
                     'cut_length' => $item['cut_length'] ?? null,
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
+                    'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                 ]);
                 
                 $product = $inventory->product;
@@ -257,6 +259,7 @@ class InstallationSaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
         ]);
 
         \DB::beginTransaction();
@@ -285,6 +288,7 @@ class InstallationSaleController extends Controller
                     'cut_length' => $item['cut_length'] ?? null,
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
+                    'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                 ]);
 
                 // Try to use remainders first; replicate logic from saveRecordedProducts

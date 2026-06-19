@@ -118,8 +118,7 @@
 
                 <div id="referenceNumberSection" class="flex flex-col gap-1.5">
                     <x-input-label for="referenceNumber" value="Reference Number (Manual Receipt)" />
-                    <input id="referenceNumber" name="reference_number" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Enter reference number or receipt number" />
-                    <p class="text-xs text-gray-500">Required unless &quot;No invoice&quot; is checked.</p>
+                    <input id="referenceNumber" name="reference_number" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Receipt or invoice #" />
                 </div>
 
                 <div class="relative flex flex-col gap-1.5">
@@ -135,20 +134,20 @@
                         </div>
                     </div>
                     <div id="salesCustomModeBar" class="mt-2 hidden">
-                        <button type="button" id="salesEnterCustomBtn" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">Use as custom / non-catalog item</button>
+                        <button type="button" id="salesEnterCustomBtn" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">Add custom item</button>
                     </div>
                     <div id="salesCustomSpecFields" class="mt-3 hidden grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div class="flex flex-col gap-1">
                             <label for="salesCustomColor" class="text-xs font-medium text-gray-600">Color</label>
-                            <input id="salesCustomColor" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                            <input id="salesCustomColor" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Color">
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label for="salesCustomThickness" class="text-xs font-medium text-gray-600">Thickness / spec</label>
-                            <input id="salesCustomThickness" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                            <label for="salesCustomThickness" class="text-xs font-medium text-gray-600">Thickness</label>
+                            <input id="salesCustomThickness" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="e.g. 0.8 mm">
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label for="salesCustomMeasurement" class="text-xs font-medium text-gray-600">Size / length</label>
-                            <input id="salesCustomMeasurement" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Optional">
+                            <label for="salesCustomMeasurement" class="text-xs font-medium text-gray-600">Size</label>
+                            <input id="salesCustomMeasurement" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="e.g. 10 ft">
                         </div>
                     </div>
                     <div id="salesCustomCutSection" class="mt-2 hidden">
@@ -158,7 +157,7 @@
                         </div>
                     </div>
                     <p id="salesExitCustomLink" class="mt-2 hidden">
-                        <button type="button" id="salesExitCustomBtn" class="text-xs text-gray-600 hover:underline">← Back to catalog search</button>
+                        <button type="button" id="salesExitCustomBtn" class="text-xs text-gray-600 hover:underline">← Catalog search</button>
                     </p>
                 </div>
 
@@ -179,7 +178,7 @@
                             </div>
                         </div>
                         <div id="cutFields" class="hidden rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
-                            <x-input-label value="Cut size (if applicable)" class="mb-3" />
+                            <x-input-label value="Cut size" class="mb-3" />
                             <div id="cutFieldsInputs" class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 <!-- JS renders unit + dimension inputs here -->
                             </div>
@@ -246,11 +245,10 @@
                     <h2 class="text-lg font-semibold text-gray-900">Save remainder</h2>
                     <button type="button" id="closeCutRemainderModal" class="rounded-lg p-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
                 </div>
-                <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
-                    <p class="text-sm leading-relaxed text-gray-600">A cut was made. Enter a location note for the remainder if needed.</p>
+                <div class="space-y-4 px-5 py-4 sm:px-6 sm:py-5">
                     <div class="flex flex-col gap-1.5">
-                        <label for="cutRemainderNote" class="text-sm font-medium text-gray-700">Location note <span class="font-normal text-gray-500">(optional)</span></label>
-                        <input id="cutRemainderNote" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="e.g. Rack A, bay 3">
+                        <label for="cutRemainderNote" class="text-sm font-medium text-gray-700">Location</label>
+                        <input id="cutRemainderNote" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="e.g. Rack A">
                     </div>
                     <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4">
                         <button type="button" id="discardCutRemainderBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-amber-300 bg-amber-50 px-4 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-2 sm:w-auto">Mark as discarded</button>
@@ -269,11 +267,10 @@
                     <h2 class="text-lg font-semibold text-gray-900">Discard remainder</h2>
                     <button type="button" id="closeDiscardCutReasonModal" class="rounded-lg p-1 text-xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
                 </div>
-                <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
-                    <p class="text-sm text-gray-600">Please provide a reason for discarding this remainder.</p>
+                <div class="space-y-4 px-5 py-4 sm:px-6 sm:py-5">
                     <div class="flex flex-col gap-1.5">
                         <label for="discardCutReasonInput" class="text-sm font-medium text-gray-700">Reason <span class="text-red-600">*</span></label>
-                        <textarea id="discardCutReasonInput" rows="4" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Reason for discarding…"></textarea>
+                        <textarea id="discardCutReasonInput" rows="3" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Why discard?"></textarea>
                     </div>
                     <div class="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end sm:gap-4">
                         <button type="button" id="cancelDiscardCutBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Cancel</button>
@@ -316,21 +313,20 @@
                             <input type="text" id="deliveredTo" name="delivered_to" required class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Customer name">
                         </div>
                         <div class="flex flex-col gap-1.5">
-                            <label for="deliveryAddress" class="text-sm font-medium text-gray-700">Address <span class="font-normal text-gray-500">(optional)</span></label>
+                            <label for="deliveryAddress" class="text-sm font-medium text-gray-700">Address</label>
                             <textarea id="deliveryAddress" name="delivery_address" rows="3" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Delivery or pickup address"></textarea>
                         </div>
                         <div class="flex flex-col gap-1.5">
-                            <label for="deliveryContactPhone" class="text-sm font-medium text-gray-700">Contact number <span class="font-normal text-gray-500">(optional)</span></label>
+                            <label for="deliveryContactPhone" class="text-sm font-medium text-gray-700">Contact</label>
                             <input type="text" id="deliveryContactPhone" name="delivery_contact_phone" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="e.g. 0926-597-3537">
                         </div>
                         <div class="flex flex-col gap-1.5">
-                            <label for="deliveryNote" class="text-sm font-medium text-gray-700">Delivery note <span class="font-normal text-gray-500">(optional)</span></label>
+                            <label for="deliveryNote" class="text-sm font-medium text-gray-700">Note</label>
                             <textarea id="deliveryNote" name="delivery_note" rows="3" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Special instructions…"></textarea>
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label for="deliveryFee" class="text-sm font-medium text-gray-700">Delivery fee (₱)</label>
                             <input type="number" id="deliveryFee" name="delivery_fee" min="0" step="0.01" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="0.00">
-                            <p class="text-xs text-gray-500">If provided, this fee is added to the total amount.</p>
                         </div>
                         <div class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end sm:gap-4">
                             <button type="button" id="cancelDeliveryBtn" class="inline-flex min-h-[2.75rem] w-full items-center justify-center rounded-lg border border-gray-300 bg-white px-5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2 sm:w-auto">Cancel</button>
@@ -720,9 +716,10 @@ function renderSalesTable() {
         
 
         const canDelete = (currentUserRole === 'admin' || currentUserRole === 'manager');
+        const editHref = isInstallation ? `/installation-sales/${sale.id}/edit` : `/sales/${sale.id}/edit`;
         const actions = `${canDelete ? `<button class=\"text-red-600 hover:underline mr-2\" onclick=\"confirmDeleteSale(${sale.id})\">Delete</button>` : ''}
             <button class=\"text-blue-600 hover:underline mr-2\" onclick=\"viewSaleDetails(${sale.id})\">View</button>
-            <a href=\"/sales/${sale.id}/edit\" class=\"text-green-600 hover:underline\">Edit</a>
+            <a href=\"${editHref}\" class=\"text-green-600 hover:underline\">Edit</a>
             ${sale.is_delivered ? `<button class=\"text-purple-600 hover:underline ml-2\" onclick=\"printDeliveryReceipt(${sale.id})\">Delivery Receipt</button>` : ''}`;
         
         return `
@@ -903,7 +900,7 @@ function salesEnterCustomMode(prefillName = '') {
     document.getElementById('salesExitCustomLink')?.classList.remove('hidden');
     document.getElementById('salesCustomCutFields')?.classList.add('hidden');
     const meta = document.getElementById('productMeta');
-    if (meta) meta.innerHTML = '<span class="text-amber-800 font-medium">Custom / non-catalog item</span> — not deducted from inventory.';
+    if (meta) meta.innerHTML = '<span class="text-amber-800 font-medium">Custom item</span> — not from stock.';
     cutFields.classList.add('hidden');
     saleQuantity.value = saleQuantity.value || '1';
 }
@@ -994,6 +991,21 @@ function escapeHtmlSales(str) {
         .replace(/"/g, '&quot;');
 }
 
+function salesOfferCatalogAsCustom(product) {
+    if (!product) return;
+    salesHideVariantStrip();
+    productDropdown.classList.add('hidden');
+    const label = Picker ? Picker.groupLabel(product) : product.name;
+    salesEnterCustomMode(label);
+    const cc = document.getElementById('salesCustomColor');
+    if (cc) cc.value = product.color || '';
+    const ct = document.getElementById('salesCustomThickness');
+    if (ct) ct.value = Picker ? Picker.thicknessLabel(product) : (product.thickness || '');
+    const cm = document.getElementById('salesCustomMeasurement');
+    if (cm) cm.value = Picker ? Picker.measurementLabel(product) : '';
+    showToast('No stock — added as custom. Set qty and price.', 'info');
+}
+
 function salesHideVariantStrip() {
     salesInvVariantBucket = [];
     const strip = document.getElementById('salesVariantStrip');
@@ -1077,13 +1089,15 @@ function salesResultRowHtml(item) {
     const remainderInfo = item.remainderInfo || '';
 
     return `
-        <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100 ${item._noStock ? 'opacity-75' : ''}" onclick="${item._noStock ? `showToast('No stock for this item at this branch.', 'error')` : `selectProduct('${item.type}', ${item.id})`}">
+        <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100 ${item._noStock ? 'bg-amber-50/60' : ''}" ${item._noStock ? `data-sales-catalog-custom="1" data-product-id="${p.id}"` : `onclick="selectProduct('${item.type}', ${item.id})"`}>
             <div class="font-medium">
                 ${remainderIndicator}${escapeHtmlSales(displayName)} (${escapeHtmlSales(p.sku || 'No SKU')})
+                ${item._noStock ? '<span class="ml-1 text-xs font-medium text-amber-800">· no stock</span>' : ''}
             </div>
             <div class="text-xs text-gray-500">
                 ${escapeHtmlSales(item.source)} - Available: ${escapeHtmlSales(String(item.available_stock))}
                 ${remainderInfo ? ` - ${escapeHtmlSales(remainderInfo)}` : ''}
+                ${item._noStock ? ' · tap for custom' : ''}
             </div>
         </div>
     `;
@@ -1153,7 +1167,7 @@ function salesTryResolveInvVariant() {
         if (stockInv?.id) {
             window.selectProduct('inventory', stockInv.id);
         } else {
-            showToast('This variant is not in stock at this branch. You can add it as a custom item if needed.', 'error');
+            salesOfferCatalogAsCustom(row.product);
         }
     }
 }
@@ -1210,7 +1224,7 @@ productSearch.addEventListener('input', function() {
                 invParts.push(`
                     <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" data-sales-pick-group="${enc}">
                         <div class="font-medium">${escapeHtmlSales(lab)} <span class="text-gray-500 font-normal">· ${invs.length} variants</span></div>
-                        <div class="text-xs text-gray-500">Choose color, spec (if any), then size</div>
+                        <div class="text-xs text-gray-500">Pick color, spec, size</div>
                     </div>
                 `);
             }
@@ -1226,8 +1240,8 @@ productSearch.addEventListener('input', function() {
 
     if (!allParts.length) {
         productDropdown.innerHTML = `
-            <div class="px-4 py-2 text-gray-400">No catalog match.</div>
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-100 text-sm text-blue-700 font-medium" data-sales-use-custom="1">Add as custom item: “${escapeHtmlSales(query)}”</div>
+            <div class="px-4 py-2 text-gray-400">No match.</div>
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-100 text-sm text-blue-700 font-medium" data-sales-use-custom="1">Custom: “${escapeHtmlSales(query)}”</div>
         `;
         productDropdown.classList.remove('hidden');
         document.getElementById('salesCustomModeBar')?.classList.remove('hidden');
@@ -1241,6 +1255,15 @@ productSearch.addEventListener('input', function() {
 });
 
 productDropdown.addEventListener('mousedown', function (e) {
+    const catCustom = e.target.closest('[data-sales-catalog-custom]');
+    if (catCustom) {
+        e.preventDefault();
+        const pid = catCustom.dataset.productId;
+        const p = salesCatalogRows.find((r) => String(r.product_id) === String(pid))?.product
+            || inventory.find((i) => String(i.product_id) === String(pid))?.product;
+        if (p) salesOfferCatalogAsCustom(p);
+        return;
+    }
     const customPick = e.target.closest('[data-sales-use-custom]');
     if (customPick) {
         e.preventDefault();
@@ -1439,6 +1462,23 @@ function renderCutFields(item) {
     }
 
     cutFieldsDiv.classList.remove('hidden');
+
+    if (!isRemainder && window.PstCutFields && PstCutFields.isCuttable(product)) {
+        const saved = item._cutDraft || {
+            cut_length: null,
+            cut_width: null,
+            cut_height: null,
+            cut_measurement_unit: selectedCutMeasurementUnit,
+        };
+        PstCutFields.renderInline(cutFieldsInputs, product, saved, (cur) => {
+            item._cutDraft = cur;
+            selectedCutMeasurementUnit = cur.cut_measurement_unit;
+            refreshProductMetaCutInfo(item);
+        });
+        refreshProductMetaCutInfo(item);
+        return;
+    }
+
     const units = allowedCutUnitsForProduct(product);
     if (isRemainder) {
         selectedCutMeasurementUnit = remainderDisplayUnit(item, product);
@@ -1697,12 +1737,17 @@ addSaleItemBtn.addEventListener('click', function(e) {
     if (!unitPrice || unitPrice <= 0) return showToast('Enter a valid unit price', 'error');
     
     let cutSize = '';
+    let cutPayload = {};
+    const cutFieldsInputsEl = document.getElementById('cutFieldsInputs');
+    if (cutFields && !cutFields.classList.contains('hidden') && window.PstCutFields && selectedProduct.type === 'inventory' && PstCutFields.isCuttable(selectedProduct.product)) {
+        cutPayload = PstCutFields.readInline(cutFieldsInputsEl);
+    }
     const cutLengthInput = document.getElementById('cutLength');
     const cutWidthInput = document.getElementById('cutWidth');
     const cutHeightInput = document.getElementById('cutHeight');
-    const l = cutLengthInput ? Number(cutLengthInput.value) : 0;
-    const w = cutWidthInput ? Number(cutWidthInput.value) : 0;
-    const h = cutHeightInput ? Number(cutHeightInput.value) : 0;
+    const l = cutPayload.cut_length ?? (cutLengthInput ? Number(cutLengthInput.value) : 0);
+    const w = cutPayload.cut_width ?? (cutWidthInput ? Number(cutWidthInput.value) : 0);
+    const h = cutPayload.cut_height ?? (cutHeightInput ? Number(cutHeightInput.value) : 0);
     
     // Validate cut input(s) based on item type
     if (selectedProduct.type === 'remainder') {
@@ -1759,21 +1804,29 @@ addSaleItemBtn.addEventListener('click', function(e) {
     }
     
     const totalPrice = unitPrice * qty;
-    const cutMeasurementUnit = getActiveCutMeasurementUnit(selectedProduct.product);
+    const cutMeasurementUnit = cutPayload.cut_measurement_unit || getActiveCutMeasurementUnit(selectedProduct.product);
     const cutMeasurementLabel = productCutMeasurementLabel(cutMeasurementUnit);
+    const p = selectedProduct.product;
     saleItems.push({
         inventoryId: selectedProduct.id,
         type: selectedProduct.type,
-        productName: selectedProduct.product.name,
-        sku: selectedProduct.product.sku,
+        productName: p.name,
+        sku: p.sku,
         qty,
         cutSize,
+        cut_length: cutPayload.cut_length ?? (l > 0 ? l : null),
+        cut_width: cutPayload.cut_width ?? (w > 0 ? w : null),
+        cut_height: cutPayload.cut_height ?? (h > 0 ? h : null),
         cutMeasurementUnit,
         cutMeasurementLabel,
         unitPrice,
         totalPrice,
         remainderData: selectedProduct.type === 'remainder' ? selectedProduct : null,
-        isSet: selectedProduct.product.base_unit === 'per set'
+        isSet: p.base_unit === 'per set',
+        customColor: p.color || null,
+        customThickness: Picker ? Picker.thicknessLabel(p) : (p.thickness || null),
+        customMeasurement: Picker ? Picker.measurementLabel(p) : null,
+        specLabel: [Picker ? Picker.thicknessLabel(p) : p.thickness, Picker ? Picker.measurementLabel(p) : null, p.color].filter(Boolean).join(' · '),
     });
     
     renderSaleItems();
@@ -1881,6 +1934,9 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
         // Add the appropriate ID based on item type
         if (item.type === 'inventory') {
             obj.inventory_id = item.inventoryId;
+            if (item.customColor) obj.custom_color = item.customColor;
+            if (item.customThickness) obj.custom_thickness = item.customThickness;
+            if (item.customMeasurement) obj.custom_measurement = item.customMeasurement;
         } else if (item.type === 'remainder') {
             obj.remainder_id = item.remainderData.id;
         } else if (item.type === 'custom') {
@@ -1899,7 +1955,17 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
             return obj;
         }
         
-        if (item.cutSize && item.cutSize !== '' && item.cutSize !== '-') {
+        if (item.cut_length || item.cut_width || item.cut_height) {
+            if (item.cut_length) obj.cut_length = item.cut_length;
+            if (item.cut_width) obj.cut_width = item.cut_width;
+            if (item.cut_height) obj.cut_height = item.cut_height;
+            if (item.cutMeasurementUnit) obj.cut_measurement_unit = item.cutMeasurementUnit;
+            if (idx === pendingCutRemainder) {
+                if (location_note) obj.location_note = location_note;
+                if (status) obj.status = status;
+                if (discard_reason) obj.discard_reason = discard_reason;
+            }
+        } else if (item.cutSize && item.cutSize !== '' && item.cutSize !== '-') {
             // Parse cut fields if available
             const cutParts = item.cutSize.split(' x ').map(Number);
             if (cutParts.length === 1) obj.cut_length = cutParts[0];
@@ -2088,6 +2154,14 @@ window.viewSaleDetails = async function(saleId) {
                                 <span class="font-medium">Sale ID:</span>
                                 <span>#${sale.id}</span>
                             </div>
+                            ${sale.sales_quotation ? `
+                            <div class="flex justify-between">
+                                <span class="font-medium">Quotation:</span>
+                                <a href="/sales-quotations/${sale.sales_quotation.id}/print" target="_blank" class="text-blue-600 hover:underline">
+                                    ${sale.sales_quotation.quotation_number || ('#' + sale.sales_quotation.id)}
+                                </a>
+                            </div>
+                            ` : ''}
                             <div class="flex justify-between">
                                 <span class="font-medium">Date:</span>
                                 <span>${sale.created_at ? new Date(sale.created_at).toLocaleString() : '-'}</span>
@@ -2170,7 +2244,7 @@ window.viewSaleDetails = async function(saleId) {
                                                 <div class="font-medium">
                                                     ${salesApiItemDisplayHtml(item)}
                                                 </div>
-                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || (item.product_id ? 'No SKU' : '—')}</div>
+                                                <div class="text-sm text-gray-600">SKU: ${item.product?.sku || (item.product_id ? 'No SKU' : 'Custom')}</div>
                                                 ${item.cut_length || item.cut_width || item.cut_height ? `
                                                     <div class="text-sm text-gray-600">
                                                         Cut Size: ${[item.cut_length, item.cut_width, item.cut_height].filter(Boolean).join(' x ')}${item.cut_measurement_unit ? ` (${item.cut_measurement_unit})` : ''}

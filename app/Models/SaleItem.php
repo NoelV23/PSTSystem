@@ -104,4 +104,38 @@ class SaleItem extends Model
 
         return $text;
     }
+
+    public function reportGroupKey(): string
+    {
+        if ($this->product_id) {
+            return 'p:'.$this->product_id;
+        }
+
+        $parts = [
+            mb_strtolower(trim($this->custom_item_name ?: $this->description ?: 'custom')),
+            mb_strtolower(trim($this->custom_color ?? '')),
+            mb_strtolower(trim($this->custom_thickness ?? '')),
+            mb_strtolower(trim($this->custom_measurement ?? '')),
+        ];
+
+        return 'c:'.implode('|', $parts);
+    }
+
+    public function reportProductName(): string
+    {
+        if ($this->product_id && $this->product) {
+            return $this->product->name;
+        }
+
+        return $this->lineDisplayName();
+    }
+
+    public function reportProductSku(): string
+    {
+        if ($this->product_id && $this->product) {
+            return $this->product->sku ?? '—';
+        }
+
+        return 'Custom';
+    }
 } 

@@ -7,7 +7,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Sales quotations</h2>
-                    <p class="mt-1 text-sm text-gray-600">Sales quotations are formal price offers for a customer: line items, totals, tax, and terms. Use them to record what was quoted before an order becomes a sale. <span class="text-gray-700">Items you do not stock yet (or that are not in the catalog) can still be quoted: use <strong>Description</strong> + quantity + price; linking a product is optional.</span></p>
+                    <p class="mt-1 text-sm text-gray-500">Price quotes for customers. Custom items OK — no catalog link needed.</p>
                 </div>
                 <button type="button" id="sqNewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                     + New quotation
@@ -154,20 +154,12 @@
                             <span class="text-base font-semibold text-gray-900 sm:text-lg">Line items</span>
                             <button type="button" id="sqAddLineBtn" class="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add line</button>
                         </div>
-                        <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-                            <p class="font-semibold text-sky-900">Supplier-sourced or not in catalog?</p>
-                            <ul class="mt-2 list-inside list-disc space-y-1 text-sky-900/90">
-                                <li>Fill <strong>Description</strong> (details for your team), <strong>Qty</strong>, and <strong>Unit ₱</strong> — you can save with no catalog product.</li>
-                                <li>Search the product field: if nothing matches, use <strong>Use as custom</strong> (or <strong>Not in catalog — add specs</strong>) to enter <strong>item name</strong> in the same search box plus color, thickness, and size/length (include units in the text, e.g. <code class="rounded bg-white/80 px-1">3 mm</code>) — saved and shown on print.</li>
-                                <li>For catalog products, <strong>cut size</strong> fields appear automatically when the item has length / sheet dimensions (same as Sales). For custom lines, click <strong>+ Cut size</strong>.</li>
-                                <li>When you convert to a sale, lines without stock must be added manually (or after you receive stock).</li>
-                            </ul>
-                        </div>
+                        <p class="mb-3 text-xs text-gray-500">No catalog match? Search → <strong>Custom</strong>. Linking a product is optional.</p>
                         <div class="-mx-1 overflow-x-auto rounded-lg border border-gray-100 bg-white sm:mx-0">
                             <table class="w-full min-w-[56rem] text-sm lg:min-w-[60rem]">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product <span class="font-normal normal-case text-gray-400">(optional — stock lookup)</span></th>
+                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-28 text-right">Avail.</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-[20rem]">Description <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-24">Qty <span class="text-red-600">*</span></th>
@@ -207,8 +199,8 @@
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10">
         <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-w-xl">
             <div class="border-b border-gray-100 px-5 py-4 sm:px-6">
-                <h3 class="text-lg font-semibold text-gray-900">Link recorded sale</h3>
-                <p class="mt-2 text-sm leading-relaxed text-gray-600">After you create the sale in Sales, enter its ID here to close the loop.</p>
+                <h3 class="text-lg font-semibold text-gray-900">Link sale</h3>
+                <p class="mt-0.5 text-xs text-gray-500">Enter the sale ID after creating it</p>
             </div>
             <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
                 <input type="hidden" id="sqLinkQuotationId">
@@ -523,6 +515,7 @@
         if (printable) {
             html += ` <a href="/sales-quotations/${id}/print" target="_blank" class="text-gray-800 hover:underline text-xs">Print</a>`;
             html += ` <a href="/sales?quotation=${id}" class="text-blue-700 hover:underline text-xs font-medium">Open sales</a>`;
+            html += ` <a href="/purchases?quotation=${id}" class="text-emerald-700 hover:underline text-xs font-medium">Open PO</a>`;
         }
         if (draft) {
             html += ` <button type="button" data-sq-action="delete" data-id="${id}" class="text-red-600 hover:underline text-xs">Delete</button>`;
@@ -1120,7 +1113,7 @@
         if (!tr) return;
         const hidden = tr.querySelector('.sq-line-product-id');
         if (hidden && hidden.value) {
-            toast('Clear the catalog product first, or pick “Use as custom” from search when there is no match.', false);
+            toast('Clear product first, or pick Custom from search.', false);
             return;
         }
         tr.dataset.sqCustomMode = '1';
@@ -1401,11 +1394,10 @@
                     const safeQ = escapeHtml(q);
                     if (q) {
                         baseDd.innerHTML = `
-                            <div class="px-3 py-2 text-sm text-gray-700">No matching products in the catalog.</div>
-                            <div class="px-3 pb-2 text-xs text-gray-500">Not set up in the system yet? You can still quote it as a custom line.</div>
-                            <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-sq-use-custom="1">Use as custom: <span class="font-semibold">${safeQ}</span></button>`;
+                            <div class="px-3 py-2 text-sm text-gray-600">No match.</div>
+                            <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-sq-use-custom="1">Custom: <span class="font-semibold">${safeQ}</span></button>`;
                     } else {
-                        baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Type a product name to search, or use “Not in catalog” below.</div>';
+                        baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Type to search</div>';
                     }
                 } else {
                     baseDd.innerHTML = entries.map(([key, invs]) => {
@@ -1555,10 +1547,10 @@
                     </div>
                     <button type="button" class="sq-line-toggle-cut hidden text-left text-xs font-medium text-amber-800 hover:text-amber-950 hover:underline" aria-expanded="false">+ Cut size</button>
                     <div class="sq-line-cut-wrap hidden w-full">
-                        <p class="mt-1 mb-1 text-xs font-medium text-amber-900">Cut size <span class="font-normal text-amber-800">(optional — e.g. one piece cut to length)</span></p>
+                        <p class="mt-1 mb-1 text-xs font-medium text-amber-900">Cut size</p>
                         <div class="sq-line-cut-fields flex flex-wrap items-center gap-2"></div>
                     </div>
-                    <button type="button" class="sq-line-enter-custom text-left text-xs font-medium text-gray-600 hover:text-blue-800 hover:underline">Not in catalog — add specs</button>
+                    <button type="button" class="sq-line-enter-custom text-left text-xs font-medium text-gray-600 hover:text-blue-800 hover:underline">Add custom specs</button>
                     <input type="hidden" class="sq-line-product-id" value="${escapeHtml(initHid)}">
                     <button type="button" class="sq-line-clear-product text-left text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline">Clear product / custom item</button>
                 </div>

@@ -162,16 +162,40 @@
         $u = $p->base_unit ?? '';
         return strtolower(preg_replace('/^per\s+/i', '', $u) ?: 'pcs');
     };
+    $lineTotalLm = function ($line) {
+        $qty = (float) $line->quantity;
+        $cutParts = array_values(array_filter([
+            $line->cut_length,
+            $line->cut_width,
+            $line->cut_height,
+        ], fn ($v) => $v !== null && (float) $v > 0));
+        if (count($cutParts) === 1) {
+            return $qty * (float) $cutParts[0];
+        }
+        $p = $line->product;
+        if ($p) {
+            $len = (float) ($p->default_length ?? 0);
+            if ($len > 0 && $cutParts === []) {
+                return $qty * $len;
+            }
+        }
+        if (! $p && $line->custom_measurement) {
+            if (preg_match('/^([\d.]+)/', trim((string) $line->custom_measurement), $m)) {
+                $len = (float) $m[1];
+                if ($len > 0 && $cutParts === []) {
+                    return $qty * $len;
+                }
+            }
+        }
+
+        return null;
+    };
     $sumTotalLm = 0.0;
     $sumLineTotal = 0.0;
     foreach ($items as $line) {
-        $p = $line->product;
-        if (! $p) {
-            continue;
-        }
-        $len = (float) ($p->default_length ?? 0);
-        if ($len > 0) {
-            $sumTotalLm += (float) $line->quantity * $len;
+        $lm = $lineTotalLm($line);
+        if ($lm !== null) {
+            $sumTotalLm += $lm;
         }
         $sumLineTotal += (float) $line->quantity * (float) $line->cost_price;
     }
@@ -220,21 +244,13 @@
     @foreach($items as $i => $line)
         @php
             $p = $line->product;
-            if (! $p) {
-                continue;
-            }
             $qty = (float) $line->quantity;
-            $w = $p->default_width;
-            $l = $p->default_length;
-            $h = $p->default_height;
-            $gauge = ($h !== null && (float) $h > 0) ? rtrim(rtrim(number_format((float) $h, 2), '0'), '.') : '—';
-            $width = ($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—';
-            $length = ($l !== null && (float) $l > 0) ? rtrim(rtrim(number_format((float) $l, 2), '0'), '.') : '—';
             $cutParts = array_values(array_filter([
                 $line->cut_length,
                 $line->cut_width,
                 $line->cut_height,
             ], fn ($v) => $v !== null && (float) $v > 0));
+            $cutStr = null;
             if ($cutParts !== []) {
                 $cutStr = implode(' × ', array_map(
                     fn ($v) => rtrim(rtrim(number_format((float) $v, 3), '0'), '.'),
@@ -243,20 +259,45 @@
                 if ($line->cut_measurement_unit) {
                     $cutStr .= ' '.$line->cut_measurement_unit;
                 }
-                $length = $cutStr.' (cut)';
             }
-            $totalLm = ($l !== null && (float) $l > 0 && $cutParts === []) ? $qty * (float) $l : null;
-            $lineTotal = $qty * (float) $line->cost_price;
+            if (! $p) {
+                $name = $line->lineDisplayName();
+                $gauge = $line->custom_thickness ? rtrim(rtrim((string) $line->custom_thickness, ' '), '.') : '—';
+                $width = '—';
+                $length = $line->custom_measurement ? rtrim(rtrim((string) $line->custom_measurement, ' '), '.') : '—';
+                if ($cutStr) {
+                    $length = $cutStr.' (cut)';
+                }
+                $color = $line->custom_color ?: '—';
+                $unit = 'pcs';
+                $totalLm = $lineTotalLm($line);
+                $lineTotal = $qty * (float) $line->cost_price;
+            } else {
+                $w = $p->default_width;
+                $l = $p->default_length;
+                $h = $p->default_height;
+                $name = $p->name;
+                $gauge = ($h !== null && (float) $h > 0) ? rtrim(rtrim(number_format((float) $h, 2), '0'), '.') : '—';
+                $width = ($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—';
+                $length = ($l !== null && (float) $l > 0) ? rtrim(rtrim(number_format((float) $l, 2), '0'), '.') : '—';
+                if ($cutStr) {
+                    $length = $cutStr.' (cut)';
+                }
+                $totalLm = $lineTotalLm($line);
+                $lineTotal = $qty * (float) $line->cost_price;
+                $color = $p->color ?: '—';
+                $unit = $unitLabel($p);
+            }
         @endphp
         <tr>
             <td class="cen">{{ rtrim(rtrim(number_format($qty, 2), '0'), '.') }}</td>
-            <td class="cen">{{ $unitLabel($p) }}</td>
-            <td>{{ $p->name }}</td>
+            <td class="cen">{{ $unit }}</td>
+            <td>{{ $name }}</td>
             <td class="cen">{{ $gauge }}</td>
             <td class="cen">{{ $width }}</td>
             <td class="cen">{{ $length }}</td>
-            <td class="num">{{ $totalLm !== null ? rtrim(rtrim(number_format($totalLm, 2), '0'), '.') : '—' }}</td>
-            <td class="color-cell">{{ $p->color ?: '—' }}</td>
+            <td class="num">{{ isset($totalLm) && $totalLm !== null ? rtrim(rtrim(number_format($totalLm, 2), '0'), '.') : '—' }}</td>
+            <td class="color-cell">{{ $color }}</td>
             <td class="num">{{ rtrim(rtrim(number_format((float) $line->cost_price, 2), '0'), '.') }}</td>
             <td class="num">{{ $fmtPhp($lineTotal) }}</td>
         </tr>

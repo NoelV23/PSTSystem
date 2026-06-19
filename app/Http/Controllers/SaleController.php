@@ -218,6 +218,10 @@ class SaleController extends Controller
             'items.*.quantity' => 'nullable|numeric|min:0',
             'items.*.unit_price' => 'nullable|numeric|min:0',
             'items.*.total_price' => 'nullable|numeric|min:0',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
+            'items.*.description' => 'nullable|string|max:500',
             'items.*.item_type' => 'nullable|in:inventory,remainder,custom',
             'items.*.description' => 'nullable|string',
             'items.*.custom_item_name' => 'nullable|string|max:255',
@@ -327,6 +331,10 @@ class SaleController extends Controller
                 
                 $saleItem = $sale->saleItems()->create([
                     'product_id' => $productId,
+                    'description' => $item['description'] ?? null,
+                    'custom_color' => $item['custom_color'] ?? null,
+                    'custom_thickness' => $item['custom_thickness'] ?? null,
+                    'custom_measurement' => $item['custom_measurement'] ?? null,
                     'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
                     'cut_length' => $item['cut_length'] ?? null,
@@ -699,7 +707,7 @@ class SaleController extends Controller
     // API: Show sale details with items and user
     public function showDetails($id)
     {
-        $sale = \App\Models\Sale::with(['user', 'saleItems.product'])->findOrFail($id);
+        $sale = \App\Models\Sale::with(['user', 'saleItems.product', 'salesQuotation'])->findOrFail($id);
         return response()->json($sale);
     }
 
@@ -728,8 +736,13 @@ class SaleController extends Controller
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.unit_price' => 'required|numeric|min:0',
             'items.*.total_price' => 'required|numeric|min:0',
-            'items.*.item_type' => 'required|in:inventory,remainder',
+            'items.*.item_type' => 'required|in:inventory,remainder,custom',
             'items.*.inventory_id' => 'nullable|exists:inventories,id',
+            'items.*.description' => 'nullable|string|max:255',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
@@ -737,18 +750,25 @@ class SaleController extends Controller
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
         ]);
         
-        // Custom validation for inventory_id based on item_type
         foreach ($request->input('items', []) as $index => $item) {
-            if ($item['item_type'] === 'inventory') {
+            $itemType = $item['item_type'] ?? 'inventory';
+            if ($itemType === 'inventory') {
                 if (!isset($item['inventory_id']) || !\App\Models\Inventory::find($item['inventory_id'])) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         "items.{$index}.inventory_id" => ['The inventory_id field is required and must exist for inventory items.']
                     ]);
                 }
-            } elseif ($item['item_type'] === 'remainder') {
+            } elseif ($itemType === 'remainder') {
                 if (!isset($item['remainder_id']) || !\App\Models\CutRemainder::find($item['remainder_id'])) {
                     throw \Illuminate\Validation\ValidationException::withMessages([
                         "items.{$index}.remainder_id" => ['The remainder_id field is required and must exist for remainder items.']
+                    ]);
+                }
+            } elseif ($itemType === 'custom') {
+                $name = trim((string) ($item['custom_item_name'] ?? $item['description'] ?? ''));
+                if ($name === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.custom_item_name" => ['A name or description is required for custom items.']
                     ]);
                 }
             }
@@ -763,6 +783,31 @@ class SaleController extends Controller
             $hasFulfillmentSource = \Schema::hasColumn('sale_items', 'fulfillment_source');
             
             foreach ($validated['items'] as $item) {
+                if ($item['item_type'] === 'custom') {
+                    $saleItemData = [
+                        'sale_id' => $sale->id,
+                        'product_id' => null,
+                        'description' => $item['description'] ?? $item['custom_item_name'] ?? null,
+                        'custom_item_name' => $item['custom_item_name'] ?? null,
+                        'custom_color' => $item['custom_color'] ?? null,
+                        'custom_thickness' => $item['custom_thickness'] ?? null,
+                        'custom_measurement' => $item['custom_measurement'] ?? null,
+                        'quantity' => $item['quantity'],
+                        'unit_price' => $item['unit_price'],
+                        'total_price' => $item['total_price'],
+                        'cut_length' => $item['cut_length'] ?? null,
+                        'cut_width' => $item['cut_width'] ?? null,
+                        'cut_height' => $item['cut_height'] ?? null,
+                        'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
+                    ];
+                    if ($hasFulfillmentSource) {
+                        $saleItemData['fulfillment_source'] = 'custom';
+                    }
+                    \App\Models\SaleItem::create($saleItemData);
+                    $newTotalAmount += $item['total_price'];
+                    continue;
+                }
+
                 if ($item['item_type'] === 'inventory') {
                     $inventory = \App\Models\Inventory::find($item['inventory_id']);
                     $product = $inventory->product;
@@ -790,6 +835,10 @@ class SaleController extends Controller
                     $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => $product->id,
+                        'description' => $item['description'] ?? null,
+                        'custom_color' => $item['custom_color'] ?? null,
+                        'custom_thickness' => $item['custom_thickness'] ?? null,
+                        'custom_measurement' => $item['custom_measurement'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
                         'total_price' => $item['total_price'],

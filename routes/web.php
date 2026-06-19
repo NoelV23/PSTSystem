@@ -56,6 +56,7 @@ Route::middleware(['auth', 'restrict.staff'])->group(function () {
     Route::get('/reports', [\App\Http\Controllers\ReportsController::class, 'index'])->name('reports.index')->middleware('role:admin,manager');
     Route::get('/reports/sales', [\App\Http\Controllers\ReportsController::class, 'sales'])->name('reports.sales')->middleware('role:admin,manager');
     Route::get('/reports/purchases', [\App\Http\Controllers\ReportsController::class, 'purchases'])->name('reports.purchases')->middleware('role:admin,manager');
+    Route::get('/reports/quotations', [\App\Http\Controllers\ReportsController::class, 'quotations'])->name('reports.quotations')->middleware('role:admin,manager');
     Route::get('/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventory'])->name('reports.inventory')->middleware('role:admin,manager');
     Route::get('/api/reports/inventory', [\App\Http\Controllers\ReportsController::class, 'inventoryData'])->name('api.reports.inventory')->middleware('role:admin,manager');
     Route::get('/reports/installation-sales', [\App\Http\Controllers\ReportsController::class, 'installationSales'])->name('reports.installation-sales')->middleware('role:admin,manager');
