@@ -163,44 +163,35 @@
 		<!-- Add Usage -->
 		@if(!$isCompleted)
 		<div class="bg-white rounded-lg shadow-md p-6">
-			<h3 class="text-lg font-semibold text-gray-900 mb-4">Add Product Used</h3>
+			<h3 class="text-lg font-semibold text-gray-900 mb-1">Add Product Used</h3>
+			<p class="text-sm text-gray-500 mb-4">Record materials used from branch inventory. Pick color or size if shown below the search.</p>
 			<div class="mb-4">
-				<label for="productSearch" class="block text-sm font-medium text-gray-700 mb-1">Search Products</label>
+				<label for="productSearch" class="block text-sm font-medium text-gray-700 mb-1">Search product</label>
 				<div class="relative">
 					<input type="text" id="productSearch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="Type product name or SKU...">
-					<div id="productDropdown" class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-40 overflow-y-auto hidden"></div>
+					<div id="productDropdown" class="absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
+				</div>
+				<div id="instVariantStrip" class="mt-2 hidden flex flex-wrap items-end gap-2">
+					<select id="instVarColor" class="max-w-[8rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
+					<select id="instVarThick" class="max-w-[10rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
+					<select id="instVarMeas" class="max-w-[11rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
 				</div>
 			</div>
 
 			<div id="productDetailsSection" class="hidden space-y-4">
+				<div class="bg-gray-50 p-3 rounded-lg text-sm text-gray-700" id="productMeta"></div>
 				<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 					<div>
-						<label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity Used</label>
-						<input type="number" id="productQuantity" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-blue-400 focus:border-transparent">
-					</div>
-					<div>
-						<label for="productName" class="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-						<input type="text" id="productName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" readonly>
+						<label for="productQuantity" class="block text-sm font-medium text-gray-700 mb-1">Quantity used</label>
+						<input type="number" id="productQuantity" min="0.01" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400">
 					</div>
 				</div>
-				<div id="cutFields" class="hidden">
-					<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-						<div>
-							<label for="cutLength" class="block text-sm font-medium text-gray-700 mb-1">Cut Length</label>
-							<input type="number" id="cutLength" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-						</div>
-						<div>
-							<label for="cutWidth" class="block text-sm font-medium text-gray-700 mb-1">Cut Width</label>
-							<input type="number" id="cutWidth" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-						</div>
-						<div>
-							<label for="cutHeight" class="block text-sm font-medium text-gray-700 mb-1">Cut Height</label>
-							<input type="number" id="cutHeight" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
-						</div>
-					</div>
+				<div id="cutFields" class="hidden rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-3">
+					<p class="mb-2 text-xs font-medium text-amber-900">Cut size</p>
+					<div id="cutFieldsInputs" class="flex flex-wrap items-center gap-2"></div>
 				</div>
 				<div class="flex justify-end">
-					<button type="button" id="addUsageBtn" class="px-4 py-2 bg-blue-500 hover:bg-red-600 text-white rounded-lg transition duration-200">Add Usage</button>
+					<button type="button" id="addUsageBtn" class="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition duration-200">Add usage</button>
 				</div>
 			</div>
 		</div>
@@ -213,37 +204,40 @@
 	</div>
 </div>
 
+<script src="{{ asset('js/pst-product-variant-picker.js') }}"></script>
+<script src="{{ asset('js/pst-cut-fields.js') }}"></script>
 <script>
 const saleId = {{ $sale->id }};
+const branchId = {{ $sale->branch_id }};
 let selectedProduct = null;
+let instInvVariantBucket = [];
+let catalogRows = [];
+const Picker = window.PstProductVariantPicker;
 let inventory = [];
+let remainders = [];
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
 function resetProductSelection() {
     selectedProduct = null;
+    instInvVariantBucket = [];
+    document.getElementById('instVariantStrip')?.classList.add('hidden');
     const searchInput = document.getElementById('productSearch');
     const dropdown = document.getElementById('productDropdown');
     const detailsSection = document.getElementById('productDetailsSection');
-    const productName = document.getElementById('productName');
     const productQty = document.getElementById('productQuantity');
-    const cutLength = document.getElementById('cutLength');
-    const cutWidth = document.getElementById('cutWidth');
-    const cutHeight = document.getElementById('cutHeight');
+    const cutFields = document.getElementById('cutFields');
+    const cutInputs = document.getElementById('cutFieldsInputs');
+    const productMeta = document.getElementById('productMeta');
 
     if (searchInput) searchInput.value = '';
-    if (dropdown) {
-        dropdown.innerHTML = '';
-        dropdown.classList.add('hidden');
-    }
+    if (dropdown) { dropdown.innerHTML = ''; dropdown.classList.add('hidden'); }
     if (detailsSection) detailsSection.classList.add('hidden');
-    if (productName) productName.value = '';
     if (productQty) productQty.value = '';
-    if (cutLength) cutLength.value = '';
-    if (cutWidth) cutWidth.value = '';
-    if (cutHeight) cutHeight.value = '';
+    if (productMeta) productMeta.textContent = '';
+    if (cutFields) cutFields.classList.add('hidden');
+    if (cutInputs) cutInputs.innerHTML = '';
 }
 
-// Load available inventory for branch
 async function loadInventory() {
     const res = await fetch(`/api/installation-sales/${saleId}/inventory`, { headers: { 'Accept': 'application/json' } });
     try {
@@ -254,9 +248,128 @@ async function loadInventory() {
     }
 }
 
+async function loadRemainders() {
+    try {
+        const res = await fetch(`/api/inventory/branch/${branchId}/remainders?per_page=500`, {
+            headers: { 'X-CSRF-TOKEN': csrfToken, Accept: 'application/json' },
+        });
+        if (res.ok) {
+            const data = await res.json();
+            remainders = data.data || data || [];
+        }
+    } catch (_) {
+        remainders = [];
+    }
+}
+
+async function mergeCatalogRows() {
+    catalogRows = inventory.map((row) => ({ ...row }));
+    const inBranch = new Set(catalogRows.map((r) => String(r.product_id)));
+    try {
+        const pres = await fetch('/api/products?per_page=5000', { headers: { 'X-CSRF-TOKEN': csrfToken, Accept: 'application/json' } });
+        if (pres.ok) {
+            const pdata = await pres.json();
+            (pdata.data || pdata).forEach((p) => {
+                if (!inBranch.has(String(p.id))) {
+                    catalogRows.push({ product_id: p.id, product: p, available_stock: 0, _catalogOnly: true });
+                }
+            });
+        }
+    } catch (_) { /* optional */ }
+}
+
+function instPopulateVariantStrip() {
+    const strip = document.getElementById('instVariantStrip');
+    const selC = document.getElementById('instVarColor');
+    const selT = document.getElementById('instVarThick');
+    const selM = document.getElementById('instVarMeas');
+    if (!strip || !selC || !selT || !selM || !Picker) return;
+    const invs = instInvVariantBucket;
+    if (!invs.length) { strip.classList.add('hidden'); return; }
+    const colors = Picker.distinctColors(invs);
+    const thicks = Picker.distinctThicknesses(invs);
+    const meas = Picker.distinctMeasurements(invs);
+    selC.classList.toggle('hidden', colors.length === 1 && colors[0] === '');
+    selC.innerHTML = '<option value="">Color…</option>' + colors.map((c) => `<option value="${c}">${c || '(none)'}</option>`).join('');
+    selT.classList.toggle('hidden', !thicks.length);
+    selT.innerHTML = '<option value="">Thickness…</option>' + thicks.map((t) => `<option value="${t.value}">${t.label}</option>`).join('');
+    selM.innerHTML = '<option value="">Size…</option>' + meas.map((m) => `<option value="${m.value}">${m.label}</option>`).join('');
+    if (colors.length === 1) selC.value = colors[0];
+    if (thicks.length === 1) selT.value = thicks[0].value;
+    if (meas.length === 1) selM.value = meas[0].value;
+    strip.classList.remove('hidden');
+}
+
+function instTryResolveVariant() {
+    if (!Picker || !instInvVariantBucket.length) return;
+    const selC = document.getElementById('instVarColor');
+    const selT = document.getElementById('instVarThick');
+    const selM = document.getElementById('instVarMeas');
+    const f = {};
+    if (selC && !selC.classList.contains('hidden')) f.color = selC.value;
+    if (selT && !selT.classList.contains('hidden') && selT.value) f.thicknessValue = selT.value;
+    if (selM && selM.value) f.measurementValue = selM.value;
+    const narrowed = Picker.narrowVariants(instInvVariantBucket, f);
+    if (narrowed.length === 1) {
+        const row = narrowed[0];
+        const stockInv = row.id ? row : inventory.find((i) => String(i.product_id) === String(row.product_id));
+        if (stockInv?.id && (parseFloat(stockInv.available_stock) || 0) > 0) {
+            selectInventoryRow(stockInv);
+        } else {
+            alert('No stock for this option. Receive the PO or adjust inventory first.');
+        }
+    }
+}
+
+function selectInventoryRow(item) {
+    if (!item?.id) return;
+    selectedProduct = item;
+    const p = item.product || {};
+    const label = Picker ? Picker.groupLabel(p) : (p.name || '');
+    document.getElementById('productSearch').value = label;
+    document.getElementById('productDropdown').classList.add('hidden');
+    document.getElementById('productDetailsSection').classList.remove('hidden');
+    document.getElementById('productQuantity').value = 1;
+    document.getElementById('productMeta').innerHTML =
+        `<strong>${label}</strong> · SKU: ${p.sku || '—'} · Available: ${item.available_stock ?? 0}`;
+
+    const cutFields = document.getElementById('cutFields');
+    const cutInputs = document.getElementById('cutFieldsInputs');
+    if (window.PstCutFields && cutInputs && p.base_unit !== 'per set') {
+        if (PstCutFields.isCuttable(p)) {
+            PstCutFields.renderInline(cutInputs, p, {}, () => {});
+            cutFields.classList.remove('hidden');
+        } else {
+            cutFields.classList.add('hidden');
+            cutInputs.innerHTML = '';
+        }
+    } else {
+        cutFields?.classList.add('hidden');
+        if (cutInputs) cutInputs.innerHTML = '';
+    }
+}
+
+window.selectRemainderRow = function(id) {
+    const rem = remainders.find((r) => r.id === id);
+    if (!rem) return;
+    const pid = rem.product_id;
+    const stockInv = inventory.find((i) => String(i.product_id) === String(pid) && (parseFloat(i.available_stock) || 0) > 0);
+    if (!stockInv) {
+        alert('No stock for this remainder product.');
+        return;
+    }
+    selectInventoryRow(stockInv);
+};
+
 document.addEventListener('DOMContentLoaded', async () => {
     await loadInventory();
+    await loadRemainders();
+    await mergeCatalogRows();
     resetProductSelection();
+
+    ['instVarColor', 'instVarThick', 'instVarMeas'].forEach((id) => {
+        document.getElementById(id)?.addEventListener('change', instTryResolveVariant);
+    });
 });
 
 const markCompletedBtn = document.getElementById('markCompletedBtn');
@@ -311,56 +424,91 @@ if (reopenSaleBtn) {
     });
 }
 
-// Search
+// Search (variant picker)
 const productSearchInput = document.getElementById('productSearch');
 if (productSearchInput) {
     productSearchInput.addEventListener('input', function() {
         const query = this.value.trim().toLowerCase();
         const dropdown = document.getElementById('productDropdown');
+        instInvVariantBucket = [];
+        document.getElementById('instVariantStrip')?.classList.add('hidden');
         if (!query) { dropdown.classList.add('hidden'); return; }
-        const list = Array.isArray(inventory) ? inventory : [];
-        const filtered = list.filter(item => (item.product?.name||'').toLowerCase().includes(query) || (item.product?.sku||'').toLowerCase().includes(query));
-        dropdown.innerHTML = filtered.map(item => `
-            <div class="px-4 py-2 hover:bg-gray-100 cursor-pointer" onclick="selectProduct(${item.id})">
-                <div class="font-medium">
-                    ${(() => { const p=item.product||{}; let name=p.name||''; if(p.color) name+=' '+p.color; let m=''; if(p.measurement_unit==='sq ft'&&p.default_width&&p.default_height){m=`${p.default_width}×${p.default_height} sq ft`;} else if(p.default_length){const u=p.measurement_unit||((p.base_unit||'').replace('per ','')); m=`${p.default_length} ${u}`;} return m?`${name} (${m})`:name; })()}
-                </div>
-                <div class="text-sm text-gray-500">SKU: ${item.product?.sku||'No SKU'} | Available: ${item.available_stock}</div>
-            </div>
-        `).join('');
+
+        const filteredRemainders = remainders.filter((item) =>
+            (item.product?.name || '').toLowerCase().includes(query) ||
+            (item.product?.sku && item.product.sku.toLowerCase().includes(query))
+        );
+
+        let invParts = [];
+        window.__instGroupMap = new Map();
+        if (Picker) {
+            const gmap = Picker.groupsMatchingQuery(catalogRows, query);
+            const entries = [...gmap.entries()].sort((a, b) => Picker.groupLabel(a[1][0].product).localeCompare(Picker.groupLabel(b[1][0].product)));
+            entries.forEach(([key, invs]) => {
+                const withStock = invs.filter((row) => {
+                    const stockInv = row.id ? row : inventory.find((i) => String(i.product_id) === String(row.product_id));
+                    return stockInv?.id && (parseFloat(stockInv.available_stock) || 0) > 0;
+                });
+                if (!withStock.length) return;
+                if (withStock.length === 1) {
+                    const row = withStock[0];
+                    const stockInv = row.id ? row : inventory.find((i) => String(i.product_id) === String(row.product_id));
+                    invParts.push({ type: 'inventory', id: stockInv.id, label: Picker.groupLabel(row.product) });
+                } else {
+                    window.__instGroupMap.set(key, withStock);
+                    invParts.push({ type: 'group', key, label: Picker.groupLabel(withStock[0].product), count: withStock.length });
+                }
+            });
+        } else {
+            inventory.forEach((item) => {
+                const p = item.product || {};
+                if ((p.name || '').toLowerCase().includes(query) || (p.sku && p.sku.toLowerCase().includes(query))) {
+                    invParts.push({ type: 'inventory', id: item.id, label: p.name });
+                }
+            });
+        }
+
+        if (!invParts.length && !filteredRemainders.length) {
+            dropdown.innerHTML = '<div class="px-4 py-2 text-gray-500">No in-stock products found</div>';
+        } else {
+            let html = invParts.map((p) => {
+                if (p.type === 'group') {
+                    return `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count} option${p.count === 1 ? '' : 's'}</span></div>`;
+                }
+                return `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-inv="${p.id}">${p.label}</div>`;
+            }).join('');
+            html += filteredRemainders.map((item) =>
+                `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-rem="${item.id}">${item.product?.name || 'Remainder'} <span class="text-xs text-gray-500">[Remainder]</span></div>`
+            ).join('');
+            dropdown.innerHTML = html;
+        }
         dropdown.classList.remove('hidden');
     });
-}
 
-window.selectProduct = function(id) {
-    const item = inventory.find(i => i.id === id);
-    if (!item) return;
-    selectedProduct = item;
-    const p = item.product||{};
-    let name = p.name||''; if (p.color) name += ' ' + p.color;
-    let m = ''; if (p.measurement_unit==='sq ft'&&p.default_width&&p.default_height){m=`${p.default_width}×${p.default_height} sq ft`;} else if (p.default_length){const u=p.measurement_unit||((p.base_unit||'').replace('per ','')); m=`${p.default_length} ${u}`;}
-    const displayName = m? `${name} (${m})` : name;
-    document.getElementById('productSearch').value = displayName;
-    document.getElementById('productDropdown').classList.add('hidden');
-    document.getElementById('productDetailsSection').classList.remove('hidden');
-    document.getElementById('productName').value = displayName;
-    document.getElementById('productQuantity').value = 1;
-
-    const hasLength = !!p.default_length;
-    const hasWidth = !!p.default_width;
-    const hasHeight = !!p.default_height;
-    const cutFields = document.getElementById('cutFields');
-    if ((hasLength || hasWidth || hasHeight) && p.base_unit !== 'per set') {
-        cutFields.classList.remove('hidden');
-        document.getElementById('cutLength').parentElement.style.display = hasLength? 'block':'none';
-        document.getElementById('cutWidth').parentElement.style.display = hasWidth? 'block':'none';
-        document.getElementById('cutHeight').parentElement.style.display = hasHeight? 'block':'none';
-        document.getElementById('cutLength').value = '';
-        document.getElementById('cutWidth').value = '';
-        document.getElementById('cutHeight').value = '';
-    } else {
-        cutFields.classList.add('hidden');
-    }
+    document.getElementById('productDropdown')?.addEventListener('mousedown', function(e) {
+        const g = e.target.closest('[data-inst-pick-group]');
+        if (g) {
+            e.preventDefault();
+            const key = decodeURIComponent(g.getAttribute('data-inst-pick-group'));
+            instInvVariantBucket = window.__instGroupMap?.get(key) || [];
+            instPopulateVariantStrip();
+            instTryResolveVariant();
+            return;
+        }
+        const inv = e.target.closest('[data-inst-pick-inv]');
+        if (inv) {
+            e.preventDefault();
+            const id = parseInt(inv.getAttribute('data-inst-pick-inv'), 10);
+            const item = inventory.find((i) => i.id === id);
+            if (item) selectInventoryRow(item);
+            return;
+        }
+        const rem = e.target.closest('[data-inst-pick-rem]');
+        if (rem) {
+            e.preventDefault();
+            selectRemainderRow(parseInt(rem.getAttribute('data-inst-pick-rem'), 10));
+        }
+    });
 }
 
 const addUsageBtn = document.getElementById('addUsageBtn');
@@ -368,23 +516,32 @@ if (addUsageBtn) {
     addUsageBtn.addEventListener('click', async function() {
         if (!selectedProduct) { alert('Select a product'); return; }
         const qty = parseFloat(document.getElementById('productQuantity').value);
-        if (!(qty>0)) { alert('Enter valid quantity'); return; }
-        if (qty > (parseFloat(selectedProduct.available_stock)||0)) { alert('Insufficient stock'); return; }
+        if (!(qty > 0)) { alert('Enter valid quantity'); return; }
+        if (qty > (parseFloat(selectedProduct.available_stock) || 0)) { alert('Insufficient stock'); return; }
 
+        const cutInputs = document.getElementById('cutFieldsInputs');
+        const cutPayload = (window.PstCutFields && cutInputs) ? PstCutFields.readInline(cutInputs) : {};
+        if (window.PstCutFields && PstCutFields.hasCutValues(cutPayload) && selectedProduct?.product) {
+            const cutCheck = PstCutFields.validateCut(cutPayload, selectedProduct.product);
+            if (!cutCheck.ok) { alert(cutCheck.message); return; }
+        }
         const payload = {
             items: [{
                 inventory_id: selectedProduct.id,
                 quantity_used: qty,
-                cut_length: document.getElementById('cutLength').value || null,
-                cut_width: document.getElementById('cutWidth').value || null,
-                cut_height: document.getElementById('cutHeight').value || null,
+                cut_length: cutPayload.cut_length ?? null,
+                cut_width: cutPayload.cut_width ?? null,
+                cut_height: cutPayload.cut_height ?? null,
+                cut_measurement_unit: cutPayload.cut_measurement_unit ?? null,
             }]
         };
 
         const res = await fetch(`/api/installation-sales/${saleId}/add-usage`, {
-            method: 'POST', headers: { 'Content-Type':'application/json','X-CSRF-TOKEN':csrfToken,'Accept':'application/json' }, body: JSON.stringify(payload)
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+            body: JSON.stringify(payload),
         });
-        if (!res.ok) { const err = await res.json(); alert(err.error||'Failed'); return; }
+        if (!res.ok) { const err = await res.json(); alert(err.error || 'Failed'); return; }
         location.reload();
     });
 }

@@ -6,6 +6,7 @@ use App\Models\Sale;
 use App\Models\Inventory;
 use App\Models\Branch;
 use App\Models\InstallationProductUsage;
+use App\Services\CutRemainderService;
 use App\Support\MeasurementUnit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -91,8 +92,17 @@ class InstallationSaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
         ]);
         
+        $cutValidator = app(CutRemainderService::class);
+        foreach ($validated['items'] as $index => $item) {
+            $inventory = Inventory::with('product')->find($item['inventory_id']);
+            if ($inventory?->product) {
+                $cutValidator->validateCutDimensions($inventory->product, $item, null, "items.{$index}");
+            }
+        }
+
         DB::beginTransaction();
         try {
             $totalCost = 0;
@@ -120,6 +130,7 @@ class InstallationSaleController extends Controller
                     'cut_length' => $item['cut_length'] ?? null,
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
+                    'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                 ]);
                 
                 $product = $inventory->product;
@@ -257,6 +268,7 @@ class InstallationSaleController extends Controller
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
+            'items.*.cut_measurement_unit' => 'nullable|string|max:32',
         ]);
 
         \DB::beginTransaction();
@@ -285,6 +297,7 @@ class InstallationSaleController extends Controller
                     'cut_length' => $item['cut_length'] ?? null,
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
+                    'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
                 ]);
 
                 // Try to use remainders first; replicate logic from saveRecordedProducts

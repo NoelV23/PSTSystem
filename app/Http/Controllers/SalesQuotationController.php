@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
 use App\Models\SalesQuotation;
 use App\Models\SalesQuotationItem;
 use Carbon\Carbon;
@@ -102,9 +103,10 @@ class SalesQuotationController extends Controller
             'valid_until' => 'nullable|date',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'discount_amount' => 'nullable|numeric|min:0',
+            'delivery_charge' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
-            'items.*.description' => 'required|string|max:500',
+            'items.*.description' => 'nullable|string|max:500',
             'items.*.custom_item_name' => 'nullable|string|max:255',
             'items.*.custom_color' => 'nullable|string|max:255',
             'items.*.custom_thickness' => 'nullable|string|max:255',
@@ -115,6 +117,9 @@ class SalesQuotationController extends Controller
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.retail_unit_price' => 'nullable|numeric|min:0',
+            'items.*.is_free' => 'nullable|boolean',
+            'items.*.is_long_span' => 'nullable|boolean',
         ]);
 
         $this->assertBranchAccess($user, (int) $validated['branch_id']);
@@ -139,12 +144,13 @@ class SalesQuotationController extends Controller
                 'status' => 'draft',
                 'tax_rate' => (float) ($validated['tax_rate'] ?? 0),
                 'discount_amount' => (float) ($validated['discount_amount'] ?? 0),
+                'delivery_charge' => (float) ($validated['delivery_charge'] ?? 0),
                 'notes' => $validated['notes'] ?? null,
                 'terms' => $validated['terms'] ?? null,
                 'valid_until' => $validated['valid_until'] ?? null,
             ]);
 
-            $this->syncItems($quotation, $validated['items']);
+            $this->syncItems($quotation, $this->normalizeQuotationItems($validated['items']));
             $this->recalculateTotals($quotation);
             $this->assignQuotationNumber($quotation);
             $quotation->refresh()->load(['items.product.category', 'branch', 'user']);
@@ -174,9 +180,10 @@ class SalesQuotationController extends Controller
             'valid_until' => 'nullable|date',
             'tax_rate' => 'nullable|numeric|min:0|max:100',
             'discount_amount' => 'nullable|numeric|min:0',
+            'delivery_charge' => 'nullable|numeric|min:0',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'nullable|exists:products,id',
-            'items.*.description' => 'required|string|max:500',
+            'items.*.description' => 'nullable|string|max:500',
             'items.*.custom_item_name' => 'nullable|string|max:255',
             'items.*.custom_color' => 'nullable|string|max:255',
             'items.*.custom_thickness' => 'nullable|string|max:255',
@@ -187,6 +194,9 @@ class SalesQuotationController extends Controller
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
             'items.*.quantity' => 'required|numeric|min:0.001',
             'items.*.unit_price' => 'required|numeric|min:0',
+            'items.*.retail_unit_price' => 'nullable|numeric|min:0',
+            'items.*.is_free' => 'nullable|boolean',
+            'items.*.is_long_span' => 'nullable|boolean',
         ]);
 
         return DB::transaction(function () use ($quotation, $validated) {
@@ -201,6 +211,7 @@ class SalesQuotationController extends Controller
                 'valid_until' => $validated['valid_until'] ?? null,
                 'tax_rate' => $validated['tax_rate'] ?? 0,
                 'discount_amount' => $validated['discount_amount'] ?? 0,
+                'delivery_charge' => $validated['delivery_charge'] ?? 0,
                 'rejection_reason' => null,
             ]);
 
@@ -209,7 +220,7 @@ class SalesQuotationController extends Controller
             }
 
             $quotation->items()->delete();
-            $this->syncItems($quotation, $validated['items']);
+            $this->syncItems($quotation, $this->normalizeQuotationItems($validated['items']));
             $this->recalculateTotals($quotation);
             $this->assignQuotationNumber($quotation);
             $quotation->refresh()->load(['items.product.category', 'branch', 'user']);
@@ -362,12 +373,45 @@ class SalesQuotationController extends Controller
         $quotation->update(['quotation_number' => $quotationNumber]);
     }
 
+    protected function normalizeQuotationItems(array $items): array
+    {
+        return array_values(array_map(function (array $row) {
+            $productId = isset($row['product_id']) && $row['product_id'] !== '' && $row['product_id'] !== null
+                ? (int) $row['product_id']
+                : null;
+            $customName = $this->nullableString($row['custom_item_name'] ?? null);
+            $description = $this->nullableString($row['description'] ?? null);
+
+            if (! $description) {
+                $description = $customName;
+            }
+            if (! $description && $productId) {
+                $product = Product::find($productId);
+                $description = $product ? ($this->nullableString($product->name) ?? 'Quoted item') : 'Quoted item';
+            }
+            if (! $description) {
+                $description = 'Quoted item';
+            }
+
+            $row['product_id'] = $productId;
+            $row['description'] = $description;
+            $row['custom_item_name'] = $productId ? null : $customName;
+
+            return $row;
+        }, $items));
+    }
+
     protected function syncItems(SalesQuotation $quotation, array $items): void
     {
         foreach ($items as $index => $row) {
             $qty = (float) $row['quantity'];
             $unit = (float) $row['unit_price'];
-            $lineTotal = round($qty * $unit, 2);
+            $retailUnit = isset($row['retail_unit_price']) && $row['retail_unit_price'] !== '' && $row['retail_unit_price'] !== null
+                ? (float) $row['retail_unit_price']
+                : $unit;
+            $isFree = ! empty($row['is_free']);
+            $isLongSpan = ! empty($row['is_long_span']);
+            $lineTotal = $isFree ? 0 : round($qty * $unit, 2);
             $productId = $row['product_id'] ?? null;
 
             SalesQuotationItem::create([
@@ -384,7 +428,10 @@ class SalesQuotationController extends Controller
                 'cut_measurement_unit' => $this->nullableString($row['cut_measurement_unit'] ?? null),
                 'quantity' => $qty,
                 'unit_price' => $unit,
+                'retail_unit_price' => $retailUnit,
                 'line_total' => $lineTotal,
+                'is_free' => $isFree,
+                'is_long_span' => $isLongSpan,
                 'sort_order' => $index,
             ]);
         }
@@ -413,15 +460,19 @@ class SalesQuotationController extends Controller
     protected function recalculateTotals(SalesQuotation $quotation): void
     {
         $quotation->load('items');
-        $subtotal = (float) $quotation->items->sum('line_total');
-        $discount = min((float) ($quotation->discount_amount ?? 0), $subtotal);
-        $afterDiscount = max(0, $subtotal - $discount);
+        $quotedSubtotal = (float) $quotation->items->sum(function ($item) {
+            return $item->is_free ? 0 : (float) $item->line_total;
+        });
+        $discount = max(0, (float) ($quotation->discount_amount ?? 0));
+        $delivery = max(0, (float) ($quotation->delivery_charge ?? 0));
+        $displaySubtotal = round($quotedSubtotal + $discount, 2);
+        $afterDiscount = round($quotedSubtotal, 2);
         $taxRate = (float) ($quotation->tax_rate ?? 0);
         $taxAmount = round($afterDiscount * ($taxRate / 100), 2);
-        $grand = round($afterDiscount + $taxAmount, 2);
+        $grand = round($afterDiscount + $taxAmount + $delivery, 2);
 
         $quotation->update([
-            'subtotal' => round($subtotal, 2),
+            'subtotal' => $displaySubtotal,
             'discount_amount' => round($discount, 2),
             'tax_amount' => $taxAmount,
             'grand_total' => $grand,

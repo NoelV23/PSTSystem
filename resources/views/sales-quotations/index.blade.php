@@ -1,13 +1,20 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    #sqLinesBody tr.sq-row-free td { color: #b91c1c; }
+    #sqLinesBody tr.sq-row-free .sq-line-base-search,
+    #sqLinesBody tr.sq-row-free .sq-line-desc { font-style: italic; }
+    #sqLinesBody tr.sq-row-long-span .sq-line-qty { border-color: #d97706; }
+    #sqLinesBody tr.sq-row-long-span .sq-line-price { border-color: #d97706; }
+</style>
 <div class="py-12">
     <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
         <div class="bg-white rounded-xl shadow p-4 sm:p-6 mb-6">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Sales quotations</h2>
-                    <p class="mt-1 text-sm text-gray-600">Sales quotations are formal price offers for a customer: line items, totals, tax, and terms. Use them to record what was quoted before an order becomes a sale. <span class="text-gray-700">Items you do not stock yet (or that are not in the catalog) can still be quoted: use <strong>Description</strong> + quantity + price; linking a product is optional.</span></p>
+                    <p class="mt-1 text-sm text-gray-500">Prepare price quotes for customers. After saving, use Open sales or Open PO to continue.</p>
                 </div>
                 <button type="button" id="sqNewBtn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition">
                     + New quotation
@@ -125,14 +132,10 @@
                         <textarea id="sqCustomerAddress" rows="3" class="block w-full resize-y rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></textarea>
                     </div>
 
-                    <div class="grid grid-cols-1 gap-5 sm:gap-6 sm:grid-cols-3">
+                    <div class="grid grid-cols-1 gap-5 sm:gap-6 sm:grid-cols-2">
                         <div class="flex flex-col gap-1.5">
                             <label for="sqTaxRate" class="text-sm font-medium text-gray-700">Tax rate (%)</label>
                             <input type="number" id="sqTaxRate" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" min="0" max="100" step="0.01" value="0">
-                        </div>
-                        <div class="flex flex-col gap-1.5">
-                            <label for="sqDiscount" class="text-sm font-medium text-gray-700">Discount (₱)</label>
-                            <input type="number" id="sqDiscount" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" min="0" step="0.01" value="0">
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label for="sqValidUntil" class="text-sm font-medium text-gray-700">Valid until</label>
@@ -150,28 +153,21 @@
                     </div>
 
                     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
-                        <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="mb-3">
                             <span class="text-base font-semibold text-gray-900 sm:text-lg">Line items</span>
-                            <button type="button" id="sqAddLineBtn" class="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-800 shadow-sm hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add line</button>
                         </div>
-                        <div class="mb-4 rounded-lg border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-950">
-                            <p class="font-semibold text-sky-900">Supplier-sourced or not in catalog?</p>
-                            <ul class="mt-2 list-inside list-disc space-y-1 text-sky-900/90">
-                                <li>Fill <strong>Description</strong> (details for your team), <strong>Qty</strong>, and <strong>Unit ₱</strong> — you can save with no catalog product.</li>
-                                <li>Search the product field: if nothing matches, use <strong>Use as custom</strong> (or <strong>Not in catalog — add specs</strong>) to enter <strong>item name</strong> in the same search box plus color, thickness, and size/length (include units in the text, e.g. <code class="rounded bg-white/80 px-1">3 mm</code>) — saved and shown on print.</li>
-                                <li>For catalog products, <strong>cut size</strong> fields appear automatically when the item has length / sheet dimensions (same as Sales). For custom lines, click <strong>+ Cut size</strong>.</li>
-                                <li>When you convert to a sale, lines without stock must be added manually (or after you receive stock).</li>
-                            </ul>
-                        </div>
+                        <p class="mb-3 text-xs text-gray-500">Unit ₱ auto-fills at <strong>list retail</strong>. Lower it to quote a better price — customer discount auto-calculates the savings for print. <strong>Grand total</strong> = sum of quoted line totals (what customer pays).</p>
                         <div class="-mx-1 overflow-x-auto rounded-lg border border-gray-100 bg-white sm:mx-0">
-                            <table class="w-full min-w-[56rem] text-sm lg:min-w-[60rem]">
+                            <table class="w-full min-w-[58rem] text-sm lg:min-w-[62rem]">
                                 <thead>
                                     <tr class="border-b border-gray-200 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
-                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product <span class="font-normal normal-case text-gray-400">(optional — stock lookup)</span></th>
+                                        <th class="whitespace-nowrap py-3 pr-2 w-[20rem]">Product</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-28 text-right">Avail.</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-[20rem]">Description <span class="text-red-600">*</span></th>
-                                        <th class="whitespace-nowrap py-3 px-2 w-24">Qty <span class="text-red-600">*</span></th>
-                                        <th class="whitespace-nowrap py-3 px-2 w-28">Unit ₱ <span class="text-red-600">*</span></th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-36 min-w-[9rem]">Qty <span class="text-red-600">*</span></th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-28" title="Quoted unit price — starts at list retail; lower to give customer a better price">Unit ₱ <span class="text-red-600">*</span></th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-16 text-center">Free</th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-16 text-center" title="Long span — qty in linear meters, price per meter">LS</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-24 text-right">Line total</th>
                                         <th class="w-8 py-3"></th>
                                     </tr>
@@ -179,18 +175,37 @@
                                 <tbody id="sqLinesBody" class="divide-y divide-gray-100"></tbody>
                             </table>
                         </div>
+                        <div class="mt-4 flex justify-center border-t border-gray-100 pt-4 sm:justify-start">
+                            <button type="button" id="sqAddLineBtn" class="inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add line</button>
+                        </div>
                     </div>
 
-                    <div id="sqTotalsPreview" class="hidden space-y-2 rounded-xl border border-gray-200 bg-white p-4 text-sm sm:p-5">
-                        <div class="flex justify-between gap-4"><span class="text-gray-600">Total before discount</span><span id="sqPreviewSubtotal" class="shrink-0 font-medium tabular-nums">₱0.00</span></div>
-                        <div id="sqPreviewDiscountRow" class="hidden flex justify-between gap-4 text-emerald-700"><span>Discount</span><span id="sqPreviewDiscount" class="shrink-0 tabular-nums">− ₱0.00</span></div>
-                        <div id="sqPreviewAfterDiscountRow" class="hidden flex justify-between gap-4 rounded-lg border border-amber-100 bg-amber-50 px-3 py-2">
-                            <span class="font-semibold text-gray-900">Total discounted price</span>
-                            <span id="sqPreviewAfterDiscount" class="shrink-0 font-bold tabular-nums text-gray-900">₱0.00</span>
+                    <div id="sqTotalsPreview" class="hidden rounded-xl border border-gray-200 bg-white p-4 text-sm sm:p-5">
+                        <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500">Quote adjustments</p>
+                        <div class="mb-4 space-y-3 border-b border-gray-100 pb-4">
+                            <div class="flex items-center justify-between gap-4">
+                                <label for="sqDiscount" class="shrink-0 text-sm font-medium text-gray-700">Customer discount (₱)</label>
+                                <div class="flex min-w-0 items-center gap-2">
+                                    <input type="number" id="sqDiscount" class="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums text-right text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:w-40" min="0" step="0.01" value="0" title="Auto-fills when you lower a line below retail; editable">
+                                    <button type="button" id="sqRecalcDiscountBtn" class="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100" title="Recalculate from lowered line prices">↻</button>
+                                </div>
+                            </div>
+                            <div class="flex items-center justify-between gap-4">
+                                <label for="sqDeliveryCharge" class="shrink-0 text-sm font-medium text-gray-700">Delivery charge (₱)</label>
+                                <input type="number" id="sqDeliveryCharge" class="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums text-right text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:w-40" min="0" step="0.01" value="0" placeholder="0 = PICK UP">
+                            </div>
+                            <p id="sqDiscountHint" class="text-xs text-gray-500">Lower unit price below list retail to auto-fill discount.</p>
                         </div>
-                        <div id="sqPreviewTaxRow" class="hidden flex justify-between gap-4"><span id="sqPreviewTaxLabel">Tax</span><span id="sqPreviewTax" class="shrink-0 tabular-nums">₱0.00</span></div>
-                        <div class="flex justify-between gap-4 border-t border-gray-100 pt-3"><span class="font-semibold">Grand total</span><span id="sqPreviewGrand" class="shrink-0 text-lg font-bold tabular-nums text-red-600">₱0.00</span></div>
-                        <p id="sqPreviewSaveNote" class="hidden pt-1 text-xs text-gray-500"></p>
+                        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Summary</p>
+                        <div class="space-y-2">
+                            <div class="flex justify-between gap-4"><span class="text-gray-600">Total before discount</span><span id="sqPreviewSubtotal" class="shrink-0 font-medium tabular-nums">₱0.00</span></div>
+                            <div id="sqPreviewDiscountRow" class="hidden flex justify-between gap-4 text-emerald-700"><span>Less: Customer discount</span><span id="sqPreviewDiscount" class="shrink-0 tabular-nums">− ₱0.00</span></div>
+                            <div class="flex justify-between gap-4"><span class="text-gray-700">Materials total</span><span id="sqPreviewAfterDiscount" class="shrink-0 font-medium tabular-nums text-gray-900">₱0.00</span></div>
+                            <div id="sqPreviewTaxRow" class="hidden flex justify-between gap-4"><span id="sqPreviewTaxLabel">Tax</span><span id="sqPreviewTax" class="shrink-0 tabular-nums">₱0.00</span></div>
+                            <div id="sqPreviewDeliveryRow" class="hidden flex justify-between gap-4"><span>Delivery charge</span><span id="sqPreviewDelivery" class="shrink-0 tabular-nums">₱0.00</span></div>
+                            <div class="flex justify-between gap-4 border-t border-gray-200 pt-3 mt-1"><span class="text-base font-semibold text-gray-900">Grand total</span><span id="sqPreviewGrand" class="shrink-0 text-lg font-bold tabular-nums text-red-600">₱0.00</span></div>
+                        </div>
+                        <p id="sqPreviewSaveNote" class="hidden mt-3 border-t border-gray-100 pt-2 text-xs text-gray-500"></p>
                     </div>
 
                     <div class="flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:justify-end sm:gap-4">
@@ -207,8 +222,8 @@
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10">
         <div class="w-full max-w-lg overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-w-xl">
             <div class="border-b border-gray-100 px-5 py-4 sm:px-6">
-                <h3 class="text-lg font-semibold text-gray-900">Link recorded sale</h3>
-                <p class="mt-2 text-sm leading-relaxed text-gray-600">After you create the sale in Sales, enter its ID here to close the loop.</p>
+                <h3 class="text-lg font-semibold text-gray-900">Link sale</h3>
+                <p class="mt-0.5 text-xs text-gray-500">Connect this quote to a sale you already created in Sales.</p>
             </div>
             <div class="space-y-5 px-5 py-5 sm:px-6 sm:py-6">
                 <input type="hidden" id="sqLinkQuotationId">
@@ -239,6 +254,7 @@
 
     let branchId = isAdmin ? null : (window.sqUserBranchId || null);
     let sqInventoryItems = [];
+    let sqDiscountManual = false;
 
     const el = (id) => document.getElementById(id);
 
@@ -289,7 +305,12 @@
 
     function sqInvUnitPrice(inv) {
         if (!inv) return '';
-        const n = Number(inv.price);
+        let n;
+        if (inv.product?.base_unit === 'per set' && inv.product?.set_components_count > 0) {
+            n = Number(inv.calculated_price);
+        } else {
+            n = Number(inv.price);
+        }
         if (Number.isNaN(n) || n < 0) return '';
         return n.toFixed(2);
     }
@@ -523,6 +544,7 @@
         if (printable) {
             html += ` <a href="/sales-quotations/${id}/print" target="_blank" class="text-gray-800 hover:underline text-xs">Print</a>`;
             html += ` <a href="/sales?quotation=${id}" class="text-blue-700 hover:underline text-xs font-medium">Open sales</a>`;
+            html += ` <a href="/purchases?quotation=${id}" class="text-emerald-700 hover:underline text-xs font-medium">Open PO</a>`;
         }
         if (draft) {
             html += ` <button type="button" data-sq-action="delete" data-id="${id}" class="text-red-600 hover:underline text-xs">Delete</button>`;
@@ -562,43 +584,117 @@
         });
     }
 
-    function computeSqTotalsFromDom() {
-        const rows = [...document.querySelectorAll('#sqLinesBody tr')];
-        let subtotal = 0;
-        rows.forEach(tr => {
-            const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value);
-            const price = parseFloat(tr.querySelector('.sq-line-price')?.value);
-            if (!isNaN(qty) && !isNaN(price) && qty > 0 && price >= 0) {
-                subtotal += qty * price;
-            }
-        });
-        const discount = Math.min(parseFloat(el('sqDiscount').value) || 0, subtotal);
-        const afterDiscount = Math.max(0, subtotal - discount);
-        const taxRate = parseFloat(el('sqTaxRate').value) || 0;
-        const tax = Math.round(afterDiscount * (taxRate / 100) * 100) / 100;
-        const grand = Math.round((afterDiscount + tax) * 100) / 100;
-        return { subtotal, discount, afterDiscount, tax, grand, taxRate };
+    function sqLineRetail(tr) {
+        const r = parseFloat(tr.dataset.sqRetailPrice);
+        if (!Number.isNaN(r) && r >= 0) return r;
+        return parseFloat(tr.querySelector('.sq-line-price')?.value) || 0;
     }
 
-    function refreshSqTotals() {
-        const t = computeSqTotalsFromDom();
+    function sqLineQuoted(tr) {
+        return parseFloat(tr.querySelector('.sq-line-price')?.value) || 0;
+    }
+
+    function sqSetLineRetail(tr, val) {
+        const n = parseFloat(val);
+        if (Number.isNaN(n) || n < 0) return;
+        tr.dataset.sqRetailPrice = n.toFixed(2);
+    }
+
+    function sqSyncRetailFromInventory(tr, productId) {
+        if (!productId) return;
+        const inv = sqInventoryItems.find((i) => String(i.product_id) === String(productId));
+        const up = inv ? sqInvUnitPrice(inv) : '';
+        if (up !== '') sqSetLineRetail(tr, up);
+    }
+
+    function computeSqAutoDiscount(rows) {
+        let total = 0;
+        rows.forEach((tr) => {
+            if (tr.querySelector('.sq-line-free')?.checked) return;
+            const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value) || 0;
+            if (qty <= 0) return;
+            const retail = sqLineRetail(tr);
+            const quoted = sqLineQuoted(tr);
+            if (retail > quoted + 0.0005) {
+                total += (retail - quoted) * qty;
+            }
+        });
+        return Math.round(total * 100) / 100;
+    }
+
+    function computeSqTotalsFromDom(opts = {}) {
+        const rows = [...document.querySelectorAll('#sqLinesBody tr')];
+        let quotedSubtotal = 0;
+        rows.forEach((tr) => {
+            if (tr.querySelector('.sq-line-free')?.checked) return;
+            const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value);
+            const quoted = sqLineQuoted(tr);
+            if (!isNaN(qty) && qty > 0 && quoted >= 0) {
+                quotedSubtotal += qty * quoted;
+            }
+        });
+        quotedSubtotal = Math.round(quotedSubtotal * 100) / 100;
+
+        const autoDiscount = computeSqAutoDiscount(rows);
+        if (!opts.skipAutoDiscount && !sqDiscountManual) {
+            el('sqDiscount').value = autoDiscount > 0 ? autoDiscount.toFixed(2) : '0';
+        }
+
+        const discount = Math.max(0, parseFloat(el('sqDiscount').value) || 0);
+        const delivery = Math.max(0, parseFloat(el('sqDeliveryCharge').value) || 0);
+        const displaySubtotal = Math.round((quotedSubtotal + discount) * 100) / 100;
+        const afterDiscount = quotedSubtotal;
+        const taxRate = parseFloat(el('sqTaxRate').value) || 0;
+        const tax = Math.round(afterDiscount * (taxRate / 100) * 100) / 100;
+        const grand = Math.round((afterDiscount + tax + delivery) * 100) / 100;
+        return { subtotal: displaySubtotal, quotedSubtotal, discount, afterDiscount, tax, delivery, grand, taxRate, autoDiscount };
+    }
+
+    function refreshSqTotals(opts = {}) {
+        const t = computeSqTotalsFromDom(opts);
         const box = el('sqTotalsPreview');
         if (!box) return;
         box.classList.remove('hidden');
         el('sqPreviewSubtotal').textContent = fmtPhp(t.subtotal);
         const discRow = el('sqPreviewDiscountRow');
-        const afterRow = el('sqPreviewAfterDiscountRow');
         if (t.discount > 0) {
             discRow.classList.remove('hidden');
-            afterRow.classList.remove('hidden');
             el('sqPreviewDiscount').textContent = '− ' + fmtPhp(t.discount);
-            el('sqPreviewAfterDiscount').textContent = fmtPhp(t.afterDiscount);
-            el('sqPreviewSaveNote').classList.remove('hidden');
-            el('sqPreviewSaveNote').textContent = 'Customer saves ' + fmtPhp(t.discount) + ' vs. price with no discount.';
         } else {
             discRow.classList.add('hidden');
-            afterRow.classList.add('hidden');
+        }
+        el('sqPreviewAfterDiscount').textContent = fmtPhp(t.afterDiscount);
+        const deliveryRow = el('sqPreviewDeliveryRow');
+        if (t.delivery > 0) {
+            deliveryRow.classList.remove('hidden');
+            el('sqPreviewDelivery').textContent = fmtPhp(t.delivery);
+        } else {
+            deliveryRow.classList.add('hidden');
+        }
+        if (t.discount > 0 || t.delivery > 0) {
+            el('sqPreviewSaveNote').classList.remove('hidden');
+            const parts = ['Customer pays ' + fmtPhp(t.grand) + ' total'];
+            if (t.discount > 0) parts.push('discount on print ' + fmtPhp(t.discount));
+            if (t.delivery > 0) parts.push('includes delivery ' + fmtPhp(t.delivery));
+            el('sqPreviewSaveNote').textContent = parts.join(' · ') + '.';
+        } else {
             el('sqPreviewSaveNote').classList.add('hidden');
+        }
+        const hint = el('sqDiscountHint');
+        if (hint) {
+            if (t.autoDiscount > 0 && !sqDiscountManual) {
+                hint.textContent = 'Auto ₱' + t.autoDiscount.toFixed(2) + ' from retail − quoted. You can increase it so print shows a bigger discount.';
+                hint.classList.remove('text-gray-500');
+                hint.classList.add('text-emerald-700');
+            } else if (sqDiscountManual) {
+                hint.textContent = 'Manual discount — increase to show bigger savings on print. Grand total includes delivery.';
+                hint.classList.remove('text-emerald-700');
+                hint.classList.add('text-gray-500');
+            } else {
+                hint.textContent = 'Lower unit price below list retail to auto-fill discount. Grand total = materials + tax + delivery.';
+                hint.classList.remove('text-emerald-700');
+                hint.classList.add('text-gray-500');
+            }
         }
         const taxRow = el('sqPreviewTaxRow');
         if (t.taxRate > 0) {
@@ -688,11 +784,8 @@
             const el = tr.querySelector(sel);
             if (!el) return;
             el.readOnly = false;
-            el.classList.remove('bg-gray-50', 'cursor-not-allowed');
+            el.classList.remove('bg-gray-50', 'cursor-not-allowed', 'hidden');
             el.removeAttribute('title');
-            if (sel === '.sq-custom-color') {
-                el.classList.remove('hidden');
-            }
         });
     }
 
@@ -728,8 +821,8 @@
             }
         };
         hideIfEmpty(cc, specs.color);
-        apply(ct, specs.thickness);
-        apply(cm, specs.measurement);
+        hideIfEmpty(ct, specs.thickness);
+        hideIfEmpty(cm, specs.measurement);
     }
 
     /** Same layout as custom lines: color / thickness / size fields, filled from saved selection or catalog product (read-only). */
@@ -1120,7 +1213,7 @@
         if (!tr) return;
         const hidden = tr.querySelector('.sq-line-product-id');
         if (hidden && hidden.value) {
-            toast('Clear the catalog product first, or pick “Use as custom” from search when there is no match.', false);
+            toast('Clear the product field first, or pick Add item from search.', false);
             return;
         }
         tr.dataset.sqCustomMode = '1';
@@ -1186,7 +1279,10 @@
         if (desc) desc.value = sqProductDisplayLabel(p);
         if (inv && price) {
             const up = sqInvUnitPrice(inv);
-            if (up !== '') price.value = up;
+            if (up !== '') {
+                sqSetLineRetail(tr, up);
+                price.value = up;
+            }
         }
         if (inv && rem) {
             rem.textContent = inv._catalogOnly ? '—' : formatSqStock(sqInvStock(inv));
@@ -1245,6 +1341,22 @@
             if (fields) fields.innerHTML = '';
         }
         sqRefreshCutFields(tr);
+    }
+
+    function sqValidateCutForRow(tr) {
+        const Cut = window.PstCutFields;
+        if (!Cut) return { ok: true };
+        const cutWrap = tr.querySelector('.sq-line-cut-wrap');
+        const cutFields = tr.querySelector('.sq-line-cut-fields');
+        if (!cutWrap || cutWrap.classList.contains('hidden') || !cutFields) return { ok: true };
+        const customMode = tr.dataset.sqCustomMode === '1';
+        const readCut = customMode ? tr.dataset.sqCutOpen === '1' : true;
+        if (!readCut) return { ok: true };
+        const cut = Cut.readInline(cutFields);
+        if (!Cut.hasCutValues(cut)) return { ok: true };
+        if (customMode) return Cut.validateCut(cut, null);
+        const p = sqCutProductForRow(tr);
+        return Cut.validateCut(cut, p || null);
     }
 
     function sqRefreshCutFields(tr, product, saved) {
@@ -1401,17 +1513,16 @@
                     const safeQ = escapeHtml(q);
                     if (q) {
                         baseDd.innerHTML = `
-                            <div class="px-3 py-2 text-sm text-gray-700">No matching products in the catalog.</div>
-                            <div class="px-3 pb-2 text-xs text-gray-500">Not set up in the system yet? You can still quote it as a custom line.</div>
-                            <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-sq-use-custom="1">Use as custom: <span class="font-semibold">${safeQ}</span></button>`;
+                            <div class="px-3 py-2 text-sm text-gray-600">No matching product.</div>
+                            <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-sq-use-custom="1">Add item: <span class="font-semibold">${safeQ}</span></button>`;
                     } else {
-                        baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Type a product name to search, or use “Not in catalog” below.</div>';
+                        baseDd.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">Type to search</div>';
                     }
                 } else {
                     baseDd.innerHTML = entries.map(([key, invs]) => {
                         const lab = Picker.groupLabel(invs[0].product);
                         const enc = encodeURIComponent(key);
-                        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-group="${enc}">${escapeHtml(lab)} <span class="text-gray-500 font-normal">· ${invs.length}</span></div>`;
+                        return `<div class="px-3 py-2 hover:bg-blue-50 cursor-pointer text-sm" data-sq-pick-group="${enc}">${escapeHtml(lab)} <span class="text-gray-500 font-normal">· ${invs.length} option${invs.length === 1 ? '' : 's'}</span></div>`;
                     }).join('');
                 }
             }
@@ -1474,9 +1585,19 @@
     function wireSqLineRow(tr) {
         tr.querySelectorAll('.sq-line-qty, .sq-line-price').forEach((inp) => {
             inp.addEventListener('input', () => {
+                sqDiscountManual = false;
                 refreshSqLineTotal(tr);
                 refreshSqTotals();
             });
+        });
+        tr.querySelector('.sq-line-free')?.addEventListener('change', () => {
+            sqDiscountManual = false;
+            refreshSqLineTotal(tr);
+            refreshSqTotals();
+        });
+        tr.querySelector('.sq-line-long-span')?.addEventListener('change', () => {
+            refreshSqLineTotal(tr);
+            refreshSqTotals();
         });
         wireSqLineProductPicker(tr);
         tr.querySelector('.sq-line-clear-product')?.addEventListener('click', () => {
@@ -1506,11 +1627,47 @@
         });
     }
 
+    function sqApplyLongSpanRowHints(tr) {
+        const isLs = !!tr.querySelector('.sq-line-long-span')?.checked;
+        const qty = tr.querySelector('.sq-line-qty');
+        const price = tr.querySelector('.sq-line-price');
+        if (qty) qty.placeholder = isLs ? 'Total lmtrs' : 'Qty';
+        if (price) price.placeholder = isLs ? 'Per meter' : '';
+        tr.classList.toggle('sq-row-long-span', isLs);
+    }
+
+    function sqApplyFreeRowStyle(tr) {
+        const isFree = !!tr.querySelector('.sq-line-free')?.checked;
+        tr.classList.toggle('sq-row-free', isFree);
+    }
+
     function refreshSqLineTotal(tr) {
+        sqApplyFreeRowStyle(tr);
+        sqApplyLongSpanRowHints(tr);
+        const isFree = !!tr.querySelector('.sq-line-free')?.checked;
         const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value) || 0;
-        const price = parseFloat(tr.querySelector('.sq-line-price')?.value) || 0;
+        const retail = sqLineRetail(tr);
+        const quoted = sqLineQuoted(tr);
         const cell = tr.querySelector('.sq-line-total');
-        if (cell) cell.textContent = fmtPhp(qty * price);
+        if (!cell) return;
+        if (isFree) {
+            cell.textContent = 'FREE';
+            cell.classList.add('text-red-600', 'italic', 'font-bold');
+            cell.classList.remove('text-gray-800');
+            return;
+        }
+        let html = fmtPhp(qty * quoted);
+        if (retail > quoted + 0.0005) {
+            html += `<div class="text-[10px] font-normal text-gray-500">List ${fmtPhp(qty * retail)}</div>`;
+        }
+        cell.innerHTML = html;
+        cell.classList.remove('text-red-600', 'italic', 'font-bold');
+        cell.classList.add('text-gray-800');
+        const priceInp = tr.querySelector('.sq-line-price');
+        if (priceInp) {
+            priceInp.classList.toggle('border-emerald-400', retail > quoted + 0.0005);
+            priceInp.classList.toggle('bg-emerald-50/40', retail > quoted + 0.0005);
+        }
     }
 
     function addLineRow(data = {}) {
@@ -1539,7 +1696,7 @@
         tr.innerHTML = `
             <td class="py-3 pr-2 align-top w-[22rem]">
                 <div class="relative w-full min-w-0 space-y-2">
-                    <input type="text" autocomplete="off" class="sq-line-base-search block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Search catalog or type a custom item name…" value="${escapeHtml(initBase)}">
+                    <input type="text" autocomplete="off" class="sq-line-base-search block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Search product or type item name…" value="${escapeHtml(initBase)}">
                     <div class="sq-line-base-dd hidden max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg"></div>
                     <div class="sq-line-variant-wrap hidden w-full flex-col gap-2">
                         <div class="sq-line-variant-catalog hidden flex flex-wrap items-center gap-2">
@@ -1548,27 +1705,41 @@
                             <select class="sq-line-var-meas min-w-[6rem] max-w-[10rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs"></select>
                         </div>
                         <div class="sq-line-variant-custom hidden flex flex-wrap items-center gap-2">
-                            <input type="text" class="sq-custom-color min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Color" maxlength="255" title="Free text, e.g. White">
-                            <input type="text" class="sq-custom-thickness min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Thickness (e.g. 3 mm)" maxlength="255">
-                            <input type="text" class="sq-custom-measurement min-w-[6rem] max-w-[12rem] flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Size / length (e.g. 2440×1220 mm)" maxlength="255">
+                            <input type="text" class="sq-custom-color min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Color (optional)" maxlength="255" title="Free text, e.g. White">
+                            <input type="text" class="sq-custom-thickness min-w-[5.5rem] max-w-[9rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Thickness (optional)" maxlength="255">
+                            <input type="text" class="sq-custom-measurement min-w-[6rem] max-w-[12rem] flex-1 rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Size / length (optional)" maxlength="255">
                         </div>
                     </div>
                     <button type="button" class="sq-line-toggle-cut hidden text-left text-xs font-medium text-amber-800 hover:text-amber-950 hover:underline" aria-expanded="false">+ Cut size</button>
                     <div class="sq-line-cut-wrap hidden w-full">
-                        <p class="mt-1 mb-1 text-xs font-medium text-amber-900">Cut size <span class="font-normal text-amber-800">(optional — e.g. one piece cut to length)</span></p>
+                        <p class="mt-1 mb-1 text-xs font-medium text-amber-900">Cut size</p>
                         <div class="sq-line-cut-fields flex flex-wrap items-center gap-2"></div>
                     </div>
-                    <button type="button" class="sq-line-enter-custom text-left text-xs font-medium text-gray-600 hover:text-blue-800 hover:underline">Not in catalog — add specs</button>
+                    <button type="button" class="sq-line-enter-custom text-left text-xs font-medium text-gray-600 hover:text-blue-800 hover:underline">Item not in list — add specs</button>
                     <input type="hidden" class="sq-line-product-id" value="${escapeHtml(initHid)}">
                     <button type="button" class="sq-line-clear-product text-left text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline">Clear product / custom item</button>
                 </div>
             </td>
             <td class="py-3 px-2 align-top text-right"><span class="sq-line-rem whitespace-nowrap text-xs tabular-nums text-gray-700">${escapeHtml(initRem)}</span></td>
             <td class="py-3 px-2 align-top w-[20rem]">
-                    <input type="text" class="sq-line-desc block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Description / notes for this line (required). Shown on print with item details.">
+                    <input type="text" class="sq-line-desc block w-full min-w-0 rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Notes for print (optional — item name is taken from search above)">
                 </td>
-            <td class="py-3 px-2 align-top"><input type="number" step="1" min="1" class="sq-line-qty block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></td>
-            <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25"></td>
+            <td class="py-3 px-2 align-top w-36 min-w-[9rem]">
+                <input type="number" step="0.001" min="0.001" inputmode="decimal" class="sq-line-qty block w-full min-w-[7rem] rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Qty">
+            </td>
+            <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Unit price" title="Quoted price — auto-fills at list retail"></td>
+            <td class="py-3 px-2 align-top text-center">
+                <label class="inline-flex cursor-pointer items-center justify-center gap-1.5" title="Mark as free — shown in red on print, not charged">
+                    <input type="checkbox" class="sq-line-free h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
+                    <span class="text-xs font-medium text-red-700">Free</span>
+                </label>
+            </td>
+            <td class="py-3 px-2 align-top text-center">
+                <label class="inline-flex cursor-pointer flex-col items-center justify-center gap-0.5" title="Long span (LS) — qty = total linear meters, unit price = per meter">
+                    <input type="checkbox" class="sq-line-long-span h-4 w-4 rounded border-gray-300 text-amber-700 focus:ring-amber-500">
+                    <span class="text-xs font-medium text-amber-900">LS</span>
+                </label>
+            </td>
             <td class="py-3 px-2 align-top text-right"><span class="sq-line-total text-sm font-semibold tabular-nums text-gray-800">₱0.00</span></td>
             <td class="py-3 align-top"><button type="button" class="sq-remove-line rounded p-1 text-lg leading-none text-red-600 hover:bg-red-50" title="Remove line">&times;</button></td>
         `;
@@ -1579,6 +1750,18 @@
         desc.value = data.description || '';
         qty.value = data.quantity != null ? data.quantity : 1;
         price.value = data.unit_price != null ? data.unit_price : '';
+        if (data.retail_unit_price != null) {
+            sqSetLineRetail(tr, data.retail_unit_price);
+        } else if (data.unit_price != null) {
+            sqSetLineRetail(tr, data.unit_price);
+        }
+        if (data.product_id) {
+            sqSyncRetailFromInventory(tr, data.product_id);
+        }
+        const freeCb = tr.querySelector('.sq-line-free');
+        if (freeCb) freeCb.checked = !!data.is_free;
+        const lsCb = tr.querySelector('.sq-line-long-span');
+        if (lsCb) lsCb.checked = !!data.is_long_span;
         if (data.custom_item_name && !data.product_id) {
             tr.dataset.sqCustomMode = '1';
             sqClearReadonlySpecAttrs(tr);
@@ -1612,8 +1795,11 @@
             const pidRaw = resolvedId != null ? String(resolvedId) : (hid ? String(hid.value).trim() : '');
             const parsedId = /^\d+$/.test(pidRaw) ? parseInt(pidRaw, 10) : NaN;
             let productId = Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null;
-            const customMode = tr.dataset.sqCustomMode === '1';
             const baseSearch = (tr.querySelector('.sq-line-base-search')?.value || '').trim();
+            let customMode = tr.dataset.sqCustomMode === '1';
+            if (!productId && !customMode && baseSearch) {
+                customMode = true;
+            }
             const specs = sqReadSpecFieldsFromRow(tr);
             if (productId && (!specs.thickness || !specs.measurement)) {
                 const p = sqInventoryItems.find((i) => String(i.product_id) === String(productId))?.product;
@@ -1637,12 +1823,16 @@
             if (!description) {
                 if (productId != null) {
                     description = baseSearch || `Product #${productId}`;
+                } else if (baseSearch) {
+                    description = baseSearch;
                 }
             }
+            const quoted = sqLineQuoted(tr);
+            const retail = sqLineRetail(tr);
             return {
                 product_id: productId,
                 description,
-                custom_item_name: productId == null && customMode ? sqTrimOrNull(tr.querySelector('.sq-line-base-search')?.value) : null,
+                custom_item_name: productId == null && customMode ? sqTrimOrNull(baseSearch) : null,
                 custom_color: specs.color,
                 custom_thickness: specs.thickness,
                 custom_measurement: specs.measurement,
@@ -1651,9 +1841,12 @@
                 cut_height: cutPayload.cut_height,
                 cut_measurement_unit: cutPayload.cut_measurement_unit,
                 quantity: parseFloat(tr.querySelector('.sq-line-qty').value),
-                unit_price: parseFloat(tr.querySelector('.sq-line-price').value),
+                unit_price: quoted,
+                retail_unit_price: retail,
+                is_free: !!tr.querySelector('.sq-line-free')?.checked,
+                is_long_span: !!tr.querySelector('.sq-line-long-span')?.checked,
             };
-        }).filter(l => l.description && !isNaN(l.quantity) && l.quantity > 0 && !isNaN(l.unit_price) && l.unit_price >= 0);
+        }).filter(l => (l.description || l.custom_item_name) && !isNaN(l.quantity) && l.quantity > 0 && !isNaN(l.unit_price) && l.unit_price >= 0);
     }
 
     async function openModal(create) {
@@ -1661,6 +1854,7 @@
         el('sqForm').reset();
         el('sqLinesBody').innerHTML = '';
         el('sqId').value = '';
+        sqDiscountManual = false;
         el('sqTotalsPreview')?.classList.add('hidden');
         if (create) {
             el('sqModalTitle').textContent = 'New quotation';
@@ -1684,17 +1878,31 @@
         const rows = [...document.querySelectorAll('#sqLinesBody tr')];
         for (const tr of rows) {
             if (tr.dataset.sqCustomMode === '1') continue;
+            sqMaterializeCatalogLine(tr);
+            const resolvedId = sqResolveProductIdFromRow(tr);
+            if (resolvedId) continue;
+            const baseSearch = (tr.querySelector('.sq-line-base-search')?.value || '').trim();
+            const hid = tr.querySelector('.sq-line-product-id')?.value;
+            if (baseSearch && !hid) continue;
             const cat = tr.querySelector('.sq-line-variant-catalog');
             if (!cat || cat.classList.contains('hidden')) continue;
-            const selT = tr.querySelector('.sq-line-var-thick');
-            if (selT && !selT.classList.contains('hidden') && !selT.value) {
-                toast('Select thickness for each catalog product line before saving.', false);
+            const invs = tr._sqVariants || [];
+            if (!invs.length) continue;
+            const { narrowed } = sqNarrowRowVariants(tr);
+            if (narrowed.length === 1) continue;
+            toast('Choose product options for each catalog line, or use Item not in list for products without specs.', false);
+            return;
+        }
+        for (const tr of rows) {
+            const cutCheck = sqValidateCutForRow(tr);
+            if (!cutCheck.ok) {
+                toast(cutCheck.message, false);
                 return;
             }
         }
         const lines = gatherLines();
         if (!lines.length) {
-            toast('Add at least one line item with description, qty, and price.', false);
+            toast('Add at least one line item with item name, qty, and price.', false);
             return;
         }
         const payload = {
@@ -1705,6 +1913,7 @@
             customer_address: el('sqCustomerAddress').value.trim() || null,
             tax_rate: parseFloat(el('sqTaxRate').value) || 0,
             discount_amount: parseFloat(el('sqDiscount').value) || 0,
+            delivery_charge: parseFloat(el('sqDeliveryCharge').value) || 0,
             valid_until: el('sqValidUntil').value || null,
             notes: el('sqNotes').value.trim() || null,
             terms: el('sqTerms').value.trim() || null,
@@ -1762,6 +1971,8 @@
             el('sqCustomerAddress').value = q.customer_address || '';
             el('sqTaxRate').value = q.tax_rate ?? 0;
             el('sqDiscount').value = q.discount_amount ?? 0;
+            el('sqDeliveryCharge').value = q.delivery_charge ?? 0;
+            sqDiscountManual = (parseFloat(q.discount_amount) || 0) > 0;
             el('sqValidUntil').value = q.valid_until ? String(q.valid_until).slice(0, 10) : '';
             el('sqNotes').value = q.notes || '';
             el('sqTerms').value = q.terms || '';
@@ -1781,9 +1992,12 @@
                 cut_measurement_unit: it.cut_measurement_unit,
                 quantity: it.quantity,
                 unit_price: it.unit_price,
+                retail_unit_price: it.retail_unit_price,
+                is_free: it.is_free,
+                is_long_span: it.is_long_span,
             }));
             if (!(q.items || []).length) addLineRow();
-            refreshSqTotals();
+            refreshSqTotals({ skipAutoDiscount: sqDiscountManual });
             return;
         }
         if (action === 'delete') {
@@ -1856,8 +2070,26 @@
 
     el('sqNewBtn').addEventListener('click', () => { openModal(true).catch(() => {}); });
     el('sqModalClose').addEventListener('click', closeModal);
-    el('sqAddLineBtn').addEventListener('click', () => addLineRow());
-    el('sqDiscount').addEventListener('input', refreshSqTotals);
+    el('sqAddLineBtn').addEventListener('click', () => {
+        addLineRow();
+        const rows = [...document.querySelectorAll('#sqLinesBody tr')];
+        const last = rows[rows.length - 1];
+        if (last) {
+            last.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            last.querySelector('.sq-line-base-search')?.focus();
+        }
+    });
+    el('sqDiscount').addEventListener('focus', () => { sqDiscountManual = true; });
+    el('sqDiscount').addEventListener('input', () => {
+        sqDiscountManual = true;
+        refreshSqTotals({ skipAutoDiscount: true });
+    });
+    el('sqRecalcDiscountBtn')?.addEventListener('click', () => {
+        sqDiscountManual = false;
+        refreshSqTotals();
+        toast('Customer discount recalculated from line prices.', true);
+    });
+    el('sqDeliveryCharge').addEventListener('input', refreshSqTotals);
     el('sqTaxRate').addEventListener('input', refreshSqTotals);
     el('sqSaveDraftBtn').addEventListener('click', () => saveQuotation());
     el('sqRefreshBtn').addEventListener('click', loadList);

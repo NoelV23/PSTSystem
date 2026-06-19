@@ -12,6 +12,7 @@ use App\Models\PurchaseItem;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Models\SalesQuotation;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -77,16 +78,16 @@ class ReportsController extends Controller
                 ];
             });
 
-        // Group by product (top selling products)
-        $productStats = $sales->flatMap(function ($sale) {
-            return $sale->saleItems;
-        })->groupBy('product_id')
-            ->map(function ($items, $productId) {
-                $product = Product::find($productId);
+        // Group by product (catalog + custom lines)
+        $productStats = $sales->flatMap(fn ($sale) => $sale->saleItems)
+            ->groupBy(fn ($item) => $item->reportGroupKey())
+            ->map(function ($items) {
+                $first = $items->first();
 
                 return [
-                    'product_name' => $product ? $product->name : 'Unknown Product',
-                    'product_sku' => $product ? $product->sku : 'No SKU',
+                    'product_name' => $first->reportProductName(),
+                    'product_sku' => $first->reportProductSku(),
+                    'is_custom' => $first->product_id === null,
                     'total_quantity' => $items->sum('quantity'),
                     'total_amount' => $items->sum('total_price'),
                 ];
@@ -147,18 +148,18 @@ class ReportsController extends Controller
                 ];
             });
 
-        // Group by product (top purchased products)
-        $productStats = $purchases->flatMap(function ($purchase) {
-            return $purchase->purchaseItems;
-        })->groupBy('product_id')
-            ->map(function ($items, $productId) {
-                $product = Product::find($productId);
+        // Group by product (catalog + custom lines)
+        $productStats = $purchases->flatMap(fn ($purchase) => $purchase->purchaseItems)
+            ->groupBy(fn ($item) => $item->reportGroupKey())
+            ->map(function ($items) {
+                $first = $items->first();
 
                 return [
-                    'product_name' => $product ? $product->name : 'Unknown Product',
-                    'product_sku' => $product ? $product->sku : 'No SKU',
+                    'product_name' => $first->reportProductName(),
+                    'product_sku' => $first->reportProductSku(),
+                    'is_custom' => $first->product_id === null,
                     'total_quantity' => $items->sum('quantity'),
-                    'total_amount' => $items->sum('total_price'),
+                    'total_amount' => $items->sum(fn ($item) => $item->quantity * $item->cost_price),
                 ];
             })->sortByDesc('total_quantity')->take(10);
 
@@ -173,6 +174,56 @@ class ReportsController extends Controller
             'totalPurchasesCount',
             'supplierStats',
             'productStats'
+        ));
+    }
+
+    public function quotations(Request $request)
+    {
+        if (auth()->user()->role === 'staff') {
+            abort(403, 'Staff users cannot access reports');
+        }
+
+        $branchId = $request->get('branch_id');
+        $status = $request->get('status');
+        $dateFrom = $request->get('date_from', Carbon::today()->subDays(30)->format('Y-m-d'));
+        $dateTo = $request->get('date_to', Carbon::today()->format('Y-m-d'));
+        $branches = Branch::where('status', 'active')->get();
+
+        $query = SalesQuotation::with(['user', 'branch', 'sale'])
+            ->whereBetween('created_at', [$dateFrom.' 00:00:00', $dateTo.' 23:59:59']);
+
+        if ($branchId) {
+            $query->where('branch_id', $branchId);
+        }
+        if ($status) {
+            $query->where('status', $status);
+        }
+
+        $quotations = $query->orderBy('created_at', 'desc')->get();
+
+        $totalQuotations = $quotations->count();
+        $totalQuotedValue = $quotations->sum('grand_total');
+        $approvedCount = $quotations->where('status', 'approved')->count();
+        $convertedCount = $quotations->whereNotNull('sale_id')->count();
+
+        $statusStats = $quotations->groupBy('status')
+            ->map(fn ($group) => [
+                'count' => $group->count(),
+                'total' => $group->sum('grand_total'),
+            ]);
+
+        return view('reports.quotations', compact(
+            'quotations',
+            'branches',
+            'branchId',
+            'status',
+            'dateFrom',
+            'dateTo',
+            'totalQuotations',
+            'totalQuotedValue',
+            'approvedCount',
+            'convertedCount',
+            'statusStats'
         ));
     }
 

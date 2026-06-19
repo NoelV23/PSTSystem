@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\PurchaseItem;
 use App\Models\PurchaseOrder;
 use App\Services\CutRemainderService;
+use App\Services\PromoteCustomLineToProductService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,7 +16,8 @@ use Illuminate\Support\Facades\DB;
 class PurchaseController extends Controller
 {
     public function __construct(
-        protected CutRemainderService $cutRemainderService
+        protected CutRemainderService $cutRemainderService,
+        protected PromoteCustomLineToProductService $promoteCustomLineToProductService
     ) {}
     public function index()
     {
@@ -107,17 +109,29 @@ class PurchaseController extends Controller
             'purchase_receipt_no' => 'required|string|max:255',
             'note' => 'nullable|string',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.description' => 'nullable|string|max:500',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => 'required|numeric|min:0.01',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.location_note' => 'nullable|string|max:255',
             'items.*.status' => 'nullable|in:available,discarded',
             'items.*.discard_reason' => 'nullable|string|max:500',
+            'items.*.promote_to_catalog' => 'nullable|boolean',
+            'items.*.category_id' => 'nullable|exists:categories,id',
         ]);
+
+        $this->assertPurchaseItems($validated['items'], false);
+        $this->assertPromoteCatalogItems($validated['items']);
+        $this->validatePurchaseItemCuts($validated['items']);
 
         DB::beginTransaction();
         try {
@@ -125,17 +139,17 @@ class PurchaseController extends Controller
 
             $totalCost = 0;
             foreach ($validated['items'] as $item) {
+                $item = $this->resolvePurchaseLineProduct($item);
                 $cost = (float) $item['cost_price'];
                 $qty = (float) $item['quantity'];
                 $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $qty,
-                    'cost_price' => $cost,
-                ], $this->cutFieldsFromItem($item)));
+                ], $this->buildPurchaseItemAttributes($item, $cost, $qty)));
                 $totalCost += $purchaseItem->subtotal;
-                $this->updateInventory($item['product_id'], $purchaseOrder->branch_id, $qty, $cost);
-                $this->createRemaindersForPurchaseItem($item, $purchaseOrder->branch_id);
+                if (! $this->isCustomPurchaseItem($item)) {
+                    $this->updateInventory($item['product_id'], $purchaseOrder->branch_id, $qty, $cost);
+                    $this->createRemaindersForPurchaseItem($item, $purchaseOrder->branch_id);
+                }
             }
 
             $purchaseOrder->update([
@@ -206,17 +220,31 @@ class PurchaseController extends Controller
             'ship_to' => 'nullable|string',
             'payment_terms' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.description' => 'nullable|string|max:500',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => $isDraft ? 'nullable|numeric|min:0' : 'required|numeric|min:0.01',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.location_note' => 'nullable|string|max:255',
             'items.*.status' => 'nullable|in:available,discarded',
             'items.*.discard_reason' => 'nullable|string|max:500',
+            'items.*.promote_to_catalog' => 'nullable|boolean',
+            'items.*.category_id' => 'nullable|exists:categories,id',
         ]);
+
+        $this->assertPurchaseItems($validated['items'], $isDraft);
+        if (! $isDraft) {
+            $this->assertPromoteCatalogItems($validated['items']);
+            $this->validatePurchaseItemCuts($validated['items']);
+        }
 
         DB::beginTransaction();
         try {
@@ -236,14 +264,16 @@ class PurchaseController extends Controller
             $purchaseOrder->refresh();
 
             $totalCost = 0;
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
                 $cost = $isDraft ? (float) ($item['cost_price'] ?? 0) : (float) $item['cost_price'];
+                $qty = (float) $item['quantity'];
+                if (! $isDraft) {
+                    $item = $this->resolvePurchaseLineProduct($item);
+                    $validated['items'][$index] = $item;
+                }
                 $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'cost_price' => $cost,
-                ], $this->cutFieldsFromItem($item)));
+                ], $this->buildPurchaseItemAttributes($item, $cost, $qty)));
 
                 $totalCost += $purchaseItem->subtotal;
             }
@@ -252,6 +282,9 @@ class PurchaseController extends Controller
 
             if (! $isDraft) {
                 foreach ($validated['items'] as $item) {
+                    if ($this->isCustomPurchaseItem($item)) {
+                        continue;
+                    }
                     $this->updateInventory(
                         $item['product_id'],
                         $validated['branch_id'],
@@ -301,14 +334,22 @@ class PurchaseController extends Controller
             'ship_to' => 'nullable|string',
             'payment_terms' => 'nullable|string|max:255',
             'items' => 'required|array|min:1',
-            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_id' => 'nullable|exists:products,id',
+            'items.*.description' => 'nullable|string|max:500',
+            'items.*.custom_item_name' => 'nullable|string|max:255',
+            'items.*.custom_color' => 'nullable|string|max:255',
+            'items.*.custom_thickness' => 'nullable|string|max:255',
+            'items.*.custom_measurement' => 'nullable|string|max:255',
             'items.*.quantity' => 'required|numeric|min:0.01',
             'items.*.cost_price' => 'nullable|numeric|min:0',
             'items.*.cut_length' => 'nullable|numeric|min:0',
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
         ]);
+
+        $this->assertPurchaseItems($validated['items'], true);
 
         DB::beginTransaction();
         try {
@@ -326,12 +367,10 @@ class PurchaseController extends Controller
             $totalCost = 0;
             foreach ($validated['items'] as $item) {
                 $cost = (float) ($item['cost_price'] ?? 0);
+                $qty = (float) $item['quantity'];
                 $purchaseItem = PurchaseItem::create(array_merge([
                     'purchase_order_id' => $purchaseOrder->id,
-                    'product_id' => $item['product_id'],
-                    'quantity' => $item['quantity'],
-                    'cost_price' => $cost,
-                ], $this->cutFieldsFromItem($item)));
+                ], $this->buildPurchaseItemAttributes($item, $cost, $qty)));
 
                 $totalCost += $purchaseItem->subtotal;
             }
@@ -365,7 +404,9 @@ class PurchaseController extends Controller
         try {
             if ($purchaseOrder->status === 'received') {
                 foreach ($purchaseOrder->purchaseItems as $item) {
-                    $this->removeInventory($item->product_id, $purchaseOrder->branch_id, $item->quantity);
+                    if ($item->product_id) {
+                        $this->removeInventory($item->product_id, $purchaseOrder->branch_id, $item->quantity);
+                    }
                 }
             }
 
@@ -648,6 +689,106 @@ class PurchaseController extends Controller
             'cut_height' => $this->nullableCutNumeric($item['cut_height'] ?? null),
             'cut_measurement_unit' => $this->nullableCutString($item['cut_measurement_unit'] ?? null),
         ];
+    }
+
+    protected function isCustomPurchaseItem(array $item): bool
+    {
+        return empty($item['product_id']);
+    }
+
+    protected function buildPurchaseItemAttributes(array $item, float $cost, float $qty): array
+    {
+        $productId = ! empty($item['product_id']) ? (int) $item['product_id'] : null;
+        $isCustom = $productId === null;
+
+        return array_merge([
+            'product_id' => $productId,
+            'description' => $isCustom
+                ? (trim((string) ($item['description'] ?? $item['custom_item_name'] ?? '')) ?: null)
+                : $this->nullableCutString($item['description'] ?? null),
+            'custom_item_name' => $isCustom ? $this->nullableCutString($item['custom_item_name'] ?? null) : null,
+            'custom_color' => $this->nullableCutString($item['custom_color'] ?? null),
+            'custom_thickness' => $this->nullableCutString($item['custom_thickness'] ?? null),
+            'custom_measurement' => $this->nullableCutString($item['custom_measurement'] ?? null),
+            'quantity' => $qty,
+            'cost_price' => $cost,
+            'is_long_span' => ! empty($item['is_long_span']),
+        ], $this->cutFieldsFromItem($item));
+    }
+
+    protected function assertPromoteCatalogItems(array $items): void
+    {
+        foreach ($items as $index => $item) {
+            if (! $this->isCustomPurchaseItem($item)) {
+                continue;
+            }
+            if (empty($item['promote_to_catalog'])) {
+                continue;
+            }
+            if (empty($item['category_id'])) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "items.{$index}.category_id" => ['Select a category when adding a custom line to the catalog.'],
+                ]);
+            }
+        }
+    }
+
+    /**
+     * When receiving custom lines flagged for catalog, create or match a product first.
+     */
+    protected function resolvePurchaseLineProduct(array $item): array
+    {
+        if (! $this->isCustomPurchaseItem($item) || empty($item['promote_to_catalog'])) {
+            return $item;
+        }
+
+        $categoryId = (int) ($item['category_id'] ?? 0);
+        if ($categoryId <= 0) {
+            throw \Illuminate\Validation\ValidationException::withMessages([
+                'items' => ['Category is required to add custom lines to the catalog.'],
+            ]);
+        }
+
+        $product = $this->promoteCustomLineToProductService->findOrCreateFromCustomLine($item, $categoryId);
+        $item['product_id'] = $product->id;
+
+        return $item;
+    }
+
+    protected function validatePurchaseItemCuts(array $items): void
+    {
+        foreach ($items as $index => $item) {
+            if ($this->isCustomPurchaseItem($item) || empty($item['product_id'])) {
+                $this->cutRemainderService->validateCutDimensions(null, $item, null, "items.{$index}");
+
+                continue;
+            }
+
+            $product = Product::find($item['product_id']);
+            if ($product) {
+                $this->cutRemainderService->validateCutDimensions($product, $item, null, "items.{$index}");
+            }
+        }
+    }
+
+    protected function assertPurchaseItems(array $items, bool $isDraft): void
+    {
+        foreach ($items as $index => $item) {
+            $isCustom = $this->isCustomPurchaseItem($item);
+            if ($isCustom) {
+                $name = trim((string) ($item['custom_item_name'] ?? $item['description'] ?? ''));
+                if ($name === '') {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        "items.{$index}.custom_item_name" => ['Item name is required for custom / non-catalog lines.'],
+                    ]);
+                }
+            }
+            if (! $isDraft && ! $isCustom && (float) ($item['cost_price'] ?? 0) <= 0) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    "items.{$index}.cost_price" => ['Unit cost is required for catalog items when recording stock.'],
+                ]);
+            }
+        }
     }
 
     private function nullableCutNumeric($value): ?float

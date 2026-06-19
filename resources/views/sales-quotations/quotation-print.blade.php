@@ -95,16 +95,33 @@
             font-size: 9px;
             letter-spacing: 0.04em;
         }
+        .thick-row td {
+            background: #facc15;
+            color: #111;
+            font-weight: 700;
+            text-align: center;
+            font-size: 9px;
+            letter-spacing: 0.03em;
+        }
         .num { text-align: right; }
         .cen { text-align: center; }
         .item-name { font-weight: 600; }
         .color-cell { font-weight: 700; color: #92400e; }
-        tr.line-non-catalog td {
+        tr.line-free td {
             color: #b91c1c;
+            font-style: italic;
             font-weight: 600;
         }
-        tr.line-non-catalog td.color-cell {
+        tr.line-free td.color-cell {
             color: #b91c1c;
+        }
+        tr.line-free td.amount-free {
+            font-weight: 700;
+            font-style: italic;
+            letter-spacing: 0.04em;
+        }
+        tr.line-non-catalog td {
+            font-weight: 600;
         }
         .subtotal-row td { font-weight: 700; }
         .bottom-wrap {
@@ -178,19 +195,45 @@
     $fmtP = fn ($n) => 'P ' . number_format((float) $n, 2);
     $subtotal = (float) $quotation->subtotal;
     $discount = (float) $quotation->discount_amount;
-    $afterDiscount = max(0, $subtotal - $discount);
+    $delivery = max(0, (float) ($quotation->delivery_charge ?? 0));
+    $afterDiscount = (float) $quotation->grand_total - (float) $quotation->tax_amount - $delivery;
     $quoteDate = $quotation->created_at ? \Illuminate\Support\Carbon::parse($quotation->created_at) : now();
     $quoteNo = $quotation->quotation_number ?? ('SQ-' . $quotation->id);
 
-    $unitLabel = function ($p) {
+    $unitLabel = function ($p, $line = null) {
+        if ($line && $line->is_long_span) {
+            return 'lmtrs';
+        }
         if (! $p) {
             return 'pcs';
         }
-        $u = $p->base_unit ?? 'pcs';
-        return strtolower(preg_replace('/^per\s+/i', '', $u) ?: 'pcs');
+        $u = strtolower(preg_replace('/^per\s+/i', '', (string) ($p->base_unit ?? '')) ?: 'pcs');
+        if (in_array($u, ['m', 'meter', 'meters', 'metre', 'metres', 'length'], true)) {
+            return 'lmtrs';
+        }
+
+        return $u;
     };
 
-    $lineDimension = function ($p) {
+    $longSpanDimension = function ($line, $p) {
+        $parts = [];
+        $thick = $line->printThicknessLabel();
+        if ($thick) {
+            $parts[] = $thick;
+        }
+        $coverage = $line->printLongSpanCoverage();
+        if ($coverage) {
+            $parts[] = $coverage;
+        }
+        $parts[] = 'LS';
+
+        return implode(' x ', $parts);
+    };
+
+    $lineDimension = function ($line, $p) {
+        if ($line->is_long_span) {
+            return $longSpanDimension($line, $p);
+        }
         if (! $p) {
             return '—';
         }
@@ -243,6 +286,55 @@
 
         return $s;
     };
+
+    $resolveLineDim = function ($line) use ($lineDimension, $formatCut, $longSpanDimension) {
+        $p = $line->product;
+        if ($line->is_long_span) {
+            return $longSpanDimension($line, $p);
+        }
+        if ($p) {
+            $savedSpecs = array_filter([
+                $line->custom_thickness ?? null,
+                $line->custom_measurement ?? null,
+            ]);
+            $dim = count($savedSpecs)
+                ? implode(' · ', $savedSpecs)
+                : $lineDimension($line, $p);
+            $cutTxt = $formatCut($line);
+            if ($cutTxt !== '') {
+                $dim = ($dim !== '—' ? $dim.' · ' : '').'Cut: '.$cutTxt;
+            }
+
+            return $dim;
+        }
+        if ($line->product_id) {
+            return trim((string) ($line->description ?? '')) !== ''
+                ? \Illuminate\Support\Str::limit(trim((string) $line->description), 120)
+                : '—';
+        }
+        $specParts = array_filter([
+            $line->custom_thickness ?? null,
+            $line->custom_measurement ?? null,
+        ]);
+        $dim = count($specParts) ? implode(' · ', $specParts) : 'As quoted';
+        $cutTxt = $formatCut($line);
+        if ($cutTxt !== '') {
+            $dim = ($dim !== 'As quoted' ? $dim.' · ' : '').'Cut: '.$cutTxt;
+        }
+
+        return $dim;
+    };
+
+    $groupedLines = [];
+    foreach ($items as $line) {
+        $cat = $line->printCategoryName();
+        $thick = $line->printThicknessLabel() ?? '';
+        $groupedLines[$cat][$thick][] = $line;
+    }
+    ksort($groupedLines);
+    foreach ($groupedLines as $cat => $thickGroups) {
+        ksort($thickGroups);
+    }
 
     $defaultTerms = "1. 60% down payment upon confirmation of order; balance upon completion of delivery.\n2. Lead time: 4–6 working days upon receipt of down payment.\n3. Cancellation of confirmed orders may be subject to charges.\n4. Returns accepted only for manufacturing defects, subject to inspection.\n5. Prices are valid until the date indicated on this quotation.";
     $termsText = trim((string) ($quotation->terms ?? '')) ?: $defaultTerms;
@@ -304,52 +396,38 @@
             </tr>
         </thead>
         <tbody>
-            <tr class="cat-row">
-                <td colspan="6">CLADDING MATERIALS</td>
-            </tr>
-            @foreach($items as $line)
-                @php
-                    $p = $line->product;
-                    $isNonCatalog = $line->product_id === null;
-                    $qty = (float) $line->quantity;
-                    $u = $unitLabel($p);
-                    $qtyDisplay = rtrim(rtrim(number_format($qty, 2), '0'), '.') . ' ' . $u;
-                    $itemName = $p?->name ?? ($line->custom_item_name ?: $line->description);
-                    $color = $p ? ($p->color ?: '—') : ($line->custom_color ?: '—');
-                    if ($p) {
-                        $savedSpecs = array_filter([
-                            $line->custom_thickness ?? null,
-                            $line->custom_measurement ?? null,
-                        ]);
-                        $dim = count($savedSpecs)
-                            ? implode(' · ', $savedSpecs)
-                            : $lineDimension($p);
-                        $cutTxt = $formatCut($line);
-                        if ($cutTxt !== '') {
-                            $dim = ($dim !== '—' ? $dim.' · ' : '').'Cut: '.$cutTxt;
-                        }
-                    } elseif ($line->product_id) {
-                        $dim = trim((string) ($line->description ?? '')) !== '' ? \Illuminate\Support\Str::limit(trim((string) $line->description), 120) : '—';
-                    } else {
-                        $specParts = array_filter([
-                            $line->custom_thickness ?? null,
-                            $line->custom_measurement ?? null,
-                        ]);
-                        $dim = count($specParts) ? implode(' · ', $specParts) : 'As quoted';
-                        $cutTxt = $formatCut($line);
-                        if ($cutTxt !== '') {
-                            $dim = ($dim !== 'As quoted' ? $dim.' · ' : '').'Cut: '.$cutTxt;
-                        }
-                    }
-                @endphp
-                <tr @class(['line-non-catalog' => $isNonCatalog])>
-                    <td class="cen">{{ $qtyDisplay }}</td>
-                    <td class="item-name">{{ $itemName }}</td>
-                    <td class="color-cell">{{ $color }}</td>
-                    <td class="cen" style="font-size:8px;">{{ $dim }}</td>
-                    <td class="num">{{ $fmtP($line->unit_price) }}</td>
-                    <td class="num">{{ $fmtP($line->line_total) }}</td>
+            @foreach($groupedLines as $categoryName => $thicknessGroups)
+                <tr class="cat-row">
+                    <td colspan="6">{{ $categoryName }}</td>
                 </tr>
+                @foreach($thicknessGroups as $thicknessKey => $groupLines)
+                    @if($thicknessKey !== '')
+                        <tr class="thick-row">
+                            <td colspan="6">{{ strtoupper($thicknessKey) }} THICKNESS</td>
+                        </tr>
+                    @endif
+                    @foreach($groupLines as $line)
+                        @php
+                            $p = $line->product;
+                            $isNonCatalog = $line->product_id === null;
+                            $isFree = (bool) $line->is_free;
+                            $qty = (float) $line->quantity;
+                            $u = $unitLabel($p, $line);
+                            $qtyDisplay = rtrim(rtrim(number_format($qty, 2), '0'), '.') . ' ' . $u;
+                            $itemName = $p?->name ?? ($line->custom_item_name ?: $line->description);
+                            $color = $p ? ($p->color ?: '—') : ($line->custom_color ?: '—');
+                            $dim = $resolveLineDim($line);
+                        @endphp
+                        <tr @class(['line-non-catalog' => $isNonCatalog, 'line-free' => $isFree])>
+                            <td class="cen">{{ $qtyDisplay }}</td>
+                            <td class="item-name">{{ $itemName }}</td>
+                            <td class="color-cell">{{ $color }}</td>
+                            <td class="cen" style="font-size:8px;">{{ $dim }}</td>
+                            <td class="num">{{ $fmtP($line->retail_unit_price ?? $line->unit_price) }}</td>
+                            <td class="num amount-free">{{ $isFree ? 'FREE' : $fmtP($qty * (float) ($line->retail_unit_price ?? $line->unit_price)) }}</td>
+                        </tr>
+                    @endforeach
+                @endforeach
             @endforeach
             <tr class="subtotal-row">
                 <td colspan="5" class="num" style="padding-right:8px;">Sub-total Amount</td>
@@ -383,12 +461,8 @@
                 </tr>
                 @if($discount > 0)
                     <tr>
-                        <td class="lbl">Discount</td>
-                        <td class="val">− {{ $fmtP($discount) }}</td>
-                    </tr>
-                    <tr class="totals-discount">
-                        <td class="lbl">Total discounted price<br><span style="font-weight:normal;font-size:8px;">(You save {{ $fmtP($discount) }})</span></td>
-                        <td class="val">{{ $fmtP($afterDiscount) }}</td>
+                        <td class="lbl">Less: Customer Discount</td>
+                        <td class="val">{{ $fmtP($discount) }}</td>
                     </tr>
                 @endif
                 @if((float) $quotation->tax_rate > 0)
@@ -398,8 +472,14 @@
                     </tr>
                 @endif
                 <tr>
-                    <td class="lbl">Delivery Charge</td>
-                    <td class="val" style="font-style:italic;">PICK UP</td>
+                    <td class="lbl">Delivery Charge{{ (float) ($quotation->delivery_charge ?? 0) > 0 ? ' (within CDO)' : '' }}</td>
+                    <td class="val" style="{{ (float) ($quotation->delivery_charge ?? 0) > 0 ? '' : 'font-style:italic;' }}">
+                        @if((float) ($quotation->delivery_charge ?? 0) > 0)
+                            {{ $fmtP($quotation->delivery_charge) }}
+                        @else
+                            PICK UP
+                        @endif
+                    </td>
                 </tr>
             </table>
             <div class="grand-bar">

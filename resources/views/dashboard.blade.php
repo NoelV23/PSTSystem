@@ -89,6 +89,30 @@
         @endif
     </div>
 
+    <!-- SQ / PO pipeline -->
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4 mb-8" x-show="role === 'admin' || role === 'manager'">
+        <a href="{{ route('sales-quotations.index') }}?status=pending_approval" class="rounded-lg border border-yellow-200 bg-yellow-50/80 px-4 py-3 hover:border-yellow-300 transition">
+            <p class="text-xs font-medium text-yellow-900/80">SQ awaiting approval</p>
+            <p class="text-xl font-bold text-yellow-950 tabular-nums" x-text="pipeline.quotationsPendingApproval ?? '0'"></p>
+        </a>
+        <a href="{{ route('sales-quotations.index') }}?status=draft" class="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 hover:border-slate-300 transition">
+            <p class="text-xs font-medium text-slate-600">SQ drafts</p>
+            <p class="text-xl font-bold text-slate-900 tabular-nums" x-text="pipeline.quotationsDraft ?? '0'"></p>
+        </a>
+        <a href="{{ route('sales-quotations.index') }}?status=approved" class="rounded-lg border border-teal-200 bg-teal-50/80 px-4 py-3 hover:border-teal-300 transition">
+            <p class="text-xs font-medium text-teal-800/80">SQ approved (no sale)</p>
+            <p class="text-xl font-bold text-teal-900 tabular-nums" x-text="pipeline.quotationsApprovedOpen ?? '0'"></p>
+        </a>
+        <a href="{{ route('purchases.index') }}?status=draft" class="rounded-lg border border-violet-200 bg-violet-50/80 px-4 py-3 hover:border-violet-300 transition">
+            <p class="text-xs font-medium text-violet-800/80">Open POs (draft)</p>
+            <p class="text-xl font-bold text-violet-900 tabular-nums" x-text="pipeline.purchaseOrdersDraft ?? '0'"></p>
+        </a>
+        <a href="{{ route('purchases.index') }}?status=received" class="rounded-lg border border-blue-200 bg-blue-50/80 px-4 py-3 hover:border-blue-300 transition">
+            <p class="text-xs font-medium text-blue-800/80">PO received today</p>
+            <p class="text-xl font-bold text-blue-900 tabular-nums" x-text="pipeline.purchaseOrdersReceivedToday ?? '0'"></p>
+        </a>
+    </div>
+
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
         <div class="rounded-lg border border-amber-100 bg-amber-50/80 px-4 py-3">
             <p class="text-xs font-medium text-amber-800/80">Low stock SKUs</p>
@@ -302,6 +326,10 @@
                         <span class="flex h-8 w-8 items-center justify-center rounded-md bg-violet-100 text-violet-800 text-xs">PO</span>
                         Purchases
                     </a>
+                    <a href="{{ route('sales-quotations.index') }}" class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:border-teal-300 hover:bg-teal-50/40 transition">
+                        <span class="flex h-8 w-8 items-center justify-center rounded-md bg-teal-100 text-teal-800 text-xs">SQ</span>
+                        Quotations
+                    </a>
                     <a href="{{ route('reports.index') }}" class="flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:border-slate-400 hover:bg-slate-100 transition">
                         <span class="flex h-8 w-8 items-center justify-center rounded-md bg-slate-200 text-slate-800 text-xs">Rpt</span>
                         Reports
@@ -342,6 +370,13 @@ function dashboardData() {
             transactionsToday: 0,
             productsTracked: 0,
         },
+        pipeline: {
+            quotationsPendingApproval: 0,
+            quotationsDraft: 0,
+            quotationsApprovedOpen: 0,
+            purchaseOrdersDraft: 0,
+            purchaseOrdersReceivedToday: 0,
+        },
         branches: [],
         inventoryAlerts: [],
         outOfStockItems: [],
@@ -377,6 +412,7 @@ function dashboardData() {
                 const data = await response.json();
 
                 this.summary = { ...this.summary, ...(data.summary || {}) };
+                this.pipeline = { ...this.pipeline, ...(data.pipeline || {}) };
                 this.branches = data.branches || [];
                 this.inventoryAlerts = data.inventoryAlerts || [];
                 this.outOfStockItems = data.outOfStockItems || [];

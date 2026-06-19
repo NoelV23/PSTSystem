@@ -174,10 +174,21 @@
     $contact = trim((string) ($sale->delivery_contact_phone ?? ''));
     $deliveryWhen = $sale->delivery_date ? date('F j, Y', strtotime($sale->delivery_date)) : '—';
 
-    $unitLabel = function ($product) {
+    $unitLabel = function ($product, $item = null) {
+        if ($item && $item->is_long_span) {
+            return 'lmtrs';
+        }
+        if (! $product) {
+            return 'PCS';
+        }
         $u = $product->base_unit ?? 'PCS';
         $u = preg_replace('/^per\s+/i', '', $u);
-        return strtoupper(trim($u)) ?: 'PCS';
+        $u = strtolower(trim($u)) ?: 'pcs';
+        if (in_array($u, ['m', 'meter', 'meters', 'metre', 'metres', 'length'], true)) {
+            return 'lmtrs';
+        }
+
+        return strtoupper($u) ?: 'PCS';
     };
 
     $colorToneClass = function (?string $color) {
@@ -198,6 +209,20 @@
     };
 
     $describeLine = function ($item) {
+        if ($item->is_long_span) {
+            $name = $item->lineDisplayName();
+            $parts = array_filter([
+                $item->printThicknessLabel(),
+                $item->printLongSpanCoverage(),
+                'LS',
+            ]);
+            if ($parts !== []) {
+                $name .= ' — '.implode(' x ', $parts);
+            }
+
+            return trim($name);
+        }
+
         if ($item->isCustomLine()) {
             $name = $item->lineDisplayName();
             $specs = $item->lineSpecLabel();
@@ -300,7 +325,7 @@
         @foreach($itemsList as $idx => $item)
             @php
                 $p = $item->product;
-                $isFree = (float) $item->unit_price <= 0 && (float) $item->total_price <= 0;
+                $isFree = (bool) ($item->is_free ?? false);
                 $colorRaw = $item->isCustomLine() ? ($item->custom_color ?? '') : ($p->color ?? '');
                 $desc = $describeLine($item);
                 if ($isFree && $desc === '') {
@@ -310,7 +335,7 @@
             <tr class="{{ $isFree ? 'row-free' : '' }}">
                 <td>{{ $idx + 1 }}</td>
                 <td>{{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }}</td>
-                <td>{{ $p ? $unitLabel($p) : 'PCS' }}</td>
+                <td>{{ $unitLabel($p, $item) }}</td>
                 <td class="desc">{{ $desc }}</td>
                 <td class="color-col {{ $colorToneClass($colorRaw) }}">{{ $colorRaw !== '' ? $colorRaw : ($isFree ? 'FREE' : '—') }}</td>
             </tr>
