@@ -126,7 +126,7 @@
                     <input id="productSearch" type="text" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Type product name or SKU…" autocomplete="off" />
                     <div id="productDropdown" class="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg hidden"></div>
                     <div id="salesVariantStrip" class="mt-3 hidden flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-                        <span class="text-xs font-medium text-gray-600 sm:shrink-0">Color / spec / size</span>
+                        <span class="text-xs font-medium text-gray-600 sm:shrink-0">Choose color, thickness, or size</span>
                         <div class="flex flex-wrap gap-2">
                             <select id="salesVarColor" class="min-w-[6rem] max-w-[9rem] rounded-lg border border-gray-300 bg-white px-2 py-2 text-xs shadow-sm"></select>
                             <select id="salesVarThick" class="min-w-[6rem] max-w-[9rem] rounded-lg border border-gray-300 bg-white px-2 py-2 text-xs shadow-sm"></select>
@@ -134,19 +134,19 @@
                         </div>
                     </div>
                     <div id="salesCustomModeBar" class="mt-2 hidden">
-                        <button type="button" id="salesEnterCustomBtn" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">Add custom item</button>
+                        <button type="button" id="salesEnterCustomBtn" class="text-sm font-medium text-blue-700 hover:text-blue-900 hover:underline">Item not in inventory</button>
                     </div>
                     <div id="salesCustomSpecFields" class="mt-3 hidden grid grid-cols-1 gap-3 sm:grid-cols-3">
                         <div class="flex flex-col gap-1">
-                            <label for="salesCustomColor" class="text-xs font-medium text-gray-600">Color</label>
+                            <label for="salesCustomColor" class="text-xs font-medium text-gray-600">Color (optional)</label>
                             <input id="salesCustomColor" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="Color">
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label for="salesCustomThickness" class="text-xs font-medium text-gray-600">Thickness</label>
+                            <label for="salesCustomThickness" class="text-xs font-medium text-gray-600">Thickness (optional)</label>
                             <input id="salesCustomThickness" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="e.g. 0.8 mm">
                         </div>
                         <div class="flex flex-col gap-1">
-                            <label for="salesCustomMeasurement" class="text-xs font-medium text-gray-600">Size</label>
+                            <label for="salesCustomMeasurement" class="text-xs font-medium text-gray-600">Size (optional)</label>
                             <input id="salesCustomMeasurement" type="text" class="rounded-lg border border-gray-300 px-3 py-2 text-sm shadow-sm" placeholder="e.g. 10 ft">
                         </div>
                     </div>
@@ -157,7 +157,7 @@
                         </div>
                     </div>
                     <p id="salesExitCustomLink" class="mt-2 hidden">
-                        <button type="button" id="salesExitCustomBtn" class="text-xs text-gray-600 hover:underline">← Catalog search</button>
+                        <button type="button" id="salesExitCustomBtn" class="text-xs text-gray-600 hover:underline">← Back to product search</button>
                     </p>
                 </div>
 
@@ -166,8 +166,8 @@
                     <div class="space-y-5">
                         <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div class="flex flex-col gap-1.5">
-                                <x-input-label for="productPrice" value="Unit Price (₱)" />
-                                <input id="productPrice" type="number" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" min="0" step="0.01" placeholder="Enter price" />
+                                <x-input-label for="productPrice" value="Retail price (₱)" />
+                                <input id="productPrice" type="number" class="block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" min="0" step="0.01" placeholder="From inventory retail" title="Auto-filled from branch inventory retail price" />
                             </div>
                             <div class="flex flex-col gap-1.5">
                                 <x-input-label for="saleQuantity" value="Quantity" />
@@ -942,9 +942,23 @@ function salesFormatCutDisplay(it) {
     return it.cutSize || '';
 }
 
+function salesInvRetailPrice(inv) {
+    if (!inv) return '';
+    let n;
+    if (inv.product?.base_unit === 'per set' && inv.product?.set_components_count > 0) {
+        n = Number(inv.calculated_price);
+    } else {
+        n = Number(inv.price);
+    }
+    if (Number.isNaN(n) || n < 0) return '';
+    return n;
+}
+
 function salesPushCustomSaleItem(payload) {
     const qty = Number(payload.qty) || 1;
     const unitPrice = Number(payload.unitPrice) || 0;
+    const isFree = !!payload.isFree;
+    const isLongSpan = !!payload.isLongSpan;
     const cut = salesBuildCutPayloadFromItem(payload);
     let cutSize = '';
     if (cut.cut_length || cut.cut_width || cut.cut_height) {
@@ -969,7 +983,9 @@ function salesPushCustomSaleItem(payload) {
         cutMeasurementUnit: cut.cut_measurement_unit,
         cutMeasurementLabel: cut.cut_measurement_unit ? String(cut.cut_measurement_unit) : '',
         unitPrice,
-        totalPrice: qty * unitPrice,
+        totalPrice: isFree ? 0 : qty * unitPrice,
+        isFree,
+        isLongSpan,
         remainderData: null,
         isSet: false,
         stockWarning: !!payload.stockWarning,
@@ -1003,7 +1019,7 @@ function salesOfferCatalogAsCustom(product) {
     if (ct) ct.value = Picker ? Picker.thicknessLabel(product) : (product.thickness || '');
     const cm = document.getElementById('salesCustomMeasurement');
     if (cm) cm.value = Picker ? Picker.measurementLabel(product) : '';
-    showToast('No stock — added as custom. Set qty and price.', 'info');
+    showToast('Out of stock — enter quantity and price to sell this item.', 'info');
 }
 
 function salesHideVariantStrip() {
@@ -1026,7 +1042,7 @@ function salesInvItemAsResult(item) {
             product: item.product,
             available_stock: 0,
             cost: 0,
-            source: 'Catalog (no stock)',
+            source: 'Product list (no stock)',
             _noStock: true,
         };
     }
@@ -1092,12 +1108,12 @@ function salesResultRowHtml(item) {
         <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100 ${item._noStock ? 'bg-amber-50/60' : ''}" ${item._noStock ? `data-sales-catalog-custom="1" data-product-id="${p.id}"` : `onclick="selectProduct('${item.type}', ${item.id})"`}>
             <div class="font-medium">
                 ${remainderIndicator}${escapeHtmlSales(displayName)} (${escapeHtmlSales(p.sku || 'No SKU')})
-                ${item._noStock ? '<span class="ml-1 text-xs font-medium text-amber-800">· no stock</span>' : ''}
+                ${item._noStock ? '<span class="ml-1 text-xs font-medium text-amber-800">· out of stock</span>' : ''}
             </div>
             <div class="text-xs text-gray-500">
-                ${escapeHtmlSales(item.source)} - Available: ${escapeHtmlSales(String(item.available_stock))}
-                ${remainderInfo ? ` - ${escapeHtmlSales(remainderInfo)}` : ''}
-                ${item._noStock ? ' · tap for custom' : ''}
+                ${item._noStock
+                    ? 'Out of stock — you can still sell this item'
+                    : `${escapeHtmlSales(item.source)} · Available: ${escapeHtmlSales(String(item.available_stock))}${remainderInfo ? ` · ${escapeHtmlSales(remainderInfo)}` : ''}`}
             </div>
         </div>
     `;
@@ -1223,8 +1239,8 @@ productSearch.addEventListener('input', function() {
                 const enc = encodeURIComponent(key);
                 invParts.push(`
                     <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b border-gray-100" data-sales-pick-group="${enc}">
-                        <div class="font-medium">${escapeHtmlSales(lab)} <span class="text-gray-500 font-normal">· ${invs.length} variants</span></div>
-                        <div class="text-xs text-gray-500">Pick color, spec, size</div>
+                        <div class="font-medium">${escapeHtmlSales(lab)} <span class="text-gray-500 font-normal">· ${invs.length} option${invs.length === 1 ? '' : 's'}</span></div>
+                        <div class="text-xs text-gray-500">Then pick color, thickness, or size</div>
                     </div>
                 `);
             }
@@ -1241,7 +1257,7 @@ productSearch.addEventListener('input', function() {
     if (!allParts.length) {
         productDropdown.innerHTML = `
             <div class="px-4 py-2 text-gray-400">No match.</div>
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-100 text-sm text-blue-700 font-medium" data-sales-use-custom="1">Custom: “${escapeHtmlSales(query)}”</div>
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-t border-gray-100 text-sm text-blue-700 font-medium" data-sales-use-custom="1">Add item: “${escapeHtmlSales(query)}”</div>
         `;
         productDropdown.classList.remove('hidden');
         document.getElementById('salesCustomModeBar')?.classList.remove('hidden');
@@ -1497,7 +1513,7 @@ function renderCutFields(item) {
     if (isRemainder) {
         const remUnit = remainderDisplayUnit(item, product);
         if (item.length_remaining) {
-            inputsHtml = cutSizeInputGroup(product, 'cutLength', 'Cut length', `type="number" min="0" max="${item.length_remaining}" step="0.01" title="Max: ${item.length_remaining} ${unitLabel}"`, remUnit);
+            inputsHtml = cutSizeInputGroup(product, 'cutLength', 'Cut length', `type="number" min="0" max="${item.length_remaining}" step="0.01" title="Cannot exceed ${item.length_remaining} ${unitLabel}"`, remUnit);
         } else if (item.width_remaining && item.height_remaining) {
             inputsHtml = cutSizeInputGroup(product, 'cutWidth', 'Width', `type="number" min="0" max="${item.width_remaining}" step="0.01" title="Max width: ${item.width_remaining} ${unitLabel}"`, remUnit)
                 + cutSizeInputGroup(product, 'cutHeight', 'Height', `type="number" min="0" max="${item.height_remaining}" step="0.01" title="Max height: ${item.height_remaining} ${unitLabel}"`, remUnit);
@@ -1506,17 +1522,17 @@ function renderCutFields(item) {
         const parts = [];
         if (hasLength) {
             const maxLen = productDimensionInCutUnit(product, 'length', cutUnit);
-            const maxAttr = maxLen != null ? ` max="${maxLen}" title="Max: ${maxLen} ${unitLabel}"` : '';
+            const maxAttr = maxLen != null ? ` max="${maxLen}" title="Must be less than ${maxLen} ${unitLabel}"` : '';
             parts.push(cutSizeInputGroup(product, 'cutLength', 'Length', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
         }
         if (hasWidth) {
             const maxW = productDimensionInCutUnit(product, 'width', cutUnit);
-            const maxAttr = maxW != null ? ` max="${maxW}" title="Max width: ${maxW} ${unitLabel}"` : '';
+            const maxAttr = maxW != null ? ` max="${maxW}" title="Must be less than ${maxW} ${unitLabel}"` : '';
             parts.push(cutSizeInputGroup(product, 'cutWidth', 'Width', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
         }
         if (hasHeight) {
             const maxH = productDimensionInCutUnit(product, 'height', cutUnit);
-            const maxAttr = maxH != null ? ` max="${maxH}" title="Max height: ${maxH} ${unitLabel}"` : '';
+            const maxAttr = maxH != null ? ` max="${maxH}" title="Must be less than ${maxH} ${unitLabel}"` : '';
             parts.push(cutSizeInputGroup(product, 'cutHeight', 'Height', `type="number" min="0" step="0.01"${maxAttr}`, cutUnit));
         }
         inputsHtml = parts.join('');
@@ -1636,22 +1652,21 @@ window.selectProduct = function(type, id) {
         '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 mr-2">[Remainder]</span>' : '';
     
     // Add wholesale price info if available
-    const wholesaleInfo = item.wholesale_price ? 
+    const wholesaleInfo = item.wholesale_price ?
         ` &nbsp; | &nbsp; Wholesale: <span class='font-semibold'>₱${Number(item.wholesale_price).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>` : '';
+    const retailVal = salesInvRetailPrice(item);
+    const retailInfo = retailVal !== ''
+        ? ` &nbsp; | &nbsp; Retail: <span class='font-semibold'>₱${Number(retailVal).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>`
+        : '';
+
+    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span>${retailInfo} &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}<span id="productMetaCutInfo"></span>`;
     
-    document.getElementById('productMeta').innerHTML = `${remainderIndicator}Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.base_unit || '-'}</span>${wholesaleInfo}${remainderInfo ? ` &nbsp; | &nbsp; ${remainderInfo}` : ''}<span id="productMetaCutInfo"></span>`;
-    
-    // Set default price from inventory if available, otherwise leave empty
+    // Auto-fill retail price from inventory
     if (item.type === 'inventory') {
-        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
-            // For set products, use calculated price
-            productPrice.value = item.calculated_price || '';
-        } else {
-            // For regular products, use inventory price
-            productPrice.value = item.price || '';
-        }
+        const retail = salesInvRetailPrice(item);
+        productPrice.value = retail !== '' ? retail : '';
     } else {
-    productPrice.value = '';
+        productPrice.value = '';
     }
     saleQuantity.value = '';
     
@@ -1691,6 +1706,10 @@ addSaleItemBtn.addEventListener('click', function(e) {
         let cutPayload = {};
         if (salesCustomCutVisible && window.PstCutFields) {
             cutPayload = PstCutFields.readInline(document.getElementById('salesCustomCutInputs'));
+            if (PstCutFields.hasCutValues(cutPayload)) {
+                const cutCheck = PstCutFields.validateCut(cutPayload, null);
+                if (!cutCheck.ok) return showToast(cutCheck.message, 'error');
+            }
         }
         salesPushCustomSaleItem({
             customItemName: name,
@@ -1748,44 +1767,28 @@ addSaleItemBtn.addEventListener('click', function(e) {
     const l = cutPayload.cut_length ?? (cutLengthInput ? Number(cutLengthInput.value) : 0);
     const w = cutPayload.cut_width ?? (cutWidthInput ? Number(cutWidthInput.value) : 0);
     const h = cutPayload.cut_height ?? (cutHeightInput ? Number(cutHeightInput.value) : 0);
-    
-    // Validate cut input(s) based on item type
-    if (selectedProduct.type === 'remainder') {
-        // For remainder items, validate against available remainder dimensions
-        const remUnitLbl = productCutMeasurementLabel(remainderDisplayUnit(selectedProduct, selectedProduct.product));
-        if (cutLengthInput && l > 0) {
-            const maxLength = selectedProduct.length_remaining || 0;
-            if (l > maxLength) {
-                return showToast(`Cut length cannot exceed available remainder (${maxLength} ${remUnitLbl})`, 'error');
+
+    if (cutFields && !cutFields.classList.contains('hidden') && window.PstCutFields) {
+        if (PstCutFields.hasCutValues(cutPayload)) {
+            let cutCheck;
+            if (selectedProduct.type === 'remainder') {
+                const remUnit = remainderDisplayUnit(selectedProduct, selectedProduct.product);
+                const fullCut = {
+                    ...cutPayload,
+                    cut_measurement_unit: PstCutFields.normalizeCutUnit(cutPayload.cut_measurement_unit) || remUnit,
+                };
+                cutCheck = PstCutFields.validateCut(fullCut, selectedProduct.product, {
+                    limits: {
+                        length: selectedProduct.length_remaining || null,
+                        width: selectedProduct.width_remaining || null,
+                        height: selectedProduct.height_remaining || null,
+                    },
+                    allowEqualToLimit: true,
+                });
+            } else {
+                cutCheck = PstCutFields.validateCut(cutPayload, selectedProduct.product);
             }
-        }
-        if (cutWidthInput && w > 0) {
-            const maxWidth = selectedProduct.width_remaining || 0;
-            if (w > maxWidth) {
-                return showToast(`Cut width cannot exceed available remainder (${maxWidth} ${remUnitLbl})`, 'error');
-            }
-        }
-        if (cutHeightInput && h > 0) {
-            const maxHeight = selectedProduct.height_remaining || 0;
-            if (h > maxHeight) {
-                return showToast(`Cut height cannot exceed available remainder (${maxHeight} ${remUnitLbl})`, 'error');
-            }
-        }
-    } else {
-        const def = selectedProduct.product;
-        const cutUnit = getActiveCutMeasurementUnit(def);
-        const maxLen = productDimensionInCutUnit(def, 'length', cutUnit);
-        const maxW = productDimensionInCutUnit(def, 'width', cutUnit);
-        const maxH = productDimensionInCutUnit(def, 'height', cutUnit);
-        const unitLbl = productCutMeasurementLabel(cutUnit);
-        if (cutLengthInput && l > 0 && maxLen != null && l >= maxLen) {
-            return showToast(`Cut length must be less than product length (${maxLen} ${unitLbl})`, 'error');
-        }
-        if (cutWidthInput && w > 0 && maxW != null && w >= maxW) {
-            return showToast(`Cut width must be less than product width (${maxW} ${unitLbl})`, 'error');
-        }
-        if (cutHeightInput && h > 0 && maxH != null && h >= maxH) {
-            return showToast(`Cut height must be less than product height (${maxH} ${unitLbl})`, 'error');
+            if (!cutCheck.ok) return showToast(cutCheck.message, 'error');
         }
     }
     
@@ -1841,21 +1844,26 @@ function renderSaleItems() {
     saleItemsTableBody.innerHTML = saleItems.map((item, idx) => {
         const specBits = [item.customColor, item.specLabel || [item.customThickness, item.customMeasurement].filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
         const cutDisp = salesFormatCutDisplay(item);
+        const amtCell = item.isFree
+            ? '<span class="text-red-600 italic font-semibold">FREE</span>'
+            : `₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}`;
         return `
-        <tr class="${item.stockWarning ? 'bg-amber-50' : ''}">
+        <tr class="${item.stockWarning ? 'bg-amber-50' : ''} ${item.isFree ? 'text-red-600' : ''}">
             <td class="px-4 py-2 text-sm">
-                <span class="${item.type === 'custom' ? 'text-red-700 font-medium' : ''}">${escapeHtmlSales(item.productName)}</span>
+                <span class="${item.type === 'custom' || item.isFree ? 'text-red-700 font-medium' : ''} ${item.isFree ? 'italic' : ''}">${escapeHtmlSales(item.productName)}</span>
                 ${item.sku ? ` <span class="text-gray-500">(${escapeHtmlSales(item.sku)})</span>` : ''}
                 ${item.type === 'custom' ? '<span class="ml-1 text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded">Custom</span>' : ''}
+                ${item.isLongSpan ? '<span class="ml-1 text-xs text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">LS</span>' : ''}
+                ${item.isFree ? '<span class="ml-1 text-xs text-red-600 bg-red-50 px-1 py-0.5 rounded">Free</span>' : ''}
                 ${item.type === 'remainder' ? '<span class="text-xs text-blue-600 bg-blue-100 px-1 py-0.5 rounded">Remainder</span>' : ''}
                 ${item.isSet ? '<span class="text-xs text-purple-600 bg-purple-100 px-1 py-0.5 rounded">Set</span>' : ''}
                 ${item.stockWarning ? '<span class="text-xs text-amber-700 bg-amber-100 px-1 py-0.5 rounded">Check stock</span>' : ''}
                 ${specBits ? `<div class="text-xs text-gray-500 mt-0.5">${escapeHtmlSales(specBits)}</div>` : ''}
             </td>
-            <td class="px-4 py-2 text-sm">${item.qty}</td>
+            <td class="px-4 py-2 text-sm">${item.isLongSpan ? `${item.qty} lmtrs` : item.qty}</td>
             <td class="px-4 py-2 text-sm">${cutDisp ? `${escapeHtmlSales(cutDisp)}${item.cutMeasurementLabel ? ` <span class="text-gray-500">(${escapeHtmlSales(item.cutMeasurementLabel)})</span>` : ''}` : '-'}</td>
-            <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
-            <td class="px-4 py-2 text-sm">₱${item.totalPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}</td>
+            <td class="px-4 py-2 text-sm">₱${item.unitPrice.toLocaleString('en-PH', {minimumFractionDigits:2})}${item.isLongSpan ? ' <span class="text-xs text-gray-500">/m</span>' : ''}</td>
+            <td class="px-4 py-2 text-sm">${amtCell}</td>
             <td class="px-4 py-2 text-sm"><button type="button" class="text-red-500 hover:underline" onclick="removeSaleItem(${idx})">Remove</button></td>
         </tr>
     `;
@@ -1927,9 +1935,11 @@ async function submitSale({ location_note, status, discard_reason, delivery_data
         let obj = {
             quantity: item.qty,
             unit_price: item.unitPrice,
-            total_price: item.totalPrice,
+            total_price: item.isFree ? 0 : item.totalPrice,
             item_type: item.type, // Add type to distinguish between inventory and remainder
         };
+        if (item.isFree) obj.is_free = true;
+        if (item.isLongSpan) obj.is_long_span = true;
         
         // Add the appropriate ID based on item type
         if (item.type === 'inventory') {
@@ -2519,15 +2529,19 @@ async function prefillSaleFromQuotation(q) {
 
     for (const it of (q.items || [])) {
         const qty = Number(it.quantity) || 1;
-        const unitPrice = Number(it.unit_price) || 0;
+        let unitPrice = Number(it.unit_price) || 0;
         const cut = salesBuildCutPayloadFromItem(it);
         let cutSize = '';
         if (cut.cut_length || cut.cut_width || cut.cut_height) {
             cutSize = [cut.cut_length, cut.cut_width, cut.cut_height].filter((v) => v > 0).join(' x ');
         }
 
-        const isCustomLine = !it.product_id && (it.custom_item_name || it.custom_color || it.custom_thickness || it.custom_measurement);
-        if (isCustomLine || (!it.product_id && it.custom_item_name)) {
+        const isFree = !!it.is_free;
+        const isLongSpan = !!it.is_long_span;
+        const totalPrice = isFree ? 0 : qty * unitPrice;
+
+        const isCustomLine = !it.product_id && !!(it.custom_item_name || it.description || it.custom_color || it.custom_thickness || it.custom_measurement);
+        if (isCustomLine || (!it.product_id && (it.custom_item_name || it.description))) {
             salesPushCustomSaleItem({
                 customItemName: it.custom_item_name || it.description || 'Custom item',
                 productName: it.custom_item_name || it.description || 'Custom item',
@@ -2537,6 +2551,8 @@ async function prefillSaleFromQuotation(q) {
                 description: it.description || it.custom_item_name || 'Custom item',
                 qty,
                 unitPrice,
+                isFree,
+                isLongSpan,
                 cut_length: cut.cut_length,
                 cut_width: cut.cut_width,
                 cut_height: cut.cut_height,
@@ -2573,6 +2589,8 @@ async function prefillSaleFromQuotation(q) {
                 description: it.description || it.custom_item_name || 'Quoted item',
                 qty,
                 unitPrice,
+                isFree,
+                isLongSpan,
                 cut_length: cut.cut_length,
                 cut_width: cut.cut_width,
                 cut_height: cut.cut_height,
@@ -2589,6 +2607,12 @@ async function prefillSaleFromQuotation(q) {
         const stockWarning = qty > availableStock;
         if (stockWarning) stockWarnings++;
 
+        const retail = salesInvRetailPrice(inv);
+        if (retail !== '') {
+            unitPrice = Number(retail);
+        }
+        const lineTotal = isFree ? 0 : qty * unitPrice;
+
         saleItems.push({
             inventoryId: inv.id,
             type: 'inventory',
@@ -2602,7 +2626,9 @@ async function prefillSaleFromQuotation(q) {
             cutMeasurementUnit: cut.cut_measurement_unit || null,
             cutMeasurementLabel: cut.cut_measurement_unit ? String(cut.cut_measurement_unit) : '',
             unitPrice,
-            totalPrice: qty * unitPrice,
+            totalPrice: lineTotal,
+            isFree,
+            isLongSpan,
             remainderData: null,
             isSet: inv.product?.base_unit === 'per set',
             stockWarning,
@@ -2683,7 +2709,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }).then(r => r.json().then(q => ({ ok: r.ok, q })).catch(() => ({ ok: false, q: null })))
         .then(async ({ ok, q }) => {
             if (!ok || !q || q.error) {
-                showToast('Could not load quotation for prefill.', 'error');
+                showToast('Could not load quotation.', 'error');
                 return;
             }
             if (q.status === 'rejected') {

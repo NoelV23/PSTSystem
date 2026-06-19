@@ -105,9 +105,12 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @foreach($sale->saleItems as $item)
-                        <tr id="sale-item-{{ $item->id }}">
+                        <tr id="sale-item-{{ $item->id }}" class="{{ $item->is_free ? 'text-red-600' : '' }}">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                @if($item->isCustomLine())
+                                @if($item->is_free)
+                                    <span class="text-red-600 italic font-semibold">{{ $item->lineDisplayName() }}</span>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 ml-1">FREE</span>
+                                @elseif($item->isCustomLine())
                                     <span class="text-red-700">{{ $item->lineDisplayName() }}</span>
                                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 ml-1">Custom</span>
                                     @if($item->lineSpecLabel())
@@ -116,6 +119,9 @@
                                 @else
                                     @php $p = $item->product; @endphp
                                     {{ $p->name }}@if($p->color) {{ ' ' . $p->color }}@endif
+                                    @if($item->is_long_span)
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-50 text-indigo-700 ml-1">LS</span>
+                                    @endif
                                     @if($item->lineSpecLabel())
                                         <span class="text-gray-500">({{ $item->lineSpecLabel() }})</span>
                                     @endif
@@ -128,9 +134,21 @@
                                     <div class="text-xs text-gray-500 mt-1">Cut: {{ $item->lineCutLabel() }}</div>
                                 @endif
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $item->quantity }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                @if($item->is_long_span)
+                                    {{ rtrim(rtrim(number_format((float) $item->quantity, 2), '0'), '.') }} lmtrs
+                                @else
+                                    {{ $item->quantity }}
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->unit_price, 2) }}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₱{{ number_format($item->total_price, 2) }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                @if($item->is_free)
+                                    <span class="text-red-600 italic font-semibold">FREE</span>
+                                @else
+                                    ₱{{ number_format($item->total_price, 2) }}
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @php
                                     $source = $item->fulfillment_source ?? 'inventory';
@@ -170,7 +188,8 @@
         @if(!$sale->is_installation)
         <!-- Add New Items -->
         <div class="bg-white rounded-lg shadow-md p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-4">Add New Items</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Add New Items</h3>
+            <p class="text-sm text-gray-500 mb-4">Search products from inventory, or enter an item sold without stock.</p>
             
             <!-- Product Search -->
             <div class="mb-4">
@@ -180,7 +199,7 @@
                     <div id="productDropdown" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div>
                 </div>
                 <div id="editCustomModeBar" class="mt-2 hidden">
-                    <button type="button" id="editEnterCustomBtn" class="text-sm text-blue-700 hover:underline">Add custom item</button>
+                    <button type="button" id="editEnterCustomBtn" class="text-sm text-blue-700 hover:underline">Item not in inventory</button>
                 </div>
                 <div id="editVariantStrip" class="mt-2 hidden flex flex-wrap items-end gap-2">
                     <select id="editVarColor" class="max-w-[8rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
@@ -188,9 +207,9 @@
                     <select id="editVarMeas" class="max-w-[11rem] rounded border border-gray-300 px-2 py-1.5 text-xs"></select>
                 </div>
                 <div id="editCustomSection" class="mt-2 hidden grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <input type="text" id="editCustomColor" placeholder="Color" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
-                    <input type="text" id="editCustomThickness" placeholder="Thickness" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
-                    <input type="text" id="editCustomMeasurement" placeholder="Size / length" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
+                    <input type="text" id="editCustomColor" placeholder="Color (optional)" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
+                    <input type="text" id="editCustomThickness" placeholder="Thickness (optional)" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
+                    <input type="text" id="editCustomMeasurement" placeholder="Size / length (optional)" class="rounded border border-gray-300 px-2 py-1.5 text-sm">
                 </div>
             </div>
 
@@ -209,8 +228,8 @@
                         <input type="number" id="saleQuantity" min="1" step="1" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
                     </div>
                     <div>
-                        <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Unit Price</label>
-                        <input type="number" id="productPrice" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent">
+                        <label for="productPrice" class="block text-sm font-medium text-gray-700 mb-1">Retail price (₱)</label>
+                        <input type="number" id="productPrice" min="0" step="0.01" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent" placeholder="From inventory retail">
                     </div>
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Total Price</label>
@@ -388,7 +407,7 @@ function editTryResolveVariant() {
             document.getElementById('editCustomColor').value = row.product.color || '';
             document.getElementById('editCustomThickness').value = Picker.thicknessLabel(row.product);
             document.getElementById('editCustomMeasurement').value = Picker.measurementLabel(row.product);
-            showToast('No stock — use custom line.', 'info');
+            showToast('Out of stock — enter quantity and price to sell this item.', 'info');
         }
     }
 }
@@ -440,14 +459,14 @@ document.getElementById('productSearch').addEventListener('input', function() {
     if (!invParts.length && !filteredRemainders.length) {
         dropdown.innerHTML = `
             <div class="px-4 py-2 text-gray-500">No products found</div>
-            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer text-sm text-blue-700 font-medium" data-edit-use-custom="1">Add as custom: “${this.value.trim()}”</div>`;
+            <div class="px-4 py-2 hover:bg-red-50 cursor-pointer text-sm text-blue-700 font-medium" data-edit-use-custom="1">Add item: “${this.value.trim()}”</div>`;
     } else {
         let html = invParts.map((p) => {
             if (p.type === 'group') {
-                return `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" data-edit-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count}</span></div>`;
+                return `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" data-edit-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count} option${p.count === 1 ? '' : 's'}</span></div>`;
             }
             if (p._noStock) {
-                return `<div class="px-4 py-2 hover:bg-amber-50 cursor-pointer border-b bg-amber-50/50" data-edit-catalog-custom="${p.product.id}">${p.label} <span class="text-xs text-amber-800">no stock · custom</span></div>`;
+                return `<div class="px-4 py-2 hover:bg-amber-50 cursor-pointer border-b bg-amber-50/50" data-edit-catalog-custom="${p.product.id}">${p.label} <span class="text-xs text-amber-800">out of stock — can still sell</span></div>`;
             }
             return `<div class="px-4 py-2 hover:bg-red-50 cursor-pointer border-b" onclick="selectProduct('${p.type}', ${p.id})">${p.label}</div>`;
         }).join('');
@@ -583,11 +602,11 @@ window.selectProduct = function(type, id) {
     let sourceInfo = item.type === 'remainder' ? 'Remainder Stock' : 'Main Stock';
     let stockInfo = item.type === 'remainder' ? '1 piece' : (item.product.base_unit === 'per set' ? formatDecimal(item.calculated_stock || 0) : formatDecimal(item.available_stock));
     
-    document.getElementById('productMeta').innerHTML = `Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>`;
+    document.getElementById('productMeta').innerHTML = `Source: <span class='font-semibold'>${sourceInfo}</span> &nbsp; | &nbsp; Available: <span class='font-semibold'>${stockInfo}</span> &nbsp; | &nbsp; Cost: <span class='font-semibold'>₱${Number(item.cost || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Retail: <span class='font-semibold'>₱${Number((item.product.base_unit === 'per set' && item.product.set_components_count > 0 ? item.calculated_price : item.price) || 0).toLocaleString('en-PH', {minimumFractionDigits:2})}</span> &nbsp; | &nbsp; Unit: <span class='font-semibold'>${item.product.measurement_unit || '-'}</span>`;
     
-    // Set default price
+    // Auto-fill retail price
     if (item.type === 'inventory') {
-        if (item.product.base_unit === 'per set') {
+        if (item.product.base_unit === 'per set' && item.product.set_components_count > 0) {
             document.getElementById('productPrice').value = item.calculated_price || '';
         } else {
             document.getElementById('productPrice').value = item.price || '';
@@ -640,6 +659,10 @@ document.getElementById('addItemForm').addEventListener('submit', async function
         const cutWrap = document.getElementById('cutFields');
         if (cutWrap && !cutWrap.classList.contains('hidden') && window.PstCutFields) {
             cutPayload = PstCutFields.readInline(document.getElementById('cutFieldsInputs'));
+            if (PstCutFields.hasCutValues(cutPayload)) {
+                const cutCheck = PstCutFields.validateCut(cutPayload, null);
+                if (!cutCheck.ok) return showToast(cutCheck.message, 'error');
+            }
         }
         const itemData = {
             item_type: 'custom',
@@ -690,6 +713,26 @@ document.getElementById('addItemForm').addEventListener('submit', async function
     const cutWrap = document.getElementById('cutFields');
     if (cutWrap && !cutWrap.classList.contains('hidden') && window.PstCutFields) {
         cutPayload = PstCutFields.readInline(document.getElementById('cutFieldsInputs'));
+        if (PstCutFields.hasCutValues(cutPayload)) {
+            let cutCheck;
+            if (selectedProduct.type === 'remainder') {
+                cutCheck = PstCutFields.validateCut(
+                    { ...cutPayload, cut_measurement_unit: PstCutFields.normalizeCutUnit(cutPayload.cut_measurement_unit) || cutPayload.cut_measurement_unit },
+                    selectedProduct.product,
+                    {
+                        limits: {
+                            length: selectedProduct.length_remaining || null,
+                            width: selectedProduct.width_remaining || null,
+                            height: selectedProduct.height_remaining || null,
+                        },
+                        allowEqualToLimit: true,
+                    }
+                );
+            } else {
+                cutCheck = PstCutFields.validateCut(cutPayload, selectedProduct.product);
+            }
+            if (!cutCheck.ok) return showToast(cutCheck.message, 'error');
+        }
     }
     const p = selectedProduct.product;
     const itemData = {

@@ -164,7 +164,7 @@
 		@if(!$isCompleted)
 		<div class="bg-white rounded-lg shadow-md p-6">
 			<h3 class="text-lg font-semibold text-gray-900 mb-1">Add Product Used</h3>
-			<p class="text-sm text-gray-500 mb-4">Search by name or SKU. Pick color/size if shown. Needs stock on hand.</p>
+			<p class="text-sm text-gray-500 mb-4">Record materials used from branch inventory. Pick color or size if shown below the search.</p>
 			<div class="mb-4">
 				<label for="productSearch" class="block text-sm font-medium text-gray-700 mb-1">Search product</label>
 				<div class="relative">
@@ -316,7 +316,7 @@ function instTryResolveVariant() {
         if (stockInv?.id && (parseFloat(stockInv.available_stock) || 0) > 0) {
             selectInventoryRow(stockInv);
         } else {
-            alert('No stock for this variant. Receive PO or adjust inventory first.');
+            alert('No stock for this option. Receive the PO or adjust inventory first.');
         }
     }
 }
@@ -473,7 +473,7 @@ if (productSearchInput) {
         } else {
             let html = invParts.map((p) => {
                 if (p.type === 'group') {
-                    return `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count} variants</span></div>`;
+                    return `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-group="${encodeURIComponent(p.key)}">${p.label} <span class="text-gray-500">· ${p.count} option${p.count === 1 ? '' : 's'}</span></div>`;
                 }
                 return `<div class="px-4 py-2 hover:bg-gray-100 cursor-pointer border-b" data-inst-pick-inv="${p.id}">${p.label}</div>`;
             }).join('');
@@ -521,6 +521,10 @@ if (addUsageBtn) {
 
         const cutInputs = document.getElementById('cutFieldsInputs');
         const cutPayload = (window.PstCutFields && cutInputs) ? PstCutFields.readInline(cutInputs) : {};
+        if (window.PstCutFields && PstCutFields.hasCutValues(cutPayload) && selectedProduct?.product) {
+            const cutCheck = PstCutFields.validateCut(cutPayload, selectedProduct.product);
+            if (!cutCheck.ok) { alert(cutCheck.message); return; }
+        }
         const payload = {
             items: [{
                 inventory_id: selectedProduct.id,

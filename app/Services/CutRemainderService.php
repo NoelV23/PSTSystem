@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CutRemainder;
 use App\Models\Product;
 use App\Support\MeasurementUnit;
+use Illuminate\Validation\ValidationException;
 
 class CutRemainderService
 {
@@ -13,6 +14,102 @@ class CutRemainderService
         return ($item['cut_length'] ?? null) > 0
             || ($item['cut_width'] ?? null) > 0
             || ($item['cut_height'] ?? null) > 0;
+    }
+
+    /**
+     * @param  object|null  $remainder  CutRemainder model when cutting from a remainder piece
+     */
+    public function validateCutDimensions(?Product $product, array $item, ?object $remainder = null, string $fieldKey = 'items'): void
+    {
+        if (! $this->itemHasCut($item)) {
+            return;
+        }
+
+        $hasWidth = ($item['cut_width'] ?? 0) > 0;
+        $hasHeight = ($item['cut_height'] ?? 0) > 0;
+        if ($hasWidth xor $hasHeight) {
+            throw ValidationException::withMessages([
+                "{$fieldKey}.cut_width" => ['Enter both width and height for a sheet cut, or leave both empty.'],
+            ]);
+        }
+
+        if ($remainder && $product) {
+            $cutUnit = $this->resolveCutMeasurementUnit($product, $item);
+            $this->assertCutWithinLimit(
+                (float) ($item['cut_length'] ?? 0),
+                $remainder->length_remaining !== null ? (float) $remainder->length_remaining : null,
+                'length',
+                $cutUnit,
+                true,
+                $fieldKey
+            );
+            $this->assertCutWithinLimit(
+                (float) ($item['cut_width'] ?? 0),
+                $remainder->width_remaining !== null ? (float) $remainder->width_remaining : null,
+                'width',
+                $cutUnit,
+                true,
+                $fieldKey
+            );
+            $this->assertCutWithinLimit(
+                (float) ($item['cut_height'] ?? 0),
+                $remainder->height_remaining !== null ? (float) $remainder->height_remaining : null,
+                'height',
+                $cutUnit,
+                true,
+                $fieldKey
+            );
+
+            return;
+        }
+
+        if (! $product) {
+            return;
+        }
+
+        $cutUnit = $this->resolveCutMeasurementUnit($product, $item);
+        $storageUnit = MeasurementUnit::productLinearStorageUnit($product);
+
+        if (($item['cut_length'] ?? 0) > 0 && $product->default_length) {
+            $max = MeasurementUnit::convertLinear((float) $product->default_length, $storageUnit, $cutUnit);
+            $this->assertCutWithinLimit((float) $item['cut_length'], $max, 'length', $cutUnit, false, $fieldKey);
+        }
+
+        if (($item['cut_width'] ?? 0) > 0 && $product->default_width) {
+            $max = MeasurementUnit::convertLinear((float) $product->default_width, $storageUnit, $cutUnit);
+            $this->assertCutWithinLimit((float) $item['cut_width'], $max, 'width', $cutUnit, false, $fieldKey);
+        }
+
+        if (($item['cut_height'] ?? 0) > 0 && $product->default_height) {
+            $max = MeasurementUnit::convertLinear((float) $product->default_height, $storageUnit, $cutUnit);
+            $this->assertCutWithinLimit((float) $item['cut_height'], $max, 'height', $cutUnit, false, $fieldKey);
+        }
+    }
+
+    private function assertCutWithinLimit(
+        float $value,
+        ?float $max,
+        string $dimension,
+        string $unit,
+        bool $allowEqual,
+        string $fieldKey
+    ): void {
+        if ($value <= 0 || $max === null || $max <= 0) {
+            return;
+        }
+
+        $exceeds = $allowEqual ? ($value > $max) : ($value >= $max);
+        if (! $exceeds) {
+            return;
+        }
+
+        $label = MeasurementUnit::displayLabel($unit);
+        $formatted = rtrim(rtrim(number_format($max, 4, '.', ''), '0'), '.');
+        $cmp = $allowEqual ? 'cannot exceed' : 'must be less than';
+
+        throw ValidationException::withMessages([
+            $fieldKey => ["Cut {$dimension} {$cmp} {$formatted} {$label} for this product."],
+        ]);
     }
 
     public function resolveCutMeasurementUnit(object $product, array $item): string

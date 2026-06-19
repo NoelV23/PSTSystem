@@ -8,7 +8,7 @@
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 class="text-2xl font-bold text-gray-900">Purchase Management</h2>
-                    <p class="mt-1 text-sm text-gray-500">Draft POs, receive stock, quick purchases.</p>
+                    <p class="mt-1 text-sm text-gray-500">Order from suppliers. Save drafts to print; receive goods to update inventory.</p>
                 </div>
                 <div class="mt-4 sm:mt-0 flex flex-wrap gap-2 justify-end">
                     <button type="button" id="addDraftPoBtn" class="bg-blue-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200">
@@ -165,7 +165,7 @@
                 <div class="rounded-lg border border-blue-100 bg-blue-50/80 px-3 py-2.5 sm:px-4">
                     <label class="flex cursor-pointer items-center gap-2.5 text-sm text-gray-800">
                         <input type="checkbox" id="isDraftPo" class="h-4 w-4 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                        <span><strong>Draft</strong> <span class="text-gray-600">— print/send first; stock on receive</span></span>
+                        <span><strong>Draft</strong> <span class="text-gray-600">— save and print first; stock is added when you receive</span></span>
                     </label>
                 </div>
 
@@ -216,10 +216,10 @@
                 </div>
 
                 <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
-                    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div class="mb-3">
                         <h4 class="text-base font-semibold text-gray-900 sm:text-lg">Purchase items</h4>
-                        <button type="button" id="addItemBtn" class="inline-flex w-full shrink-0 items-center justify-center rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add item</button>
                     </div>
+                    <p class="mb-3 text-xs text-gray-500">Pick from your product list, or type an item name for special orders not yet in inventory.</p>
                     <div class="hidden px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:grid sm:grid-cols-12 sm:gap-3">
                         <div class="sm:col-span-5">Product</div>
                         <div class="sm:col-span-2">Qty</div>
@@ -229,6 +229,9 @@
                     </div>
                     <div id="purchaseItemsList" class="space-y-4">
                         <!-- Purchase items will be added here -->
+                    </div>
+                    <div class="mt-4 flex justify-center border-t border-gray-100 pt-4 sm:justify-start">
+                        <button type="button" id="addItemBtn" class="inline-flex w-full items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto">+ Add item</button>
                     </div>
                     <div class="mt-6 flex flex-col gap-1 border-t border-gray-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
                         <span class="text-sm font-medium text-gray-600 sm:text-base">PO total</span>
@@ -253,7 +256,7 @@
             <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
                 <div>
                     <h3 class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">Receive / record invoice</h3>
-                    <p class="mt-0.5 text-xs text-gray-500">Draft PO · invoice no. · qty &amp; cost</p>
+                    <p class="mt-0.5 text-xs text-gray-500">Enter supplier invoice, quantities, and cost to add stock.</p>
                 </div>
                 <button type="button" id="closeReceiveModal" class="rounded-lg p-1.5 text-2xl leading-none text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">&times;</button>
             </div>
@@ -543,7 +546,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }).then(r => r.json().then(q => ({ ok: r.ok, q })).catch(() => ({ ok: false, q: null })))
         .then(async ({ ok, q }) => {
             if (!ok || !q || q.error) {
-                showToast('Could not load quotation for PO prefill.', 'error');
+                showToast('Could not load quotation.', 'error');
                 return;
             }
             if (q.status === 'rejected') {
@@ -1033,6 +1036,9 @@ async function handleFormSubmit(e) {
         return;
     }
 
+    poSyncCustomFieldsFromDom();
+    poNormalizeFreeTextLines();
+
     const isDraft = !!document.getElementById('isDraftPo')?.checked;
     const formData = new FormData(e.target);
     const receipt = (formData.get('purchase_receipt_no') || '').trim();
@@ -1062,11 +1068,18 @@ async function handleFormSubmit(e) {
         return !it.product_id;
     });
     if (badLine) {
-        showToast('Each line needs a catalog product or a custom item name.', 'error');
+        showToast('Each line needs a product or item name.', 'error');
         return;
     }
 
-    poSyncCustomFieldsFromDom();
+    if (!poValidateCatalogLinesBeforeSave()) {
+        return;
+    }
+
+    if (!poValidateCutLines()) {
+        return;
+    }
+
     poSyncCutFieldsFromDom();
 
     if (!isDraft && purchaseItems.some(poLineHasCut)) {
@@ -1151,17 +1164,112 @@ function addPurchaseItem() {
         cut_measurement_unit: null,
     });
     renderPurchaseItems();
+    const rows = document.querySelectorAll('[data-po-line-index]');
+    const last = rows[rows.length - 1];
+    if (last) {
+        last.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        last.querySelector('.item-product-search')?.focus();
+    }
 }
 
 function poIsLineCustom(it) {
-    return !!(it && (it.isCustom || (!it.product_id && (it.custom_item_name || it.custom_color || it.custom_thickness || it.custom_measurement))));
+    if (!it) return false;
+    if (it.isCustom) return true;
+    if (it.product_id) return false;
+    return !!(it.custom_item_name || it.description || it.custom_color || it.custom_thickness || it.custom_measurement);
+}
+
+function poNormalizeFreeTextLines() {
+    purchaseItems.forEach((it, index) => {
+        if (it.product_id) return;
+        const row = document.querySelector(`[data-po-line-index="${index}"]`);
+        const name = (row?.querySelector('.item-product-search')?.value || '').trim();
+        if (!name) return;
+        it.isCustom = true;
+        it.custom_item_name = name;
+        it.description = name;
+        delete it._poVariants;
+    });
+}
+
+function poNarrowVariantsForRow(index) {
+    const it = purchaseItems[index];
+    const row = document.querySelector(`[data-po-line-index="${index}"]`);
+    if (!it || !row || !Picker) return { narrowed: [], hasVariants: false };
+    const invs = it._poVariants || [];
+    if (!invs.length) return { narrowed: [], hasVariants: false };
+    const selC = row.querySelector('.po-line-var-color');
+    const selT = row.querySelector('.po-line-var-thick');
+    const selM = row.querySelector('.po-line-var-meas');
+    const f = {};
+    if (selC && !selC.classList.contains('hidden')) f.color = selC.value;
+    else f.color = '';
+    if (selT && !selT.classList.contains('hidden') && selT.value) f.thicknessValue = selT.value;
+    if (selM && selM.value) f.measurementValue = selM.value;
+    let narrowed = Picker.narrowVariants(invs, f);
+    if (selM && !selM.classList.contains('hidden') && !f.measurementValue) {
+        const sub = Picker.narrowVariants(invs, { color: f.color, thicknessValue: f.thicknessValue || undefined });
+        const mo = Picker.distinctMeasurements(sub);
+        if (mo.length === 1) {
+            f.measurementValue = mo[0].value;
+            narrowed = Picker.narrowVariants(invs, f);
+        }
+    }
+    return { narrowed, hasVariants: true };
+}
+
+function poValidateCatalogLinesBeforeSave() {
+    for (let index = 0; index < purchaseItems.length; index++) {
+        if (poIsLineCustom(purchaseItems[index])) continue;
+        poTryResolveVariant(index);
+        if (purchaseItems[index].product_id) continue;
+        const { narrowed, hasVariants } = poNarrowVariantsForRow(index);
+        if (!hasVariants) continue;
+        if (narrowed.length === 1) {
+            purchaseItems[index].product_id = narrowed[0].product.id;
+            continue;
+        }
+        showToast('Choose product options for each catalog line, or use Add item for products without specs.', 'error');
+        return false;
+    }
+    return true;
+}
+
+function poValidateCutLines() {
+    const Cut = window.PstCutFields;
+    if (!Cut) return true;
+    for (let index = 0; index < purchaseItems.length; index++) {
+        const row = document.querySelector(`[data-po-line-index="${index}"]`);
+        const fields = row?.querySelector('.po-line-cut-fields');
+        const wrap = row?.querySelector('.po-line-cut-wrap');
+        if (!fields || !wrap || wrap.classList.contains('hidden')) continue;
+        const cut = Cut.readInline(fields);
+        if (!Cut.hasCutValues(cut)) continue;
+        if (poIsLineCustom(purchaseItems[index])) {
+            const r = Cut.validateCut(cut, null);
+            if (!r.ok) {
+                showToast(r.message, 'error');
+                return false;
+            }
+            continue;
+        }
+        const p = poCutProductForRow(index);
+        if (p) {
+            const r = Cut.validateCut(cut, p);
+            if (!r.ok) {
+                showToast(`Line ${index + 1}: ${r.message}`, 'error');
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 function poEnterCustomMode(index, name) {
     const it = purchaseItems[index];
     if (!it) return;
     if (it.product_id) {
-        showToast('Clear the product first, or pick “Use as custom” from search.', 'info');
+        showToast('Clear the product field first, or choose Add item from search.', 'info');
         return;
     }
     it.isCustom = true;
@@ -1386,7 +1494,7 @@ function renderPoProductDropdown(anchorInput, dropdown, index, query) {
             if (q) {
                 dropdown.innerHTML = `
                     <div class="px-3 py-2 text-sm text-gray-600">No match.</div>
-                    <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-po-use-custom="1" data-po-pick-index="${index}">Custom: <span class="font-semibold">${safeQ}</span></button>`;
+                    <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-po-use-custom="1" data-po-pick-index="${index}">Add item: <span class="font-semibold">${safeQ}</span></button>`;
             } else {
                 dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
             }
@@ -1410,7 +1518,7 @@ function renderPoProductDropdown(anchorInput, dropdown, index, query) {
         if (q) {
             dropdown.innerHTML = `
                 <div class="px-3 py-2 text-sm text-gray-600">No match.</div>
-                <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-po-use-custom="1" data-po-pick-index="${index}">Custom: <span class="font-semibold">${safeQ}</span></button>`;
+                <button type="button" class="mx-3 mb-2 block w-[calc(100%-1.5rem)] rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm font-medium text-blue-900 hover:bg-blue-100" data-po-use-custom="1" data-po-pick-index="${index}">Add item: <span class="font-semibold">${safeQ}</span></button>`;
         } else {
             dropdown.innerHTML = '<div class="px-3 py-2 text-gray-500 text-sm">No products found</div>';
         }
@@ -1418,7 +1526,7 @@ function renderPoProductDropdown(anchorInput, dropdown, index, query) {
         dropdown.innerHTML = entries.map(([key, invs]) => {
             const lab = Picker.groupLabel(invs[0].product);
             const enc = encodeURIComponent(key);
-            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-group="${enc}" data-po-pick-index="${index}">${escapeHtml(lab)} <span class="text-gray-500 font-normal">· ${invs.length}</span></div>`;
+            return `<div class="px-3 py-2 hover:bg-gray-100 cursor-pointer text-sm" data-po-pick-group="${enc}" data-po-pick-index="${index}">${escapeHtml(lab)} <span class="text-gray-500 font-normal">· ${invs.length} option${invs.length === 1 ? '' : 's'}</span></div>`;
         }).join('');
     }
     dropdown.classList.remove('hidden');
@@ -1446,7 +1554,7 @@ function renderPurchaseItems() {
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Product</label>
                 <div class="flex flex-wrap items-end gap-2">
                     <div class="relative min-w-0 flex-1 sm:min-w-[12rem]">
-                        <input type="text" autocomplete="off" class="item-product-search w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" placeholder="${isCustom ? 'Custom item name…' : 'Search product name…'}" value="${escapeHtml(isCustom ? (item.custom_item_name || '') : poLineProductInputValue(item.product_id))}">
+                        <input type="text" autocomplete="off" class="item-product-search w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" placeholder="${isCustom ? 'Item name…' : 'Search product…'}" value="${escapeHtml(isCustom ? (item.custom_item_name || item.description || '') : poLineProductInputValue(item.product_id))}">
                         <div class="item-product-dropdown hidden max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg"></div>
                     </div>
                     <div class="po-variant-wrap ${isCustom ? 'hidden' : ''} flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:flex-nowrap">
@@ -1455,12 +1563,13 @@ function renderPurchaseItems() {
                         <select class="po-line-var-meas max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" data-index="${index}"></select>
                     </div>
                     <div class="po-custom-specs-wrap ${isCustom ? 'flex' : 'hidden'} min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:flex-nowrap">
-                        <input type="text" class="po-custom-color max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" placeholder="Color" value="${escapeHtml(item.custom_color || '')}">
-                        <input type="text" class="po-custom-thickness max-w-[9rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" placeholder="Thickness" value="${escapeHtml(item.custom_thickness || '')}">
-                        <input type="text" class="po-custom-measurement max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" placeholder="Size / length" value="${escapeHtml(item.custom_measurement || '')}">
+                        <input type="text" class="po-custom-color max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" placeholder="Color (optional)" value="${escapeHtml(item.custom_color || '')}">
+                        <input type="text" class="po-custom-thickness max-w-[9rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" placeholder="Thickness (optional)" value="${escapeHtml(item.custom_thickness || '')}">
+                        <input type="text" class="po-custom-measurement max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" placeholder="Size / length (optional)" value="${escapeHtml(item.custom_measurement || '')}">
                     </div>
                 </div>
-                ${isCustom ? '<span class="mt-1 inline-block text-xs text-blue-600">Custom</span>' : ''}
+                ${isCustom ? '<span class="mt-1 inline-block text-xs text-blue-600">Special order</span>' : ''}
+                ${item.is_long_span ? '<span class="mt-1 ml-1 inline-block text-xs text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">Long span (lmtrs)</span>' : ''}
                 <div class="po-line-cut-wrap hidden mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
                     <p class="mb-1 text-xs font-medium text-amber-900">Cut size</p>
                     <div class="po-line-cut-fields flex flex-wrap items-center gap-2"></div>
@@ -1468,7 +1577,7 @@ function renderPurchaseItems() {
             </div>
             <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Qty</label>
-                <input type="number" class="item-quantity block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.quantity}" min="1" step="1">
+                <input type="number" class="item-quantity block w-full min-w-[7rem] rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.quantity}" min="0.001" step="0.001" inputmode="decimal" placeholder="${item.is_long_span ? 'Total lmtrs' : 'Qty'}">
             </div>
             <div class="sm:col-span-2">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Unit cost</label>
@@ -1572,7 +1681,7 @@ async function loadReceiveCategories() {
 }
 
 function poReceiveLineIsCustom(row) {
-    return !!(row.is_custom || row.isCustom || (!row.product_id && (row.custom_item_name || row.custom_color || row.custom_thickness || row.custom_measurement)));
+    return !!(row.is_custom || row.isCustom || (!row.product_id && (row.custom_item_name || row.description || row.custom_color || row.custom_thickness || row.custom_measurement)));
 }
 
 function poReceiveCategoryOptions(selectedId) {
@@ -1681,6 +1790,7 @@ function poMapItemsWithCutMeta(items, cutMeta) {
             cut_width: item.cut_width,
             cut_height: item.cut_height,
             cut_measurement_unit: item.cut_measurement_unit,
+            is_long_span: !!item.is_long_span,
         };
         if (isCustom) {
             row.custom_item_name = item.custom_item_name || item.description || null;
@@ -1779,9 +1889,9 @@ function renderReceiveItems() {
         const specLine = isCustom ? poReceiveSpecLine(row) : '';
         const promoteBlock = isCustom ? `
             <div class="w-full mt-2 rounded-lg border border-blue-200 bg-blue-50/70 p-2 space-y-2">
-                <label class="flex items-center gap-2 text-sm text-blue-900 cursor-pointer">
-                    <input type="checkbox" class="recv-promote rounded border-blue-300 text-blue-600 focus:ring-blue-500" data-idx="${idx}" ${row.promote_to_catalog ? 'checked' : ''}>
-                    <span class="font-medium">Add to catalog &amp; stock</span>
+                <label class="flex items-start gap-2 text-sm text-blue-900 cursor-pointer">
+                    <input type="checkbox" class="recv-promote mt-0.5 rounded border-blue-300 text-blue-600 focus:ring-blue-500" data-idx="${idx}" ${row.promote_to_catalog ? 'checked' : ''}>
+                    <span><span class="font-medium">Add to product list &amp; stock</span><br><span class="text-xs text-blue-800/80">Creates a new product when you save this receipt.</span></span>
                 </label>
                 <div class="recv-category-wrap ${row.promote_to_catalog ? '' : 'hidden'}">
                     <select class="recv-category mt-1 block w-full max-w-xs rounded border border-blue-200 bg-white px-2 py-1.5 text-sm" data-idx="${idx}">${poReceiveCategoryOptions(row.category_id)}</select>
@@ -1790,7 +1900,7 @@ function renderReceiveItems() {
         return `
         <div class="flex flex-wrap gap-2 items-end p-3 bg-white rounded-lg border ${isCustom ? 'border-blue-200' : 'border-gray-200'}">
             <div class="flex-1 min-w-[180px]">
-                <div class="text-xs ${isCustom ? 'text-blue-600 font-medium' : 'text-gray-500'}">${escapeHtml(row.sku || '—')}${isCustom ? ' · custom' : ''}</div>
+                <div class="text-xs ${isCustom ? 'text-blue-600 font-medium' : 'text-gray-500'}">${escapeHtml(row.sku || '—')}${isCustom ? ' · special order' : ''}</div>
                 <div class="font-medium text-gray-900">${escapeHtml(row.product_name)}</div>
                 ${specLine ? `<div class="mt-0.5 text-xs text-gray-600">${escapeHtml(specLine)}</div>` : ''}
                 ${cutHtml}
@@ -1866,7 +1976,7 @@ async function submitReceivePurchase() {
         return !r.product_id;
     });
     if (bad) {
-        showToast('Check qty, cost, and category on custom lines.', 'error');
+        showToast('Check quantity, cost, and product category on special-order lines.', 'error');
         return;
     }
     if (receiveLineItems.some(poLineHasCut)) {
@@ -1893,7 +2003,7 @@ async function attemptReceivePurchase(cutMeta) {
         if (!res.ok) throw new Error(data.error || 'Receive failed');
         const promoted = receiveLineItems.filter((r) => poReceiveLineIsCustom(r) && r.promote_to_catalog).length;
         showToast(promoted
-            ? `Stock updated. ${promoted} custom line(s) added to catalog.`
+            ? `Stock updated. ${promoted} special-order line(s) added to your product list.`
             : 'Stock updated from supplier delivery.', 'success');
         closeReceiveModal();
         loadPurchases();
@@ -2172,7 +2282,8 @@ async function prefillPurchaseFromQuotation(q) {
             cut_height: it.cut_height,
             cut_measurement_unit: it.cut_measurement_unit,
         };
-        const isCustomLine = !it.product_id && (it.custom_item_name || it.custom_color || it.custom_thickness || it.custom_measurement);
+        const isCustomLine = !it.product_id && !!(it.custom_item_name || it.description || it.custom_color || it.custom_thickness || it.custom_measurement);
+        const isLongSpan = !!it.is_long_span;
         if (isCustomLine) {
             purchaseItems.push({
                 product_id: '',
@@ -2184,6 +2295,7 @@ async function prefillPurchaseFromQuotation(q) {
                 custom_measurement: it.custom_measurement || '',
                 quantity: qty,
                 cost_price: cost,
+                is_long_span: isLongSpan,
                 ...cut,
             });
             continue;
@@ -2219,6 +2331,7 @@ async function prefillPurchaseFromQuotation(q) {
                 custom_measurement: it.custom_measurement || (it.product && Picker ? Picker.measurementLabel(it.product) : ''),
                 quantity: qty,
                 cost_price: cost,
+                is_long_span: isLongSpan,
                 ...cut,
             });
             continue;
@@ -2233,13 +2346,14 @@ async function prefillPurchaseFromQuotation(q) {
             custom_measurement: '',
             quantity: qty,
             cost_price: cost,
+            is_long_span: isLongSpan,
             ...cut,
         });
     }
     purchaseItems.forEach((it) => { if (!poIsLineCustom(it)) poHydrateLineVariantBucket(it); });
     renderPurchaseItems();
     updateTotalCost();
-    showToast(`Prefilled ${purchaseItems.length} line(s) from quotation ${q.quotation_number || q.id}. Review and save as draft PO.`, 'success');
+    showToast(`Loaded ${purchaseItems.length} line(s) from quotation ${q.quotation_number || q.id}. Review and save.`, 'success');
 }
 
 function showLoading() {

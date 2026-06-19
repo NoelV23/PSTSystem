@@ -82,6 +82,89 @@
         return convertLinear(Number(val), storage, cutUnit);
     }
 
+    function roundDim(n) {
+        return Math.round(Number(n) * 10000) / 10000;
+    }
+
+    function hasCutValues(cut) {
+        if (!cut) return false;
+        return (cut.cut_length > 0) || (cut.cut_width > 0) || (cut.cut_height > 0);
+    }
+
+    /**
+     * Validate cut dimensions against a full product or remainder limits.
+     * Full stock: cut must be strictly less than the piece (no full-length cut).
+     * Remainder: cut cannot exceed what is left (equal allowed).
+     */
+    function validateCut(cut, product, opts) {
+        opts = opts || {};
+        if (!hasCutValues(cut)) {
+            return { ok: true };
+        }
+
+        const hasW = (cut.cut_width || 0) > 0;
+        const hasH = (cut.cut_height || 0) > 0;
+        if (hasW !== hasH) {
+            return { ok: false, message: 'Enter both width and height for a sheet cut, or leave both empty.' };
+        }
+
+        const cutUnit = normalizeCutUnit(cut.cut_measurement_unit)
+            || (product ? productLinearStorageUnit(product) : null)
+            || 'ft';
+        const unitLbl = productCutMeasurementLabel(cutUnit);
+        const allowEqual = opts.allowEqualToLimit === true;
+        const limits = opts.limits || null;
+
+        const check = (val, max, label) => {
+            if (val == null || val <= 0 || max == null || max <= 0) return null;
+            const bad = allowEqual ? (val > max) : (val >= max);
+            if (!bad) return null;
+            const cmp = allowEqual ? 'cannot exceed' : 'must be less than';
+            return `Cut ${label} ${cmp} ${roundDim(max)} ${unitLbl}.`;
+        };
+
+        if (limits) {
+            const e1 = check(cut.cut_length, limits.length, 'length');
+            if (e1) return { ok: false, message: e1 };
+            const e2 = check(cut.cut_width, limits.width, 'width');
+            if (e2) return { ok: false, message: e2 };
+            const e3 = check(cut.cut_height, limits.height, 'height');
+            if (e3) return { ok: false, message: e3 };
+            return { ok: true };
+        }
+
+        if (!product) {
+            return { ok: true };
+        }
+
+        if (cut.cut_length > 0 && product.default_length) {
+            const max = productDimensionInCutUnit(product, 'length', cutUnit);
+            const err = check(cut.cut_length, max, 'length');
+            if (err) return { ok: false, message: err };
+        }
+        if (cut.cut_width > 0 && product.default_width) {
+            const max = productDimensionInCutUnit(product, 'width', cutUnit);
+            const err = check(cut.cut_width, max, 'width');
+            if (err) return { ok: false, message: err };
+        }
+        if (cut.cut_height > 0 && product.default_height) {
+            const max = productDimensionInCutUnit(product, 'height', cutUnit);
+            const err = check(cut.cut_height, max, 'height');
+            if (err) return { ok: false, message: err };
+        }
+
+        return { ok: true };
+    }
+
+    function maxCutInputAttr(max, unitLabel, strictLess) {
+        if (max == null || max <= 0) return '';
+        const shown = roundDim(max);
+        const hint = strictLess
+            ? `Must be less than ${shown} ${unitLabel}`
+            : `Max ${shown} ${unitLabel}`;
+        return ` max="${shown}" title="${hint}" data-cut-max="${shown}"`;
+    }
+
     function isCuttable(product) {
         if (!product) return false;
         if (String(product.base_unit || '').toLowerCase() === 'per set') return false;
@@ -163,19 +246,19 @@
         const parts = [];
         if (product.default_length) {
             const max = productDimensionInCutUnit(product, 'length', cutUnit);
-            const maxAttr = max != null ? ` max="${max}" title="Less than full length (${max} ${unitLabel})"` : '';
+            const maxAttr = maxCutInputAttr(max, unitLabel, true);
             const val = saved.cut_length != null && saved.cut_length !== '' ? ` value="${saved.cut_length}"` : '';
             parts.push(`<input type="number" class="pst-cut-length min-w-[5rem] max-w-[7rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Length" step="0.01" min="0"${maxAttr}${val}>`);
         }
         if (product.default_width) {
             const max = productDimensionInCutUnit(product, 'width', cutUnit);
-            const maxAttr = max != null ? ` max="${max}" title="Less than full width (${max} ${unitLabel})"` : '';
+            const maxAttr = maxCutInputAttr(max, unitLabel, true);
             const val = saved.cut_width != null && saved.cut_width !== '' ? ` value="${saved.cut_width}"` : '';
             parts.push(`<input type="number" class="pst-cut-width min-w-[5rem] max-w-[7rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Width" step="0.01" min="0"${maxAttr}${val}>`);
         }
         if (product.default_height) {
             const max = productDimensionInCutUnit(product, 'height', cutUnit);
-            const maxAttr = max != null ? ` max="${max}" title="Less than full height (${max} ${unitLabel})"` : '';
+            const maxAttr = maxCutInputAttr(max, unitLabel, true);
             const val = saved.cut_height != null && saved.cut_height !== '' ? ` value="${saved.cut_height}"` : '';
             parts.push(`<input type="number" class="pst-cut-height min-w-[5rem] max-w-[7rem] rounded border border-gray-300 px-2 py-1.5 text-xs shadow-sm" placeholder="Height" step="0.01" min="0"${maxAttr}${val}>`);
         }
@@ -201,7 +284,10 @@
         renderFreeform,
         readInline,
         formatDisplay,
+        validateCut,
+        hasCutValues,
         productCutMeasurementLabel,
+        productDimensionInCutUnit,
         normalizeCutUnit,
     };
 })(typeof window !== 'undefined' ? window : globalThis);

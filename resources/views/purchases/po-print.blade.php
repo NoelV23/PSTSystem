@@ -158,11 +158,24 @@
     $orderDate = $purchaseOrder->order_date
         ? \Illuminate\Support\Carbon::parse($purchaseOrder->order_date)
         : null;
-    $unitLabel = function ($p) {
-        $u = $p->base_unit ?? '';
-        return strtolower(preg_replace('/^per\s+/i', '', $u) ?: 'pcs');
+    $unitLabel = function ($p, $line = null) {
+        if ($line && $line->is_long_span) {
+            return 'lmtrs';
+        }
+        if (! $p) {
+            return 'pcs';
+        }
+        $u = strtolower(preg_replace('/^per\s+/i', '', (string) ($p->base_unit ?? '')) ?: 'pcs');
+        if (in_array($u, ['m', 'meter', 'meters', 'metre', 'metres', 'length'], true)) {
+            return 'lmtrs';
+        }
+
+        return $u;
     };
     $lineTotalLm = function ($line) {
+        if ($line->is_long_span) {
+            return (float) $line->quantity;
+        }
         $qty = (float) $line->quantity;
         $cutParts = array_values(array_filter([
             $line->cut_length,
@@ -263,13 +276,17 @@
             if (! $p) {
                 $name = $line->lineDisplayName();
                 $gauge = $line->custom_thickness ? rtrim(rtrim((string) $line->custom_thickness, ' '), '.') : '—';
-                $width = '—';
-                $length = $line->custom_measurement ? rtrim(rtrim((string) $line->custom_measurement, ' '), '.') : '—';
-                if ($cutStr) {
+                $width = $line->is_long_span && $line->printLongSpanCoverage()
+                    ? $line->printLongSpanCoverage()
+                    : '—';
+                $length = $line->is_long_span
+                    ? 'LS'
+                    : ($line->custom_measurement ? rtrim(rtrim((string) $line->custom_measurement, ' '), '.') : '—');
+                if ($cutStr && ! $line->is_long_span) {
                     $length = $cutStr.' (cut)';
                 }
                 $color = $line->custom_color ?: '—';
-                $unit = 'pcs';
+                $unit = $line->is_long_span ? 'lmtrs' : 'pcs';
                 $totalLm = $lineTotalLm($line);
                 $lineTotal = $qty * (float) $line->cost_price;
             } else {
@@ -278,15 +295,22 @@
                 $h = $p->default_height;
                 $name = $p->name;
                 $gauge = ($h !== null && (float) $h > 0) ? rtrim(rtrim(number_format((float) $h, 2), '0'), '.') : '—';
-                $width = ($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—';
-                $length = ($l !== null && (float) $l > 0) ? rtrim(rtrim(number_format((float) $l, 2), '0'), '.') : '—';
-                if ($cutStr) {
-                    $length = $cutStr.' (cut)';
+                if ($line->is_long_span) {
+                    $gauge = $line->printThicknessLabel() ?: $gauge;
+                    $width = $line->printLongSpanCoverage() ?: (($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—');
+                    $length = 'LS';
+                    $unit = 'lmtrs';
+                } else {
+                    $width = ($w !== null && (float) $w > 0) ? rtrim(rtrim(number_format((float) $w, 2), '0'), '.') : '—';
+                    $length = ($l !== null && (float) $l > 0) ? rtrim(rtrim(number_format((float) $l, 2), '0'), '.') : '—';
+                    if ($cutStr) {
+                        $length = $cutStr.' (cut)';
+                    }
+                    $unit = $unitLabel($p, $line);
                 }
                 $totalLm = $lineTotalLm($line);
                 $lineTotal = $qty * (float) $line->cost_price;
                 $color = $p->color ?: '—';
-                $unit = $unitLabel($p);
             }
         @endphp
         <tr>

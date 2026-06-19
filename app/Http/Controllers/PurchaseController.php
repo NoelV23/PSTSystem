@@ -121,6 +121,7 @@ class PurchaseController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.location_note' => 'nullable|string|max:255',
             'items.*.status' => 'nullable|in:available,discarded',
             'items.*.discard_reason' => 'nullable|string|max:500',
@@ -130,6 +131,7 @@ class PurchaseController extends Controller
 
         $this->assertPurchaseItems($validated['items'], false);
         $this->assertPromoteCatalogItems($validated['items']);
+        $this->validatePurchaseItemCuts($validated['items']);
 
         DB::beginTransaction();
         try {
@@ -230,6 +232,7 @@ class PurchaseController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.location_note' => 'nullable|string|max:255',
             'items.*.status' => 'nullable|in:available,discarded',
             'items.*.discard_reason' => 'nullable|string|max:500',
@@ -240,6 +243,7 @@ class PurchaseController extends Controller
         $this->assertPurchaseItems($validated['items'], $isDraft);
         if (! $isDraft) {
             $this->assertPromoteCatalogItems($validated['items']);
+            $this->validatePurchaseItemCuts($validated['items']);
         }
 
         DB::beginTransaction();
@@ -342,6 +346,7 @@ class PurchaseController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_long_span' => 'nullable|boolean',
         ]);
 
         $this->assertPurchaseItems($validated['items'], true);
@@ -707,6 +712,7 @@ class PurchaseController extends Controller
             'custom_measurement' => $this->nullableCutString($item['custom_measurement'] ?? null),
             'quantity' => $qty,
             'cost_price' => $cost,
+            'is_long_span' => ! empty($item['is_long_span']),
         ], $this->cutFieldsFromItem($item));
     }
 
@@ -747,6 +753,22 @@ class PurchaseController extends Controller
         $item['product_id'] = $product->id;
 
         return $item;
+    }
+
+    protected function validatePurchaseItemCuts(array $items): void
+    {
+        foreach ($items as $index => $item) {
+            if ($this->isCustomPurchaseItem($item) || empty($item['product_id'])) {
+                $this->cutRemainderService->validateCutDimensions(null, $item, null, "items.{$index}");
+
+                continue;
+            }
+
+            $product = Product::find($item['product_id']);
+            if ($product) {
+                $this->cutRemainderService->validateCutDimensions($product, $item, null, "items.{$index}");
+            }
+        }
     }
 
     protected function assertPurchaseItems(array $items, bool $isDraft): void

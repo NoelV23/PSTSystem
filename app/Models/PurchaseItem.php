@@ -23,11 +23,13 @@ class PurchaseItem extends Model
         'cut_width',
         'cut_height',
         'cut_measurement_unit',
+        'is_long_span',
     ];
 
     protected $casts = [
         'quantity' => 'float',
         'cost_price' => 'decimal:2',
+        'is_long_span' => 'boolean',
         'cut_length' => 'decimal:3',
         'cut_width' => 'decimal:3',
         'cut_height' => 'decimal:3',
@@ -51,6 +53,36 @@ class PurchaseItem extends Model
     public function isCustomLine(): bool
     {
         return $this->product_id === null;
+    }
+
+    public function isLongSpanLine(): bool
+    {
+        return (bool) $this->is_long_span;
+    }
+
+    public function printThicknessLabel(): ?string
+    {
+        $t = trim((string) ($this->custom_thickness ?? ''));
+        if ($t === '' && $this->relationLoaded('product') && $this->product) {
+            $t = trim((string) ($this->product->thickness ?? ''));
+        }
+
+        return $t !== '' ? $t : null;
+    }
+
+    public function printLongSpanCoverage(): ?string
+    {
+        $m = trim((string) ($this->custom_measurement ?? ''));
+        if ($m !== '') {
+            return $m;
+        }
+        if ($this->product && $this->product->default_width) {
+            $w = (float) $this->product->default_width;
+
+            return rtrim(rtrim(number_format($w, 3), '0'), '.').'m';
+        }
+
+        return null;
     }
 
     public function lineDisplayName(): string

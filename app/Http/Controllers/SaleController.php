@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Sale;
+use App\Services\CutRemainderService;
 use App\Support\MeasurementUnit;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -232,6 +233,8 @@ class SaleController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_free' => 'nullable|boolean',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
             'is_delivered' => 'nullable|boolean',
             'delivered_to' => 'nullable|string',
@@ -268,6 +271,10 @@ class SaleController extends Controller
                 }
             }
         }
+
+        foreach ($request->input('items', []) as $index => $item) {
+            $this->validateSaleItemCut($item, $index);
+        }
         
         \DB::beginTransaction();
         try {
@@ -299,6 +306,7 @@ class SaleController extends Controller
                 $itemType = $item['item_type'] ?? 'inventory';
 
                 if ($itemType === 'custom') {
+                    $flags = $this->saleItemFlags($item);
                     $sale->saleItems()->create([
                         'product_id' => null,
                         'description' => $item['description'] ?? $item['custom_item_name'] ?? null,
@@ -312,7 +320,9 @@ class SaleController extends Controller
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
                         'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
-                        'total_price' => $item['total_price'],
+                        'total_price' => $flags['total_price'],
+                        'is_free' => $flags['is_free'],
+                        'is_long_span' => $flags['is_long_span'],
                         'fulfillment_source' => 'custom',
                     ]);
 
@@ -329,7 +339,7 @@ class SaleController extends Controller
                     $productId = $remainder->product_id;
                 }
                 
-                $saleItem = $sale->saleItems()->create([
+                $saleItem = $sale->saleItems()->create(array_merge([
                     'product_id' => $productId,
                     'description' => $item['description'] ?? null,
                     'custom_color' => $item['custom_color'] ?? null,
@@ -341,8 +351,7 @@ class SaleController extends Controller
                     'cut_width' => $item['cut_width'] ?? null,
                     'cut_height' => $item['cut_height'] ?? null,
                     'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
-                    'total_price' => $item['total_price'],
-                ]);
+                ], $this->saleItemFlags($item)));
                 
                 // If this is a remainder item, handle it differently
                 if ($itemType === 'remainder') {
@@ -747,6 +756,8 @@ class SaleController extends Controller
             'items.*.cut_width' => 'nullable|numeric|min:0',
             'items.*.cut_height' => 'nullable|numeric|min:0',
             'items.*.cut_measurement_unit' => 'nullable|string|max:32',
+            'items.*.is_free' => 'nullable|boolean',
+            'items.*.is_long_span' => 'nullable|boolean',
             'items.*.remainder_id' => 'nullable|exists:cut_remainders,id',
         ]);
         
@@ -774,6 +785,10 @@ class SaleController extends Controller
             }
         }
 
+        foreach ($request->input('items', []) as $index => $item) {
+            $this->validateSaleItemCut($item, $index);
+        }
+
         try {
             \DB::beginTransaction();
             
@@ -784,6 +799,7 @@ class SaleController extends Controller
             
             foreach ($validated['items'] as $item) {
                 if ($item['item_type'] === 'custom') {
+                    $flags = $this->saleItemFlags($item);
                     $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => null,
@@ -794,17 +810,19 @@ class SaleController extends Controller
                         'custom_measurement' => $item['custom_measurement'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
-                        'total_price' => $item['total_price'],
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
                         'cut_measurement_unit' => $item['cut_measurement_unit'] ?? null,
+                        'total_price' => $flags['total_price'],
+                        'is_free' => $flags['is_free'],
+                        'is_long_span' => $flags['is_long_span'],
                     ];
                     if ($hasFulfillmentSource) {
                         $saleItemData['fulfillment_source'] = 'custom';
                     }
                     \App\Models\SaleItem::create($saleItemData);
-                    $newTotalAmount += $item['total_price'];
+                    $newTotalAmount += $flags['total_price'];
                     continue;
                 }
 
@@ -832,6 +850,7 @@ class SaleController extends Controller
                     }
                     
                     // Create sale item data
+                    $flags = $this->saleItemFlags($item);
                     $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => $product->id,
@@ -841,7 +860,9 @@ class SaleController extends Controller
                         'custom_measurement' => $item['custom_measurement'] ?? null,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
-                        'total_price' => $item['total_price'],
+                        'total_price' => $flags['total_price'],
+                        'is_free' => $flags['is_free'],
+                        'is_long_span' => $flags['is_long_span'],
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
@@ -869,14 +890,17 @@ class SaleController extends Controller
                     
                     // Handle remainder sale and capture tracking
                     $remTrack = $this->handleCutRemainderSale($remainder, $item);
-                    
+                    $flags = $this->saleItemFlags($item);
+
                     // Create sale item data
                     $saleItemData = [
                         'sale_id' => $sale->id,
                         'product_id' => $product->id,
                         'quantity' => $item['quantity'],
                         'unit_price' => $item['unit_price'],
-                        'total_price' => $item['total_price'],
+                        'total_price' => $flags['total_price'],
+                        'is_free' => $flags['is_free'],
+                        'is_long_span' => $flags['is_long_span'],
                         'cut_length' => $item['cut_length'] ?? null,
                         'cut_width' => $item['cut_width'] ?? null,
                         'cut_height' => $item['cut_height'] ?? null,
@@ -892,8 +916,9 @@ class SaleController extends Controller
                     
                     \App\Models\SaleItem::create($saleItemData);
                 }
-                
-                $newTotalAmount += $item['total_price'];
+
+                $flags = $this->saleItemFlags($item);
+                $newTotalAmount += $flags['total_price'];
             }
             
             // Update sale total
@@ -1076,4 +1101,49 @@ class SaleController extends Controller
             }
         }
     }
-} 
+
+    private function validateSaleItemCut(array $item, int $index): void
+    {
+        $service = app(CutRemainderService::class);
+        if (! $service->itemHasCut($item)) {
+            return;
+        }
+
+        $fieldKey = "items.{$index}";
+        $itemType = $item['item_type'] ?? 'inventory';
+
+        if ($itemType === 'remainder') {
+            $remainder = \App\Models\CutRemainder::with('product')->find($item['remainder_id'] ?? null);
+            if ($remainder?->product) {
+                $service->validateCutDimensions($remainder->product, $item, $remainder, $fieldKey);
+            }
+
+            return;
+        }
+
+        if ($itemType === 'inventory') {
+            $inventory = \App\Models\Inventory::with('product')->find($item['inventory_id'] ?? null);
+            if ($inventory?->product) {
+                $service->validateCutDimensions($inventory->product, $item, null, $fieldKey);
+            }
+
+            return;
+        }
+
+        if ($itemType === 'custom') {
+            $service->validateCutDimensions(null, $item, null, $fieldKey);
+        }
+    }
+
+    private function saleItemFlags(array $item): array
+    {
+        $isFree = ! empty($item['is_free']);
+        $totalPrice = $isFree ? 0 : (float) ($item['total_price'] ?? 0);
+
+        return [
+            'is_free' => $isFree,
+            'is_long_span' => ! empty($item['is_long_span']),
+            'total_price' => $totalPrice,
+        ];
+    }
+}
