@@ -426,8 +426,8 @@
                             <td class="item-name">{{ $itemName }}</td>
                             <td class="color-cell">{{ $color }}</td>
                             <td class="cen" style="font-size:8px;">{{ $dim }}</td>
-                            <td class="num">{{ $fmtP($line->retail_unit_price ?? $line->unit_price) }}</td>
-                            <td class="num amount-free">{{ $isFree ? 'FREE' : $fmtP($qty * (float) ($line->retail_unit_price ?? $line->unit_price)) }}</td>
+                            <td class="num">{{ $fmtP($line->unit_price) }}</td>
+                            <td class="num amount-free">{{ $isFree ? 'FREE' : $fmtP($qty * (float) $line->unit_price) }}</td>
                         </tr>
                     @endforeach
                 @endforeach

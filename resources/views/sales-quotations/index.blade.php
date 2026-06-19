@@ -156,7 +156,7 @@
                         <div class="mb-3">
                             <span class="text-base font-semibold text-gray-900 sm:text-lg">Line items</span>
                         </div>
-                        <p class="mb-3 text-xs text-gray-500">Unit ₱ auto-fills at list retail. Pick <strong>Unit</strong> per line (pc, lmtrs, LS, kg, gallon, etc.) — long-span roofing uses <strong>lmtrs</strong> or <strong>LS</strong>.</p>
+                        <p class="mb-3 text-xs text-gray-500">Unit ₱ auto-fills from list price. Pick <strong>Unit</strong> per line (pc, lmtrs, LS, kg, gallon, etc.) — long-span roofing uses <strong>lmtrs</strong> or <strong>LS</strong>.</p>
                         <div class="-mx-1 overflow-x-auto rounded-lg border border-gray-100 bg-white sm:mx-0">
                             <table class="w-full min-w-[58rem] text-sm lg:min-w-[62rem]">
                                 <thead>
@@ -166,7 +166,7 @@
                                         <th class="whitespace-nowrap py-3 px-2 w-[20rem]">Description <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-36 min-w-[9rem]">Qty <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-20">Unit</th>
-                                        <th class="whitespace-nowrap py-3 px-2 w-28" title="Quoted unit price — starts at list retail; lower to give customer a better price">Unit ₱ <span class="text-red-600">*</span></th>
+                                        <th class="whitespace-nowrap py-3 px-2 w-28" title="Unit price per item">Unit ₱ <span class="text-red-600">*</span></th>
                                         <th class="whitespace-nowrap py-3 px-2 w-16 text-center">Free</th>
                                         <th class="whitespace-nowrap py-3 px-2 w-24 text-right">Line total</th>
                                         <th class="w-8 py-3"></th>
@@ -185,16 +185,13 @@
                         <div class="mb-4 space-y-3 border-b border-gray-100 pb-4">
                             <div class="flex items-center justify-between gap-4">
                                 <label for="sqDiscount" class="shrink-0 text-sm font-medium text-gray-700">Customer discount (₱)</label>
-                                <div class="flex min-w-0 items-center gap-2">
-                                    <input type="number" id="sqDiscount" class="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums text-right text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:w-40" min="0" step="0.01" value="0" title="Auto-fills when you lower a line below retail; editable">
-                                    <button type="button" id="sqRecalcDiscountBtn" class="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100" title="Recalculate from lowered line prices">↻</button>
-                                </div>
+                                <input type="number" id="sqDiscount" class="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums text-right text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:w-40" min="0" step="0.01" value="0" placeholder="0">
                             </div>
                             <div class="flex items-center justify-between gap-4">
                                 <label for="sqDeliveryCharge" class="shrink-0 text-sm font-medium text-gray-700">Delivery charge (₱)</label>
                                 <input type="number" id="sqDeliveryCharge" class="w-36 rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums text-right text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25 sm:w-40" min="0" step="0.01" value="0" placeholder="0 = PICK UP">
                             </div>
-                            <p id="sqDiscountHint" class="text-xs text-gray-500">Lower unit price below list retail to auto-fill discount.</p>
+                            <p id="sqDiscountHint" class="text-xs text-gray-500">Enter discount amount to subtract from total. Grand total = total − discount + delivery.</p>
                         </div>
                         <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Summary</p>
                         <div class="space-y-2">
@@ -254,7 +251,6 @@
 
     let branchId = isAdmin ? null : (window.sqUserBranchId || null);
     let sqInventoryItems = [];
-    let sqDiscountManual = false;
 
     const el = (id) => document.getElementById(id);
 
@@ -694,51 +690,30 @@
         if (up !== '') sqSetLineRetail(tr, up);
     }
 
-    function computeSqAutoDiscount(rows) {
-        let total = 0;
-        rows.forEach((tr) => {
-            if (tr.querySelector('.sq-line-free')?.checked) return;
-            const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value) || 0;
-            if (qty <= 0) return;
-            const retail = sqLineRetail(tr);
-            const quoted = sqLineQuoted(tr);
-            if (retail > quoted + 0.0005) {
-                total += (retail - quoted) * qty;
-            }
-        });
-        return Math.round(total * 100) / 100;
-    }
-
-    function computeSqTotalsFromDom(opts = {}) {
+    function computeSqTotalsFromDom() {
         const rows = [...document.querySelectorAll('#sqLinesBody tr')];
-        let quotedSubtotal = 0;
+        let subtotal = 0;
         rows.forEach((tr) => {
             if (tr.querySelector('.sq-line-free')?.checked) return;
             const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value);
-            const quoted = sqLineQuoted(tr);
-            if (!isNaN(qty) && qty > 0 && quoted >= 0) {
-                quotedSubtotal += qty * quoted;
+            const unit = sqLineQuoted(tr);
+            if (!isNaN(qty) && qty > 0 && unit >= 0) {
+                subtotal += qty * unit;
             }
         });
-        quotedSubtotal = Math.round(quotedSubtotal * 100) / 100;
+        subtotal = Math.round(subtotal * 100) / 100;
 
-        const autoDiscount = computeSqAutoDiscount(rows);
-        if (!opts.skipAutoDiscount && !sqDiscountManual) {
-            el('sqDiscount').value = autoDiscount > 0 ? autoDiscount.toFixed(2) : '0';
-        }
-
-        const discount = Math.max(0, parseFloat(el('sqDiscount').value) || 0);
+        const discount = Math.min(Math.max(0, parseFloat(el('sqDiscount').value) || 0), subtotal);
         const delivery = Math.max(0, parseFloat(el('sqDeliveryCharge').value) || 0);
-        const displaySubtotal = Math.round((quotedSubtotal + discount) * 100) / 100;
-        const afterDiscount = quotedSubtotal;
+        const afterDiscount = Math.round((subtotal - discount) * 100) / 100;
         const taxRate = parseFloat(el('sqTaxRate').value) || 0;
         const tax = Math.round(afterDiscount * (taxRate / 100) * 100) / 100;
         const grand = Math.round((afterDiscount + tax + delivery) * 100) / 100;
-        return { subtotal: displaySubtotal, quotedSubtotal, discount, afterDiscount, tax, delivery, grand, taxRate, autoDiscount };
+        return { subtotal, discount, afterDiscount, tax, delivery, grand, taxRate };
     }
 
-    function refreshSqTotals(opts = {}) {
-        const t = computeSqTotalsFromDom(opts);
+    function refreshSqTotals() {
+        const t = computeSqTotalsFromDom();
         const box = el('sqTotalsPreview');
         if (!box) return;
         box.classList.remove('hidden');
@@ -761,27 +736,11 @@
         if (t.discount > 0 || t.delivery > 0) {
             el('sqPreviewSaveNote').classList.remove('hidden');
             const parts = ['Customer pays ' + fmtPhp(t.grand) + ' total'];
-            if (t.discount > 0) parts.push('discount on print ' + fmtPhp(t.discount));
+            if (t.discount > 0) parts.push('includes ₱' + t.discount.toFixed(2) + ' discount');
             if (t.delivery > 0) parts.push('includes delivery ' + fmtPhp(t.delivery));
             el('sqPreviewSaveNote').textContent = parts.join(' · ') + '.';
         } else {
             el('sqPreviewSaveNote').classList.add('hidden');
-        }
-        const hint = el('sqDiscountHint');
-        if (hint) {
-            if (t.autoDiscount > 0 && !sqDiscountManual) {
-                hint.textContent = 'Auto ₱' + t.autoDiscount.toFixed(2) + ' from retail − quoted. You can increase it so print shows a bigger discount.';
-                hint.classList.remove('text-gray-500');
-                hint.classList.add('text-emerald-700');
-            } else if (sqDiscountManual) {
-                hint.textContent = 'Manual discount — increase to show bigger savings on print. Grand total includes delivery.';
-                hint.classList.remove('text-emerald-700');
-                hint.classList.add('text-gray-500');
-            } else {
-                hint.textContent = 'Lower unit price below list retail to auto-fill discount. Grand total = materials + tax + delivery.';
-                hint.classList.remove('text-emerald-700');
-                hint.classList.add('text-gray-500');
-            }
         }
         const taxRow = el('sqPreviewTaxRow');
         if (t.taxRate > 0) {
@@ -1673,13 +1632,11 @@
     function wireSqLineRow(tr) {
         tr.querySelectorAll('.sq-line-qty, .sq-line-price').forEach((inp) => {
             inp.addEventListener('input', () => {
-                sqDiscountManual = false;
                 refreshSqLineTotal(tr);
                 refreshSqTotals();
             });
         });
         tr.querySelector('.sq-line-free')?.addEventListener('change', () => {
-            sqDiscountManual = false;
             refreshSqLineTotal(tr);
             refreshSqTotals();
         });
@@ -1725,8 +1682,7 @@
         sqApplyLineUnitHints(tr);
         const isFree = !!tr.querySelector('.sq-line-free')?.checked;
         const qty = parseFloat(tr.querySelector('.sq-line-qty')?.value) || 0;
-        const retail = sqLineRetail(tr);
-        const quoted = sqLineQuoted(tr);
+        const unit = sqLineQuoted(tr);
         const cell = tr.querySelector('.sq-line-total');
         if (!cell) return;
         if (isFree) {
@@ -1735,18 +1691,9 @@
             cell.classList.remove('text-gray-800');
             return;
         }
-        let html = fmtPhp(qty * quoted);
-        if (retail > quoted + 0.0005) {
-            html += `<div class="text-[10px] font-normal text-gray-500">List ${fmtPhp(qty * retail)}</div>`;
-        }
-        cell.innerHTML = html;
+        cell.textContent = fmtPhp(qty * unit);
         cell.classList.remove('text-red-600', 'italic', 'font-bold');
         cell.classList.add('text-gray-800');
-        const priceInp = tr.querySelector('.sq-line-price');
-        if (priceInp) {
-            priceInp.classList.toggle('border-emerald-400', retail > quoted + 0.0005);
-            priceInp.classList.toggle('bg-emerald-50/40', retail > quoted + 0.0005);
-        }
     }
 
     function addLineRow(data = {}) {
@@ -1809,7 +1756,7 @@
             <td class="py-3 px-2 align-top">
                 <select class="sq-line-unit block w-full min-w-[4.5rem] rounded-lg border border-gray-300 px-2 py-2 text-xs shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25">${sqLineUnitSelectOptions('pc')}</select>
             </td>
-            <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Unit price" title="Quoted price — auto-fills at list retail"></td>
+            <td class="py-3 px-2 align-top"><input type="number" step="0.01" min="0" class="sq-line-price block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" placeholder="Unit price"></td>
             <td class="py-3 px-2 align-top text-center">
                 <label class="inline-flex cursor-pointer items-center justify-center gap-1.5" title="Mark as free — shown in red on print, not charged">
                     <input type="checkbox" class="sq-line-free h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500">
@@ -1933,7 +1880,6 @@
         el('sqForm').reset();
         el('sqLinesBody').innerHTML = '';
         el('sqId').value = '';
-        sqDiscountManual = false;
         el('sqTotalsPreview')?.classList.add('hidden');
         if (create) {
             el('sqModalTitle').textContent = 'New quotation';
@@ -2051,7 +1997,6 @@
             el('sqTaxRate').value = q.tax_rate ?? 0;
             el('sqDiscount').value = q.discount_amount ?? 0;
             el('sqDeliveryCharge').value = q.delivery_charge ?? 0;
-            sqDiscountManual = (parseFloat(q.discount_amount) || 0) > 0;
             el('sqValidUntil').value = q.valid_until ? String(q.valid_until).slice(0, 10) : '';
             el('sqNotes').value = q.notes || '';
             el('sqTerms').value = q.terms || '';
@@ -2077,7 +2022,7 @@
                 is_long_span: it.is_long_span,
             }));
             if (!(q.items || []).length) addLineRow();
-            refreshSqTotals({ skipAutoDiscount: sqDiscountManual });
+            refreshSqTotals();
             return;
         }
         if (action === 'delete') {
@@ -2159,16 +2104,7 @@
             last.querySelector('.sq-line-base-search')?.focus();
         }
     });
-    el('sqDiscount').addEventListener('focus', () => { sqDiscountManual = true; });
-    el('sqDiscount').addEventListener('input', () => {
-        sqDiscountManual = true;
-        refreshSqTotals({ skipAutoDiscount: true });
-    });
-    el('sqRecalcDiscountBtn')?.addEventListener('click', () => {
-        sqDiscountManual = false;
-        refreshSqTotals();
-        toast('Customer discount recalculated from line prices.', true);
-    });
+    el('sqDiscount').addEventListener('input', refreshSqTotals);
     el('sqDeliveryCharge').addEventListener('input', refreshSqTotals);
     el('sqTaxRate').addEventListener('input', refreshSqTotals);
     el('sqSaveDraftBtn').addEventListener('click', () => saveQuotation());

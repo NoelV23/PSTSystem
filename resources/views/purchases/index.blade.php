@@ -145,7 +145,7 @@
 <!-- Add/Edit Purchase Modal -->
 <div id="purchaseModal" class="pointer-events-none fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
-        <div class="pointer-events-auto w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+        <div class="pointer-events-auto w-full max-w-6xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-7xl xl:max-w-[90rem] 2xl:max-w-[96rem]">
             <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
                 <h3 id="modalTitle" class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">New Purchase Order</h3>
                 <button type="button" id="closeModal" class="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Close">
@@ -220,11 +220,11 @@
                         <h4 class="text-base font-semibold text-gray-900 sm:text-lg">Purchase items</h4>
                     </div>
                     <p class="mb-3 text-xs text-gray-500">Pick from your product list, or type an item name for special orders not yet in inventory.</p>
-                    <div class="hidden px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:grid sm:grid-cols-12 sm:gap-3">
-                        <div class="sm:col-span-5">Product</div>
+                    <div class="hidden px-1 pb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 sm:grid sm:grid-cols-12 sm:gap-4">
+                        <div class="sm:col-span-6">Product</div>
                         <div class="sm:col-span-2">Qty</div>
                         <div class="sm:col-span-2">Unit cost</div>
-                        <div class="sm:col-span-2 text-right">Line total</div>
+                        <div class="sm:col-span-1 text-right">Line total</div>
                         <div class="sm:col-span-1"></div>
                     </div>
                     <div id="purchaseItemsList" class="space-y-4">
@@ -252,7 +252,7 @@
 <!-- Receive draft PO → record invoice & stock -->
 <div id="receivePurchaseModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-gray-900/50 backdrop-blur-[1px]">
     <div class="flex min-h-[100dvh] items-end justify-center px-3 pb-8 pt-4 sm:items-center sm:px-6 sm:py-10 lg:px-10">
-        <div class="w-full max-w-5xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-6xl">
+        <div class="w-full max-w-6xl max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl sm:max-h-[90vh] lg:max-w-7xl xl:max-w-[90rem]">
             <div class="flex flex-shrink-0 items-start justify-between gap-4 border-b border-gray-100 px-5 py-4 sm:px-7 lg:px-8">
                 <div>
                     <h3 class="text-lg font-semibold leading-snug text-gray-900 sm:text-xl">Receive / record invoice</h3>
@@ -1676,29 +1676,29 @@ function renderPurchaseItems() {
         const usesLm = poUsesLmPricing(item);
         return `
         <div class="grid grid-cols-1 gap-4 rounded-xl border border-gray-200 bg-white p-4 sm:grid-cols-12 sm:items-start sm:gap-4 ${usesLm ? 'po-row-long-span' : ''}" data-po-line-index="${index}">
-            <div class="sm:col-span-5">
+            <div class="min-w-0 sm:col-span-6">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Product</label>
-                <div class="flex flex-wrap items-end gap-2">
-                    <div class="relative min-w-0 flex-1 sm:min-w-[12rem]">
+                <div class="space-y-2">
+                    <div class="relative w-full min-w-0">
                         <input type="text" autocomplete="off" class="item-product-search w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" placeholder="${isCustom ? 'Item name…' : 'Search product…'}" value="${escapeHtml(isCustom ? (item.custom_item_name || item.description || '') : poLineProductInputValue(item.product_id))}">
                         <div class="item-product-dropdown hidden max-h-48 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg"></div>
                     </div>
-                    <div class="po-variant-wrap ${isCustom ? 'hidden' : ''} flex min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:flex-nowrap">
-                        <select class="po-line-var-color max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" data-index="${index}"></select>
-                        <select class="po-line-var-thick max-w-[9rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" data-index="${index}"></select>
-                        <select class="po-line-var-meas max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" data-index="${index}"></select>
+                    <div class="po-variant-wrap ${isCustom ? 'hidden' : ''} flex w-full min-w-0 flex-wrap items-center gap-2">
+                        <select class="po-line-var-color min-w-[5.5rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" data-index="${index}"></select>
+                        <select class="po-line-var-thick min-w-[5.5rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" data-index="${index}"></select>
+                        <select class="po-line-var-meas min-w-[6rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[12rem]" data-index="${index}"></select>
                     </div>
-                    <div class="po-custom-specs-wrap ${isCustom ? 'flex' : 'hidden'} min-w-0 shrink-0 flex-wrap items-end gap-1.5 sm:flex-nowrap">
-                        <input type="text" class="po-custom-color max-w-[7rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" placeholder="Color (optional)" value="${escapeHtml(item.custom_color || '')}">
-                        <input type="text" class="po-custom-thickness max-w-[9rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" placeholder="Thickness (optional)" value="${escapeHtml(item.custom_thickness || '')}">
-                        <input type="text" class="po-custom-measurement max-w-[11rem] rounded border border-gray-300 bg-white px-2 py-1.5 text-xs" placeholder="Size / length (optional)" value="${escapeHtml(item.custom_measurement || '')}">
+                    <div class="po-custom-specs-wrap ${isCustom ? 'flex' : 'hidden'} w-full min-w-0 flex-wrap items-center gap-2">
+                        <input type="text" class="po-custom-color min-w-[5.5rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[8rem]" placeholder="Color (optional)" value="${escapeHtml(item.custom_color || '')}">
+                        <input type="text" class="po-custom-thickness min-w-[5.5rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[10rem]" placeholder="Thickness (optional)" value="${escapeHtml(item.custom_thickness || '')}">
+                        <input type="text" class="po-custom-measurement min-w-[6rem] max-w-full flex-1 rounded border border-gray-300 bg-white px-2 py-1.5 text-xs sm:max-w-[12rem]" placeholder="Size / length (optional)" value="${escapeHtml(item.custom_measurement || '')}">
                     </div>
                 </div>
                 ${isCustom ? '<span class="mt-1 inline-block text-xs text-blue-600">Special order</span>' : ''}
                 ${item.is_long_span ? '<span class="mt-1 ml-1 inline-block text-xs text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded">Long span</span>' : ''}
-                <div class="po-line-cut-wrap hidden mt-2 rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
+                <div class="po-line-cut-wrap hidden mt-2 w-full rounded-lg border border-dashed border-amber-200 bg-amber-50/60 p-2">
                     <p class="mb-1 text-xs font-medium text-amber-900">Cut size</p>
-                    <div class="po-line-cut-fields flex flex-wrap items-center gap-2"></div>
+                    <div class="po-line-cut-fields flex w-full flex-wrap items-center gap-2"></div>
                 </div>
             </div>
             <div class="sm:col-span-2">
@@ -1712,7 +1712,7 @@ function renderPurchaseItems() {
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">${usesLm ? 'Unit cost (per m)' : 'Unit cost'}</label>
                 <input type="number" class="item-cost block w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm tabular-nums shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/25" data-index="${index}" value="${item.cost_price}" min="${costMin}" step="0.01" placeholder="${usesLm ? 'Per meter' : '0.00'}">
             </div>
-            <div class="sm:col-span-2 sm:text-right">
+            <div class="sm:col-span-1 sm:text-right">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 sm:sr-only">Line total</label>
                 <div class="item-subtotal rounded-lg border border-transparent bg-gray-50 px-3 py-2.5 text-sm font-semibold tabular-nums text-gray-900 sm:inline-block sm:border-0 sm:bg-transparent sm:px-0 sm:py-0" data-index="${index}">₱${lineTotal(item).toFixed(2)}</div>
             </div>

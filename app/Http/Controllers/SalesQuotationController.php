@@ -480,19 +480,18 @@ class SalesQuotationController extends Controller
     protected function recalculateTotals(SalesQuotation $quotation): void
     {
         $quotation->load('items');
-        $quotedSubtotal = (float) $quotation->items->sum(function ($item) {
+        $subtotal = (float) $quotation->items->sum(function ($item) {
             return $item->is_free ? 0 : (float) $item->line_total;
         });
-        $discount = max(0, (float) ($quotation->discount_amount ?? 0));
+        $discount = min(max(0, (float) ($quotation->discount_amount ?? 0)), $subtotal);
         $delivery = max(0, (float) ($quotation->delivery_charge ?? 0));
-        $displaySubtotal = round($quotedSubtotal + $discount, 2);
-        $afterDiscount = round($quotedSubtotal, 2);
+        $afterDiscount = round($subtotal - $discount, 2);
         $taxRate = (float) ($quotation->tax_rate ?? 0);
         $taxAmount = round($afterDiscount * ($taxRate / 100), 2);
         $grand = round($afterDiscount + $taxAmount + $delivery, 2);
 
         $quotation->update([
-            'subtotal' => $displaySubtotal,
+            'subtotal' => round($subtotal, 2),
             'discount_amount' => round($discount, 2),
             'tax_amount' => $taxAmount,
             'grand_total' => $grand,
